@@ -16,6 +16,52 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID||"";
 const SHEETS_ID = "1MQn0i-QXvMAOSLsvnBrtycQK9KFdLrvtNAToM10qC-0";
 const COACH_PASS     = "ATP2026coach";
 const API_KEY       = import.meta.env.VITE_API_KEY||"";
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL||"";
+const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY||"";
+
+async function sbGet(clientId, key) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.${encodeURIComponent(clientId)}&data_key=eq.${encodeURIComponent(key)}&select=data_value`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    });
+    const rows = await res.json();
+    return rows?.[0]?.data_value ?? null;
+  } catch(e) { return null; }
+}
+
+async function sbSet(clientId, key, value) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+      method: "POST",
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
+      body: JSON.stringify({client_id: clientId, data_key: key, data_value: value, updated_at: new Date().toISOString()})
+    });
+  } catch(e) {}
+}
+
+async function sbGetGlobal(key) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}&select=data_value`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    });
+    const rows = await res.json();
+    return rows?.[0]?.data_value ?? null;
+  } catch(e) { return null; }
+}
+
+async function sbSetGlobal(key, value) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+      method: "POST",
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
+      body: JSON.stringify({client_id: "__global__", data_key: key, data_value: value, updated_at: new Date().toISOString()})
+    });
+  } catch(e) {}
+}
 
 const G = {
   green:"#2d6a4f", greenMid:"#52b788", greenLight:"#b7e4c7",
@@ -210,6 +256,77 @@ export default function AllThingsPossible(){
   const [selfRegError,setSelfRegError] = useState("");
   const [tempPasscode,setTempPasscode] = useState({});
 
+  useEffect(()=>{
+    async function loadData(){
+      try{
+        // Try Supabase first, fall back to localStorage
+        const sbClients = await sbGetGlobal(CLIENTS_KEY);
+        const cl = sbClients || JSON.parse(localStorage.getItem(CLIENTS_KEY)||"null");
+        if(cl) setClients(cl);
+
+        const sbLogs = await sbGetGlobal(LOGS_KEY);
+        const lg = sbLogs || JSON.parse(localStorage.getItem(LOGS_KEY)||"null");
+        if(lg) setLogs(lg);
+
+        const sbMsgs = await sbGetGlobal(MSGS_KEY);
+        const ms = sbMsgs || JSON.parse(localStorage.getItem(MSGS_KEY)||"null");
+        if(ms) setMessages(ms);
+
+        const sbPlans = await sbGetGlobal(PLANS_KEY);
+        const pl = sbPlans || JSON.parse(localStorage.getItem(PLANS_KEY)||"null");
+        if(pl) setPlans(pl);
+
+        const sbDesk = await sbGetGlobal(DESK_KEY);
+        const dk = sbDesk || JSON.parse(localStorage.getItem(DESK_KEY)||"null");
+        if(dk) setDeskLog(dk);
+
+        const sbDeskMoves = await sbGetGlobal(DESKMOVES_KEY);
+        const dm = sbDeskMoves || JSON.parse(localStorage.getItem(DESKMOVES_KEY)||"null");
+        if(dm) setDeskMoves(dm);
+
+        const sbRatings = await sbGetGlobal(RATINGS_KEY);
+        const rt = sbRatings || JSON.parse(localStorage.getItem(RATINGS_KEY)||"null");
+        if(rt) setRatings(rt);
+
+        const sbNutrition = await sbGetGlobal(NUTRITION_KEY);
+        const nt = sbNutrition || JSON.parse(localStorage.getItem(NUTRITION_KEY)||"null");
+        if(nt) setNutrition(nt);
+
+        const sbMoveProfile = await sbGetGlobal(MOVEPROFILE_KEY);
+        const mp = sbMoveProfile || JSON.parse(localStorage.getItem(MOVEPROFILE_KEY)||"null");
+        if(mp) setMoveProfile(mp);
+
+        const sbProgram = await sbGetGlobal(PROGRAM_KEY);
+        const pg = sbProgram || JSON.parse(localStorage.getItem(PROGRAM_KEY)||"null");
+        if(pg) setProgram(pg);
+
+        const sbBodyStats = await sbGetGlobal(BODYSTATS_KEY);
+        const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
+        if(bs) setBodyStats(bs);
+
+        const sc=localStorage.getItem(SESSION_KEY);
+        if(sc){
+          const s=JSON.parse(sc);
+          if(s.role==="coach"){ setScreen("coach"); }
+          else if(s.clientId){
+            const clientList = cl || DEMO_CLIENTS;
+            const found = clientList.find(c=>c.id===s.clientId);
+            if(found){
+              setCurrentClient(found);
+              setScreen("client");
+              const todayLg=(lg||{})[found.id]||{};
+              const prayedToday=todayLg[todayStr()]?.prayerDone||false;
+              if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
+              else { setTab("prayer"); }
+            }
+          }
+        }
+      }catch(e){ console.error("Load error:",e); }
+      setTimeout(()=>{ if(!localStorage.getItem(SESSION_KEY)) setScreen("login"); },1800);
+    }
+    loadData();
+  },[]);
+
   useEffect(()=>{ 
     try{
       const cl=localStorage.getItem(CLIENTS_KEY);  if(cl) setClients(JSON.parse(cl));
@@ -265,7 +382,7 @@ export default function AllThingsPossible(){
     return()=>clearTimeout(restTimerRef.current);
   },[restTimerRunning,restTimerSec]);
 
-  function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
+function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
     const cl=nc||clients,lg=nl||logs,ms=nm||messages,pl=np||plans;
     const dk=ndk||deskLog,dm=ndm||deskMoves,rt=nr||ratings,nt=nn||nutrition;
     setClients(cl);setLogs(lg);setMessages(ms);setPlans(pl);
@@ -283,6 +400,18 @@ export default function AllThingsPossible(){
       localStorage.setItem(PROGRAM_KEY,JSON.stringify(program));
       localStorage.setItem(BODYSTATS_KEY,JSON.stringify(bodyStats));
     }catch(e){}
+    // Sync to Supabase (non-blocking)
+    sbSetGlobal(CLIENTS_KEY, cl);
+    sbSetGlobal(LOGS_KEY, lg);
+    sbSetGlobal(MSGS_KEY, ms);
+    sbSetGlobal(PLANS_KEY, pl);
+    sbSetGlobal(DESK_KEY, dk);
+    sbSetGlobal(DESKMOVES_KEY, dm);
+    sbSetGlobal(RATINGS_KEY, rt);
+    sbSetGlobal(NUTRITION_KEY, nt);
+    sbSetGlobal(MOVEPROFILE_KEY, moveProfile);
+    sbSetGlobal(PROGRAM_KEY, program);
+    sbSetGlobal(BODYSTATS_KEY, bodyStats);
   }
   function startClientLogin(c){ setLoginTarget(c); setPasscodeInput(""); setPasscodeError(""); setLoginMode("passcode"); }
 
