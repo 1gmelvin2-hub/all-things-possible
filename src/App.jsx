@@ -340,6 +340,77 @@ export default function AllThingsPossible(){
     loadData();
   },[]);
 
+  useEffect(()=>{
+    async function loadData(){
+      try{
+        // Try Supabase first, fall back to localStorage
+        const sbClients = await sbGetGlobal(CLIENTS_KEY);
+        const cl = sbClients || JSON.parse(localStorage.getItem(CLIENTS_KEY)||"null");
+        if(cl) setClients(cl);
+
+        const sbLogs = await sbGetGlobal(LOGS_KEY);
+        const lg = sbLogs || JSON.parse(localStorage.getItem(LOGS_KEY)||"null");
+        if(lg) setLogs(lg);
+
+        const sbMsgs = await sbGetGlobal(MSGS_KEY);
+        const ms = sbMsgs || JSON.parse(localStorage.getItem(MSGS_KEY)||"null");
+        if(ms) setMessages(ms);
+
+        const sbPlans = await sbGetGlobal(PLANS_KEY);
+        const pl = sbPlans || JSON.parse(localStorage.getItem(PLANS_KEY)||"null");
+        if(pl) setPlans(pl);
+
+        const sbDesk = await sbGetGlobal(DESK_KEY);
+        const dk = sbDesk || JSON.parse(localStorage.getItem(DESK_KEY)||"null");
+        if(dk) setDeskLog(dk);
+
+        const sbDeskMoves = await sbGetGlobal(DESKMOVES_KEY);
+        const dm = sbDeskMoves || JSON.parse(localStorage.getItem(DESKMOVES_KEY)||"null");
+        if(dm) setDeskMoves(dm);
+
+        const sbRatings = await sbGetGlobal(RATINGS_KEY);
+        const rt = sbRatings || JSON.parse(localStorage.getItem(RATINGS_KEY)||"null");
+        if(rt) setRatings(rt);
+
+        const sbNutrition = await sbGetGlobal(NUTRITION_KEY);
+        const nt = sbNutrition || JSON.parse(localStorage.getItem(NUTRITION_KEY)||"null");
+        if(nt) setNutrition(nt);
+
+        const sbMoveProfile = await sbGetGlobal(MOVEPROFILE_KEY);
+        const mp = sbMoveProfile || JSON.parse(localStorage.getItem(MOVEPROFILE_KEY)||"null");
+        if(mp) setMoveProfile(mp);
+
+        const sbProgram = await sbGetGlobal(PROGRAM_KEY);
+        const pg = sbProgram || JSON.parse(localStorage.getItem(PROGRAM_KEY)||"null");
+        if(pg) setProgram(pg);
+
+        const sbBodyStats = await sbGetGlobal(BODYSTATS_KEY);
+        const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
+        if(bs) setBodyStats(bs);
+
+        const sc=localStorage.getItem(SESSION_KEY);
+        if(sc){
+          const s=JSON.parse(sc);
+          if(s.role==="coach"){ setScreen("coach"); }
+          else if(s.clientId){
+            const clientList = cl || DEMO_CLIENTS;
+            const found = clientList.find(c=>c.id===s.clientId);
+            if(found){
+              setCurrentClient(found);
+              setScreen("client");
+              const todayLg=(lg||{})[found.id]||{};
+              const prayedToday=todayLg[todayStr()]?.prayerDone||false;
+              if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
+              else { setTab("prayer"); }
+            }
+          }
+        }
+      }catch(e){ console.error("Load error:",e); }
+      setTimeout(()=>{ if(!localStorage.getItem(SESSION_KEY)) setScreen("login"); },1800);
+    }
+    loadData();
+  },[]);
+
   useEffect(()=>{ 
     try{
       const cl=localStorage.getItem(CLIENTS_KEY);  if(cl) setClients(JSON.parse(cl));
