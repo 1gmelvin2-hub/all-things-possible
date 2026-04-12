@@ -16,6 +16,52 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID||"";
 const SHEETS_ID = "1MQn0i-QXvMAOSLsvnBrtycQK9KFdLrvtNAToM10qC-0";
 const COACH_PASS     = "ATP2026coach";
 const API_KEY       = import.meta.env.VITE_API_KEY||"";
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL||"";
+const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY||"";
+
+async function sbGet(clientId, key) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.${encodeURIComponent(clientId)}&data_key=eq.${encodeURIComponent(key)}&select=data_value`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    });
+    const rows = await res.json();
+    return rows?.[0]?.data_value ?? null;
+  } catch(e) { return null; }
+}
+
+async function sbSet(clientId, key, value) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+      method: "POST",
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
+      body: JSON.stringify({client_id: clientId, data_key: key, data_value: value, updated_at: new Date().toISOString()})
+    });
+  } catch(e) {}
+}
+
+async function sbGetGlobal(key) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}&select=data_value`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    });
+    const rows = await res.json();
+    return rows?.[0]?.data_value ?? null;
+  } catch(e) { return null; }
+}
+
+async function sbSetGlobal(key, value) {
+  if(!SUPABASE_URL||!SUPABASE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+      method: "POST",
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
+      body: JSON.stringify({client_id: "__global__", data_key: key, data_value: value, updated_at: new Date().toISOString()})
+    });
+  } catch(e) {}
+}
 
 const G = {
   green:"#2d6a4f", greenMid:"#52b788", greenLight:"#b7e4c7",
@@ -205,10 +251,94 @@ export default function AllThingsPossible(){
   const EQUIPMENT_OPTIONS=["Dumbbells","Resistance bands","Yoga mat","Treadmill","Pull-up bar","Gym membership","No equipment"];
   const DAYS_OF_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const WORKOUT_TIMES=["Morning","Afternoon","Evening","No preference"];
-  const [selfReg,setSelfReg]       = useState({name:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:""});
+ const [selfReg,setSelfReg]       = useState({name:"",email:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:""});
   const [selfRegGroup,setSelfRegGroup] = useState(0);
   const [selfRegError,setSelfRegError] = useState("");
   const [tempPasscode,setTempPasscode] = useState({});
+  const [clientMsgDraft,setClientMsgDraft] = useState("");
+  const [tooltip,setTooltip] = useState({visible:false,text:"",x:0,y:0});
+  const [inviteCode,setInviteCode] = useState("ATP2026join");
+  const [inviteCodeInput,setInviteCodeInput] = useState("");
+  const [editInviteCode,setEditInviteCode] = useState("");
+  const [photoPreview,setPhotoPreview] = useState(null);
+  const [photoMacros,setPhotoMacros] = useState(null);
+  const [analyzingPhoto,setAnalyzingPhoto] = useState(false);
+  const [showPasscodeReveal,setShowPasscodeReveal] = useState({});
+  const photoInputRef = useRef(null);
+  const [fromHealthBoard,setFromHealthBoard] = useState(false);
+
+  useEffect(()=>{
+    async function loadData(){
+      try{
+        // Try Supabase first, fall back to localStorage
+        const sbClients = await sbGetGlobal(CLIENTS_KEY);
+        const cl = sbClients || JSON.parse(localStorage.getItem(CLIENTS_KEY)||"null");
+        if(cl) setClients(cl);
+
+        const sbLogs = await sbGetGlobal(LOGS_KEY);
+        const lg = sbLogs || JSON.parse(localStorage.getItem(LOGS_KEY)||"null");
+        if(lg) setLogs(lg);
+
+        const sbMsgs = await sbGetGlobal(MSGS_KEY);
+        const ms = sbMsgs || JSON.parse(localStorage.getItem(MSGS_KEY)||"null");
+        if(ms) setMessages(ms);
+
+        const sbPlans = await sbGetGlobal(PLANS_KEY);
+        const pl = sbPlans || JSON.parse(localStorage.getItem(PLANS_KEY)||"null");
+        if(pl) setPlans(pl);
+
+        const sbDesk = await sbGetGlobal(DESK_KEY);
+        const dk = sbDesk || JSON.parse(localStorage.getItem(DESK_KEY)||"null");
+        if(dk) setDeskLog(dk);
+
+        const sbDeskMoves = await sbGetGlobal(DESKMOVES_KEY);
+        const dm = sbDeskMoves || JSON.parse(localStorage.getItem(DESKMOVES_KEY)||"null");
+        if(dm) setDeskMoves(dm);
+
+        const sbRatings = await sbGetGlobal(RATINGS_KEY);
+        const rt = sbRatings || JSON.parse(localStorage.getItem(RATINGS_KEY)||"null");
+        if(rt) setRatings(rt);
+
+        const sbNutrition = await sbGetGlobal(NUTRITION_KEY);
+        const nt = sbNutrition || JSON.parse(localStorage.getItem(NUTRITION_KEY)||"null");
+        if(nt) setNutrition(nt);
+
+        const sbMoveProfile = await sbGetGlobal(MOVEPROFILE_KEY);
+        const mp = sbMoveProfile || JSON.parse(localStorage.getItem(MOVEPROFILE_KEY)||"null");
+        if(mp) setMoveProfile(mp);
+
+        const sbProgram = await sbGetGlobal(PROGRAM_KEY);
+        const pg = sbProgram || JSON.parse(localStorage.getItem(PROGRAM_KEY)||"null");
+        if(pg) setProgram(pg);
+
+        const sbBodyStats = await sbGetGlobal(BODYSTATS_KEY);
+        const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
+        if(bs) setBodyStats(bs);
+
+        const sbInvite = await sbGetGlobal("atp-invitecode");
+        if(sbInvite) setInviteCode(sbInvite);
+        const sc=localStorage.getItem(SESSION_KEY);
+        if(sc){
+          const s=JSON.parse(sc);
+          if(s.role==="coach"){ setScreen("coach"); }
+          else if(s.clientId){
+            const clientList = cl || DEMO_CLIENTS;
+            const found = clientList.find(c=>c.id===s.clientId);
+            if(found){
+              setCurrentClient(found);
+              setScreen("client");
+              const todayLg=(lg||{})[found.id]||{};
+              const prayedToday=todayLg[todayStr()]?.prayerDone||false;
+              if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
+              else { setTab("prayer"); }
+            }
+          }
+        }
+      }catch(e){ console.error("Load error:",e); }
+      setTimeout(()=>{ if(!localStorage.getItem(SESSION_KEY)) setScreen("login"); },1800);
+    }
+    loadData();
+  },[]);
 
   useEffect(()=>{ 
     try{
@@ -265,7 +395,7 @@ export default function AllThingsPossible(){
     return()=>clearTimeout(restTimerRef.current);
   },[restTimerRunning,restTimerSec]);
 
-  function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
+function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
     const cl=nc||clients,lg=nl||logs,ms=nm||messages,pl=np||plans;
     const dk=ndk||deskLog,dm=ndm||deskMoves,rt=nr||ratings,nt=nn||nutrition;
     setClients(cl);setLogs(lg);setMessages(ms);setPlans(pl);
@@ -283,6 +413,18 @@ export default function AllThingsPossible(){
       localStorage.setItem(PROGRAM_KEY,JSON.stringify(program));
       localStorage.setItem(BODYSTATS_KEY,JSON.stringify(bodyStats));
     }catch(e){}
+    // Sync to Supabase (non-blocking)
+    sbSetGlobal(CLIENTS_KEY, cl);
+    sbSetGlobal(LOGS_KEY, lg);
+    sbSetGlobal(MSGS_KEY, ms);
+    sbSetGlobal(PLANS_KEY, pl);
+    sbSetGlobal(DESK_KEY, dk);
+    sbSetGlobal(DESKMOVES_KEY, dm);
+    sbSetGlobal(RATINGS_KEY, rt);
+    sbSetGlobal(NUTRITION_KEY, nt);
+    sbSetGlobal(MOVEPROFILE_KEY, moveProfile);
+    sbSetGlobal(PROGRAM_KEY, program);
+    sbSetGlobal(BODYSTATS_KEY, bodyStats);
   }
   function startClientLogin(c){ setLoginTarget(c); setPasscodeInput(""); setPasscodeError(""); setLoginMode("passcode"); }
 
@@ -749,12 +891,13 @@ function submitSelfReg(){
     if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
     const equipList=[...selfReg.equipment,...(selfReg.equipmentOther.trim()?[selfReg.equipmentOther.trim()]:[])].join(", ")||"None";
     const nc={
-      id:"c"+Date.now(), name:selfReg.name, age:parseInt(selfReg.age)||0,
+      id:"c"+Date.now(), name:selfReg.name, email:selfReg.email||"", age:parseInt(selfReg.age)||0,
       weight:parseFloat(selfReg.weight)||0, goalWeight:parseFloat(selfReg.goalWeight)||0,
       goal:selfReg.goal||"General wellness", level:selfReg.level,
       joined:todayStr(), avatar:selfReg.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),
       likes:selfReg.likes||"", equipment:equipList,
-      workoutDays:selfReg.workoutDays, workoutTime:selfReg.workoutTime||"Morning",
+     workoutDays:selfReg.workoutDays, workoutTime:selfReg.workoutTime||"Morning",
+      workoutDuration:selfReg.workoutDuration||"45 min",
       quickMoveDays:selfReg.quickMoveDays, longRunDay:selfReg.longRunDay||"",
       canUpdateSchedule:selfReg.canUpdateSchedule,
       injury:selfReg.injury||"none", medical:selfReg.medical||"none",
@@ -765,6 +908,125 @@ function submitSelfReg(){
     setCurrentClient(nc); setScreen("client"); setTab("prayer");
     setLoginMode("select");
     try{ localStorage.setItem(SESSION_KEY,JSON.stringify({role:"client",clientId:nc.id})); }catch(e){}
+  }
+
+  // ── HEALTH BOARD HELPERS ──────────────────────────────────────────────────
+  const CYAN="#22d3ee";
+  function getLoginStatus(cid){
+    const allDates=Object.keys(logs[cid]||{}).sort().reverse();
+    if(allDates.length===0) return{color:CYAN,reason:"Never logged in — reach out to get them started!"};
+    const diff=Math.floor((new Date()-new Date(allDates[0]+"T12:00:00"))/86400000);
+    if(diff<=2) return{color:"#4ade80",reason:`Checked in ${diff===0?"today":diff===1?"yesterday":`${diff} days ago`}`};
+    if(diff<=5) return{color:"#facc15",reason:`Last check-in ${diff} days ago — nudge them!`};
+    return{color:"#f87171",reason:`No check-in in ${diff} days — follow up needed`};
+  }
+  function getWeightStatus(cid){
+    const weightLogs=Object.values(logs[cid]||{}).filter(l=>l.weight&&l.date).sort((a,b)=>a.date>b.date?1:-1);
+    if(weightLogs.length<2) return{color:CYAN,reason:"Not enough weigh-ins yet — encourage them to log Tuesday & Friday"};
+    const last=weightLogs[weightLogs.length-1];
+    const prev=weightLogs[weightLogs.length-2];
+    const diff=+(parseFloat(last.weight)-parseFloat(prev.weight)).toFixed(1);
+    if(diff<=-1.5&&diff>=-3) return{color:"#4ade80",reason:`Lost ${Math.abs(diff)} lbs — perfect healthy range!`};
+    if(diff>-1.5&&diff<=0) return{color:"#facc15",reason:`Only lost ${Math.abs(diff)} lbs — below target pace of 1.5-3 lbs/week`};
+    if(diff>0&&diff<=1.5) return{color:"#facc15",reason:`Gained ${diff} lbs — worth checking in on`};
+    if(diff<-3) return{color:"#f87171",reason:`Lost ${Math.abs(diff)} lbs — losing too fast, may need adjustment`};
+    return{color:"#f87171",reason:`Gained ${diff} lbs — coach follow-up needed`};
+  }
+  function getNutritionStatus(cid){
+    const clientWeight=clients.find(c=>c.id===cid)?.weight||150;
+    const nutriDays=Object.keys(nutrition[cid]||{}).filter(d=>((nutrition[cid]||{})[d]||[]).some(m=>m.meal!=="__water__")).sort().slice(-7);
+    if(nutriDays.length===0) return{color:CYAN,reason:"No meals logged this week — encourage them to start tracking"};
+    const score=Math.round(nutriDays.reduce((acc,date)=>{
+      const meals=((nutrition[cid]||{})[date]||[]).filter(m=>m.meal!=="__water__");
+      const t=getDayTotals(meals); const tgt=getTargets(clientWeight);
+      return acc+(t.protein>=tgt.protein*0.8?40:t.protein>=tgt.protein*0.6?20:0)+(t.carbs<=tgt.carbs?30:t.carbs<=tgt.carbs*1.2?15:0)+(t.sugar<=tgt.sugar?30:t.sugar<=tgt.sugar*1.3?15:0);
+    },0)/nutriDays.length);
+    if(score>=70) return{color:"#4ade80",reason:`Nutrition score ${score}% — eating well!`};
+    if(score>=50) return{color:"#facc15",reason:`Nutrition score ${score}% — room for improvement`};
+    return{color:"#f87171",reason:`Nutrition score ${score}% — struggling, needs coaching`};
+  }
+  function getWorkoutStatus(cid){
+    const clientR=ratings[cid]||[];
+    if(clientR.length===0) return{color:CYAN,reason:"No workouts logged yet — help them get started"};
+    const last=clientR[clientR.length-1];
+    const daysSince=Math.floor((new Date()-new Date(last.date+"T12:00:00"))/86400000);
+    const recent=clientR.slice(-3);
+    const allOne=recent.length>=3&&recent.every(r=>r.rating===1);
+    const allFive=recent.length>=3&&recent.every(r=>r.rating===5);
+    if(daysSince>=6) return{color:"#f87171",reason:`No workout in ${daysSince} days — check in!`};
+    if(allOne) return{color:"#f87171",reason:"Last 3 workouts rated Too Easy — plan needs adjusting"};
+    if(allFive) return{color:"#f87171",reason:"Last 3 workouts rated Too Hard — client may be struggling"};
+    if(daysSince>=3) return{color:"#facc15",reason:`Last workout ${daysSince} days ago — gentle nudge time`};
+    const mixed=recent.some(r=>r.rating===1)&&recent.some(r=>r.rating===5);
+    if(mixed) return{color:"#facc15",reason:"Inconsistent workout ratings — check in with client"};
+    return{color:"#4ade80",reason:`Workout logged ${daysSince===0?"today":daysSince===1?"yesterday":`${daysSince} days ago`} — on track!`};
+  }
+  function getMessageStatus(cid){
+    const allMsgs=messages[cid]||[];
+    const coachMsgs=allMsgs.filter(m=>m.from==="coach");
+    const clientMsgs2=allMsgs.filter(m=>m.from==="client");
+    if(allMsgs.length===0) return{color:CYAN,reason:"No messages yet — send a welcome message!"};
+    // Check if there's an unanswered client message
+    if(clientMsgs2.length>0){
+      const lastClientMsg=clientMsgs2[clientMsgs2.length-1];
+      const lastCoachMsg=coachMsgs.length>0?coachMsgs[coachMsgs.length-1]:null;
+      const clientMsgTime=new Date(lastClientMsg.ts).getTime();
+      const coachMsgTime=lastCoachMsg?new Date(lastCoachMsg.ts).getTime():0;
+      if(clientMsgTime>coachMsgTime){
+        // Client messaged after last coach reply
+        const waitMins=Math.floor((Date.now()-clientMsgTime)/60000);
+        const waitHrs=Math.floor(waitMins/60);
+        const msgSentToday=new Date(lastClientMsg.ts).toDateString()===new Date().toDateString();
+        if(waitMins<=120) return{color:"#4ade80",reason:`Client messaged ${waitMins}min ago — within 2hr window`};
+        if(msgSentToday) return{color:"#facc15",reason:`Client messaged ${waitHrs}hrs ago — reply today!`};
+        return{color:"#f87171",reason:`Client message unanswered since ${new Date(lastClientMsg.ts).toLocaleDateString()} — urgent!`};
+      }
+    }
+    // No unanswered client message — check coach's last outreach
+    if(coachMsgs.length===0) return{color:CYAN,reason:"No messages sent yet — reach out!"};
+    const lastCoach=coachMsgs[coachMsgs.length-1];
+    const minsSince=Math.floor((Date.now()-new Date(lastCoach.ts).getTime())/60000);
+    if(minsSince<=120) return{color:"#4ade80",reason:`Last message sent ${minsSince} min ago`};
+    const sameDay=new Date(lastCoach.ts).toDateString()===new Date().toDateString();
+    if(sameDay) return{color:"#facc15",reason:"Messaged today but over 2 hours ago"};
+    return{color:"#f87171",reason:`Last message ${Math.floor(minsSince/1440)} days ago — client may feel unsupported`};
+  }
+  function getOverallStatus(cid){
+    const statuses=[getLoginStatus(cid),getWeightStatus(cid),getNutritionStatus(cid),getWorkoutStatus(cid),getMessageStatus(cid)];
+    if(statuses.some(s=>s.color==="#f87171")) return "#f87171";
+    if(statuses.some(s=>s.color==="#facc15")) return "#facc15";
+    if(statuses.some(s=>s.color===CYAN)) return CYAN;
+    return "#4ade80";
+  }
+
+  // ── PHOTO NUTRITION SCAN ──────────────────────────────────────────────────
+  async function analyzePhoto(file){
+    setAnalyzingPhoto(true); setPhotoMacros(null);
+    try{
+      const reader=new FileReader();
+      reader.onload=async(e)=>{
+        const base64=e.target.result.split(",")[1];
+        const mediaType=file.type||"image/jpeg";
+        const res=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+          body:JSON.stringify({
+            model:"claude-haiku-4-5-20251001",
+            max_tokens:1000,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+              {type:"text",text:`Look at this image carefully. If it shows a nutrition label, extract the EXACT values. If it shows a plate or bowl of food, ESTIMATE the macros based on what you see and approximate portion sizes. Either way return ONLY valid JSON (no markdown, no explanation): {"description":"What you identified in 1 sentence","protein":0,"fat":0,"carbs":0,"sugar":0,"calories":0,"confidence":"exact" or "estimated"}`}
+            ]}]
+          })
+        });
+        const data=await res.json();
+        const raw=data.content?.[0]?.text||"{}";
+        const macros=JSON.parse(raw.replace(/```json|```/g,"").trim());
+        setPhotoMacros(macros);
+        setAnalyzingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }catch(e){ console.error(e); setAnalyzingPhoto(false); }
   }
 
   function addNewClient(){
@@ -892,7 +1154,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
           }} disabled={!passcodeInput.trim()} style={{...btnGreen,opacity:passcodeInput.trim()?1:0.5}}>🔓 Sign In</button>
           <button onClick={()=>setLoginMode("forgot")} style={{background:"transparent",border:"none",color:G.mango,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textDecoration:"underline",textAlign:"center"}}>Forgot passcode?</button>
           <div style={{textAlign:"center",marginTop:6,display:"flex",flexDirection:"column",gap:8}}>
-            <button onClick={()=>{setSelfRegGroup(0);setSelfRegError("");setSelfReg({name:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:""});setLoginMode("register");}} style={{padding:"11px 20px",borderRadius:12,border:`1.5px solid ${G.greenMid}`,background:"#d8f3dc",color:G.green,fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✦ New Client? Register Here</button>
+            <button onClick={()=>{setSelfRegGroup(-1);setSelfRegError("");setInviteCodeInput("");setSelfReg({name:"",email:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:""});setLoginMode("register");}} style={{padding:"11px 20px",borderRadius:12,border:`1.5px solid ${G.greenMid}`,background:"#d8f3dc",color:G.green,fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✦ New Client? Register Here</button>
             <button onClick={()=>setLoginMode("coach")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>Coach login</button>
           </div>
         </div>
@@ -913,17 +1175,42 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
         <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"26px 24px 20px",textAlign:"center"}}><div style={{fontSize:"1.5rem",fontWeight:900,color:G.white}}>All Things Possible</div></div>
         <div style={{flex:1,padding:"28px 20px",display:"flex",flexDirection:"column",gap:16}}>
           <div style={{textAlign:"center",fontSize:"2rem",marginBottom:4}}>🔑</div>
-          <div style={card}><div style={{fontSize:"0.9rem",fontWeight:700,color:G.green,marginBottom:8,textAlign:"center"}}>Forgot Your Passcode?</div><div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7,textAlign:"center"}}>No worries! Contact your coach and ask them to reset your passcode. They can generate a temporary one for you from their dashboard.</div></div>
+          <div style={card}><div style={{fontSize:"0.9rem",fontWeight:700,color:G.green,marginBottom:8,textAlign:"center"}}>Forgot Your Passcode?</div><div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7,textAlign:"center"}}>No worries! Contact your coach and they'll send a reset code to your email, or generate a temporary passcode from their dashboard.</div></div>
           <div style={{...card,background:"linear-gradient(135deg,#f0faf4,#fff9f0)",border:`1px solid ${G.greenLight}`}}><div style={{fontSize:"0.74rem",color:G.green,fontStyle:"italic",textAlign:"center",lineHeight:1.7}}>"Come to me, all you who are weary and burdened, and I will give you rest." — Matthew 11:28</div></div>
           <button onClick={()=>setLoginMode("select")} style={btnGreen}>← Back to Login</button>
         </div>
       </div>
     );
 
-    if(loginMode==="register") {
+ if(loginMode==="register") {
+      // Step 0 — invite code gate
+      if(selfRegGroup===-1) return(
+        <div style={{minHeight:"100vh",background:G.cream,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column"}}>
+          <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"22px 24px 18px",textAlign:"center"}}>
+            <div style={{width:50,height:50,borderRadius:"50%",background:"rgba(255,255,255,.2)",border:"2px solid rgba(255,255,255,.4)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 8px",fontSize:"1.5rem"}}>✦</div>
+            <div style={{fontSize:"1.3rem",fontWeight:900,color:G.white}}>All Things Possible</div>
+            <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,.8)",marginTop:3,fontStyle:"italic"}}>Begin your wellness journey</div>
+          </div>
+          <div style={{flex:1,padding:"28px 20px",display:"flex",flexDirection:"column",gap:16}}>
+            <div style={{textAlign:"center"}}><div style={{fontSize:"2rem",marginBottom:8}}>🔐</div><div style={{fontSize:"0.9rem",fontWeight:700,color:G.green,marginBottom:6}}>Enter Your Invite Code</div><div style={{fontSize:"0.74rem",color:G.textSoft,lineHeight:1.6}}>Your coach provided you with an invite code to join All Things Possible. Enter it below to get started.</div></div>
+            <div style={card}>
+              <div style={lbl}>Invite Code</div>
+              <input value={inviteCodeInput} onChange={e=>{setInviteCodeInput(e.target.value);setSelfRegError("");}} placeholder="Enter your invite code..." style={iStyle} autoFocus/>
+              {selfRegError&&<div style={{marginTop:8,padding:"8px 12px",background:G.redLight,borderRadius:8,fontSize:"0.74rem",color:G.red}}>{selfRegError}</div>}
+            </div>
+            <button onClick={()=>{
+              if(inviteCodeInput.trim().toLowerCase()===inviteCode.toLowerCase()){setSelfRegError("");setSelfRegGroup(0);}
+              else{setSelfRegError("Invalid invite code. Please check with your coach.");}
+            }} disabled={!inviteCodeInput.trim()} style={{...btnGreen,opacity:inviteCodeInput.trim()?1:0.5}}>Continue →</button>
+            <button onClick={()=>{setLoginMode("select");setInviteCodeInput("");setSelfRegError("");}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
+          </div>
+        </div>
+      );
+
       const GROUPS=[
         {title:"Personal Info",icon:"👤",fields:[
           {q:"What's your full name?",field:"name",placeholder:"e.g. Maria Santos",type:"text"},
+          {q:"Your email address",field:"email",placeholder:"e.g. maria@email.com",type:"email"},
           {q:"How old are you?",field:"age",placeholder:"e.g. 45",type:"number"},
           {q:"Current weight (lbs)?",field:"weight",placeholder:"e.g. 165",type:"number"},
           {q:"Goal weight (lbs)?",field:"goalWeight",placeholder:"e.g. 145",type:"number"},
@@ -1639,11 +1926,55 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               {[{tier:"EAT MOST",foods:"Meat · Fish · Eggs · Poultry",color:"#4ade80"},{tier:"EAT PLENTY",foods:"Leafy greens · Broccoli · Peppers · Zucchini",color:"#a3e635"},{tier:"EAT REGULARLY",foods:"Avocado · Olive oil · Nuts · Cheese · Butter",color:"#fbbf24"},{tier:"EAT LITTLE",foods:"Berries · Legumes",color:"#fb923c"},{tier:"AVOID",foods:"Grains · Starchy carbs · Sugar · Processed foods",color:"#f87171"}].map((t,i)=>(<div key={i} style={{background:t.color+"11",borderRadius:7,padding:"5px 9px",marginBottom:4,borderLeft:`3px solid ${t.color}`}}><div style={{fontSize:"0.58rem",color:t.color,fontWeight:700,letterSpacing:1}}>{t.tier}</div><div style={{fontSize:"0.68rem",color:G.text,marginTop:1}}>{t.foods}</div></div>))}
             </div>
 
-            {/* Log a meal */}
+        {/* Log a meal */}
             <div style={card}>
               <div style={lbl}>Log a Meal</div>
               <div style={{display:"flex",gap:5,marginBottom:9,flexWrap:"wrap"}}>{MEAL_TYPES.map(t=>(<button key={t} onClick={()=>setMealType(t)} style={{padding:"5px 11px",borderRadius:20,border:`2px solid ${mealType===t?G.green:G.border}`,background:mealType===t?"#d8f3dc":G.cream,color:mealType===t?G.green:G.textSoft,fontSize:"0.72rem",fontWeight:mealType===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div>
-              <textarea value={mealText} onChange={e=>setMealText(e.target.value)} placeholder={`Describe your ${mealType.toLowerCase()}...\ne.g. "2 scrambled eggs, 3 strips bacon, black coffee"`} rows={3} style={{...iStyle,resize:"none",marginBottom:9}}/>
+              
+              {/* Two input options */}
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                <button onClick={()=>photoInputRef.current?.click()} style={{flex:1,padding:"12px",borderRadius:12,border:`2px dashed ${G.greenMid}`,background:"#f0faf4",color:G.green,fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                  <span style={{fontSize:"1.4rem"}}>📸</span>
+                  <span>Snap Label or Food</span>
+                  <span style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:400}}>AI reads it for you</span>
+                </button>
+                <input ref={photoInputRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f){setPhotoPreview(URL.createObjectURL(f));setPhotoMacros(null);analyzePhoto(f);}}}/>
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"12px",borderRadius:12,border:`2px dashed ${G.border}`,background:G.creamDark,color:G.textSoft,fontSize:"0.78rem",fontWeight:700,gap:4}}>
+                  <span style={{fontSize:"1.4rem"}}>⌨️</span>
+                  <span>Type it in</span>
+                  <span style={{fontSize:"0.62rem",fontWeight:400}}>below</span>
+                </div>
+              </div>
+
+              {/* Photo preview + confirm */}
+              {photoPreview&&(
+                <div style={{marginBottom:10}}>
+                  <img src={photoPreview} alt="Food" style={{width:"100%",borderRadius:10,maxHeight:180,objectFit:"cover",marginBottom:8}}/>
+                  {analyzingPhoto&&<div style={{textAlign:"center",fontSize:"0.76rem",color:G.green,fontWeight:600}}>✨ Claude is reading your food...</div>}
+                  {photoMacros&&!analyzingPhoto&&(
+                    <div style={{background:"#f0faf4",borderRadius:10,padding:"12px",border:`1px solid ${G.greenLight}`}}>
+                      <div style={{fontSize:"0.74rem",fontWeight:700,color:G.green,marginBottom:4}}>📸 {photoMacros.confidence==="exact"?"Label Read":"Visual Estimate"}</div>
+                      <div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:8,fontStyle:"italic"}}>{photoMacros.description}</div>
+                      <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:10}}>
+                        {[{l:"Protein",v:photoMacros.protein,c:"#4ade80"},{l:"Fat",v:photoMacros.fat,c:"#fbbf24"},{l:"Carbs",v:photoMacros.carbs,c:"#fb923c"},{l:"Sugar",v:photoMacros.sugar,c:"#f87171"}].map((x,i)=><span key={i} style={{fontSize:"0.7rem"}}><span style={{fontWeight:700,color:x.c}}>{x.v}g</span><span style={{color:G.textSoft}}> {x.l}</span></span>)}
+                        <span style={{fontSize:"0.7rem",color:G.brown,fontWeight:700}}>{photoMacros.calories} kcal</span>
+                      </div>
+                      <div style={{display:"flex",gap:8}}>
+                        <button onClick={()=>{
+                          const today=todayStr(); const cid=currentClient.id;
+                          const todayMealsNow=(nutrition[cid]||{})[today]||[];
+                          const newEntry={meal:mealType,text:photoMacros.description||"Photo logged meal",protein:photoMacros.protein||0,fat:photoMacros.fat||0,carbs:photoMacros.carbs||0,sugar:photoMacros.sugar||0,calories:photoMacros.calories||0,feedback:`${photoMacros.confidence==="exact"?"Exact from label":"AI visual estimate"} 📸`,ts:new Date().toISOString()};
+                          persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:[...todayMealsNow,newEntry]}});
+                          setPhotoPreview(null); setPhotoMacros(null);
+                        }} style={{...btnGreen,flex:1,padding:"9px",fontSize:"0.76rem"}}>✓ Log This Meal</button>
+                        <button onClick={()=>{setPhotoPreview(null);setPhotoMacros(null);}} style={{padding:"9px 13px",borderRadius:10,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.74rem",cursor:"pointer"}}>✕</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <textarea value={mealText} onChange={e=>setMealText(e.target.value)} placeholder={`Or type your ${mealType.toLowerCase()}...\ne.g. "2 scrambled eggs, 3 strips bacon, black coffee"`} rows={3} style={{...iStyle,resize:"none",marginBottom:9}}/>
               <button onClick={analyzeMeal} disabled={analyzingMeal||!mealText.trim()} style={{...btnGreen,opacity:mealText.trim()?1:0.5}}>{analyzingMeal?"✨ Analyzing macros...":"✓ Log & Analyze Macros"}</button>
             </div>
 
@@ -2160,13 +2491,40 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         )}
 
         {/* ── MESSAGES ── */}
-        {tab==="messages"&&(
+        {tab==="messages"&&(()=>{
+          const allClientMsgs=messages[currentClient.id]||[];
+          const coachMsgsForClient=allClientMsgs.filter(m=>m.from==="coach");
+          const myMsgsToCoach=allClientMsgs.filter(m=>m.from==="client");
+          return(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>💌 Messages from Your Coach</div>
-            {clientMsgs.length===0?<div style={{...card,textAlign:"center",padding:"28px 20px"}}><div style={{fontSize:"2rem",marginBottom:7}}>💌</div><div style={{fontSize:"0.78rem",color:G.textSoft}}>No messages yet!</div></div>
-              :clientMsgs.map((m,i)=>(<div key={i} style={{...card,border:`1.5px solid ${G.greenLight}`,background:"#f0faf4"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Your Coach</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65}}>{m.text}</div></div>))}
+            <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>💌 Messages</div>
+            <div style={card}>
+              <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:8}}>✦ From Your Coach</div>
+              {coachMsgsForClient.length===0
+                ?<div style={{fontSize:"0.74rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No messages yet — your coach will reach out soon! 🙏</div>
+                :coachMsgsForClient.map((m,i)=>(<div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65}}>{m.text}</div></div>))}
+            </div>
+            <div style={card}>
+              <div style={{fontSize:"0.72rem",fontWeight:700,color:G.brown,marginBottom:8}}>✉️ Message Your Coach</div>
+              {myMsgsToCoach.length>0&&(
+                <div style={{marginBottom:10}}>
+                  {myMsgsToCoach.slice(-3).map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"8px 12px",marginBottom:6,borderLeft:`3px solid ${G.mango}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:"0.64rem",fontWeight:700,color:G.brown}}>You</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.74rem",color:G.text}}>{m.text}</div></div>))}
+                </div>
+              )}
+              <textarea value={clientMsgDraft} onChange={e=>setClientMsgDraft(e.target.value)} placeholder="Write a message to your coach..." rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
+              <button onClick={()=>{
+                if(!clientMsgDraft.trim()) return;
+                const cid=currentClient.id;
+                const newMsg={from:"client",text:clientMsgDraft.trim(),ts:new Date().toISOString()};
+                persist(null,null,{...messages,[cid]:[...(messages[cid]||[]),newMsg]},null,null,null,null,null);
+                setClientMsgDraft("");
+              }} disabled={!clientMsgDraft.trim()} style={{...btnMango,opacity:clientMsgDraft.trim()?1:0.5,padding:"10px",fontSize:"0.78rem"}}>
+                ✉️ Send to Coach
+              </button>
+            </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
@@ -2185,7 +2543,22 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         </div>
 
         <div style={{display:"flex",borderBottom:`1px solid ${G.border}`,background:G.white}}>
-        {[["clients","👥","Clients"],["passcodes","🔑","Passcodes"],["messages","💌","Messages"],["resources","📚","Resources"],["add","➕","Add"]].map(([id,icon,label])=>(<button key={id} onClick={()=>{setCoachTab(id);setSelectedClientCoach(null);if(id==="resources"&&!sheetLoaded)fetchSheets();}}   style={{flex:1,padding:"7px 2px",border:"none",background:"transparent",color:coachTab===id?G.mangoDeep:G.textSoft,borderBottom:coachTab===id?`2px solid ${G.mangoDeep}`:"2px solid transparent",fontSize:"0.58rem",fontWeight:coachTab===id?700:400,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><span style={{fontSize:"0.85rem"}}>{icon}</span><span>{label}</span></button>))}
+        {[["clients","👥","Clients"],["healthboard","📊","Board"],["messages","💌","Messages"],["add","➕","Add"],["passcodes","🔑","Passcodes"],["resources","📚","Resources"]].map(([id,icon,label])=>{
+          const hasUnread=id==="messages"&&clients.some(c=>{
+            const allM=messages[c.id]||[];
+            const clientM=allM.filter(m=>m.from==="client");
+            const coachM=allM.filter(m=>m.from==="coach");
+            if(clientM.length===0) return false;
+            const lastClient=new Date(clientM[clientM.length-1].ts).getTime();
+            const lastCoach=coachM.length>0?new Date(coachM[coachM.length-1].ts).getTime():0;
+            return lastClient>lastCoach;
+          });
+          return(<button key={id} onClick={()=>{setCoachTab(id);setSelectedClientCoach(null);setFromHealthBoard(false);if(id==="resources"&&!sheetLoaded)fetchSheets();}} style={{flex:1,padding:"7px 2px",border:"none",background:"transparent",color:coachTab===id?G.mangoDeep:G.textSoft,borderBottom:coachTab===id?`2px solid ${G.mangoDeep}`:"2px solid transparent",fontSize:"0.52rem",fontWeight:coachTab===id?700:400,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1,position:"relative"}}>
+            <span style={{fontSize:"0.82rem"}}>{icon}</span>
+            <span>{label}</span>
+            {hasUnread&&<div style={{position:"absolute",top:4,right:6,width:7,height:7,borderRadius:"50%",background:G.mangoDeep}}/>}
+          </button>);
+        })}
         </div>
 
         {coachTab==="clients"&&!selectedClientCoach&&(
@@ -2230,7 +2603,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
           return(
             <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
-              <button onClick={()=>setSelectedClientCoach(null)} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"left",padding:0}}>← Back</button>
+             <button onClick={()=>{setSelectedClientCoach(null);if(fromHealthBoard){setCoachTab("healthboard");setFromHealthBoard(false);}}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"left",padding:0}}>{fromHealthBoard?"← Back to Health Board":"← Back"}</button> 
               <div style={{display:"flex",alignItems:"center",gap:11}}>
                 <div style={{width:50,height:50,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.95rem",fontWeight:700,color:G.white}}>{selectedClientCoach.avatar}</div>
                 <div><div style={{fontSize:"0.95rem",fontWeight:700,color:G.text}}>{selectedClientCoach.name}</div><div style={{fontSize:"0.66rem",color:G.textSoft}}>Age {selectedClientCoach.age} · {selectedClientCoach.weight}lbs → {selectedClientCoach.goalWeight}lbs</div></div>
@@ -2386,27 +2759,166 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
           );
         })()}
 
-        {coachTab==="passcodes"&&(
+        {/* ── HEALTH BOARD ── */}
+        {coachTab==="healthboard"&&(
+          <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>📊 Health Board</div>
+            <div style={{fontSize:"0.7rem",color:G.textSoft,marginTop:-6}}>Tap any colored box to see why. Tap a client row to view their profile.</div>
+
+            {/* Summary cards */}
+            {(()=>{
+              const active=clients.filter(c=>c.active!==false);
+              const allGreen=active.filter(c=>getOverallStatus(c.id)==="#4ade80").length;
+              const needAttn=active.filter(c=>getOverallStatus(c.id)==="#facc15").length;
+              const followUp=active.filter(c=>getOverallStatus(c.id)==="#f87171").length;
+              const noContact=active.filter(c=>getOverallStatus(c.id)===CYAN).length;
+              return(
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
+                  {[{l:"On Track",v:allGreen,c:"#4ade80",icon:"✅"},{l:"Attention",v:needAttn,c:"#facc15",icon:"⚠️"},{l:"Follow Up",v:followUp,c:"#f87171",icon:"🚨"},{l:"No Contact",v:noContact,c:CYAN,icon:"💬"}].map((s,i)=>(
+                    <div key={i} style={{...card,textAlign:"center",padding:"8px 4px",border:`1.5px solid ${s.c}44`,background:`${s.c}11`}}>
+                      <div style={{fontSize:"1.1rem",fontWeight:900,color:s.c}}>{s.v}</div>
+                      <div style={{fontSize:"0.54rem",color:G.textSoft}}>{s.icon} {s.l}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Legend */}
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              {[{c:"#4ade80",l:"On track"},{c:"#facc15",l:"Needs attention"},{c:"#f87171",l:"Follow up"},{c:CYAN,l:"No data/contact"}].map((s,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:4}}>
+                  <div style={{width:10,height:10,borderRadius:2,background:s.c,flexShrink:0}}/>
+                  <span style={{fontSize:"0.6rem",color:G.textSoft}}>{s.l}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Table header */}
+            <div style={{background:G.creamDark,borderRadius:10,padding:"7px 10px"}}>
+              <div style={{display:"grid",gridTemplateColumns:"1.5fr 0.6fr 0.6fr 0.7fr 0.7fr 0.6fr",gap:4,alignItems:"center"}}>
+                {["Client","Login","Weight","Nutrition","Workout","Msgs"].map((h,i)=>(
+                  <div key={i} style={{fontSize:"0.56rem",fontWeight:700,color:G.textSoft,textTransform:"uppercase",letterSpacing:0.5,textAlign:i===0?"left":"center"}}>{h}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* Client rows — active only */}
+            {clients.filter(c=>c.active!==false).map(client=>{
+              const overall=getOverallStatus(client.id);
+              const login=getLoginStatus(client.id);
+              const weight=getWeightStatus(client.id);
+              const nutr=getNutritionStatus(client.id);
+              const workout=getWorkoutStatus(client.id);
+              const msgs=getMessageStatus(client.id);
+              const rowBg=overall==="#4ade80"?"#f0faf4":overall==="#facc15"?"#fffbf0":overall==="#f87171"?"#fff5f5":"#f0feff";
+              return(
+                <div key={client.id} style={{...card,padding:"10px",border:`1.5px solid ${overall}55`,background:rowBg,cursor:"pointer"}}
+                  onClick={()=>{setSelectedClientCoach(client);setCoachTab("clients");setFromHealthBoard(true);}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1.5fr 0.6fr 0.6fr 0.7fr 0.7fr 0.6fr",gap:4,alignItems:"center"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7}}>
+                      <div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.64rem",fontWeight:700,color:G.white,flexShrink:0}}>{client.avatar}</div>
+                      <div>
+                        <div style={{fontSize:"0.72rem",fontWeight:700,color:G.text}}>{client.name.split(" ")[0]}</div>
+                        <div style={{fontSize:"0.56rem",color:G.textSoft}}>{client.weight}lbs</div>
+                      </div>
+                    </div>
+                    {[login,weight,nutr,workout,msgs].map((s,i)=>(
+                      <div key={i} style={{display:"flex",justifyContent:"center"}}
+                        onClick={e=>{
+                          e.stopPropagation();
+                          const rect=e.currentTarget.getBoundingClientRect();
+                          setTooltip({visible:true,text:s.reason,x:rect.left,y:rect.top});
+                          setTimeout(()=>setTooltip(t=>({...t,visible:false})),3500);
+                        }}>
+                        <div style={{width:26,height:26,borderRadius:6,background:s.color,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:`0 2px 6px ${s.color}55`,border:"1.5px solid rgba(255,255,255,0.4)"}}>
+                          <span style={{fontSize:"0.65rem",color:s.color==="#facc15"?"#78350f":"#fff",fontWeight:900}}>{s.color==="#4ade80"?"✓":s.color==="#facc15"?"!":s.color==="#f87171"?"✕":"?"}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Tooltip */}
+            {tooltip.visible&&(
+              <div style={{position:"fixed",top:Math.max(10,tooltip.y-70),left:Math.min(window.innerWidth-220,Math.max(10,tooltip.x-50)),background:"#1e293b",color:"#fff",padding:"9px 13px",borderRadius:10,fontSize:"0.72rem",maxWidth:210,zIndex:1000,boxShadow:"0 4px 20px rgba(0,0,0,.4)",lineHeight:1.5,pointerEvents:"none"}}>
+                {tooltip.text}
+              </div>
+            )}
+          </div>
+        )}
+
+{coachTab==="passcodes"&&(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>🔑 Client Passcodes</div>
+            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>🔑 Passcodes & Access</div>
+
+            {/* Invite Code */}
+            <div style={{...card,border:`2px solid ${G.mangoDeep}44`,background:"#fff9f0"}}>
+              <div style={{fontSize:"0.72rem",fontWeight:700,color:G.mangoDeep,marginBottom:4}}>🔐 Client Invite Code</div>
+              <div style={{fontSize:"0.68rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>Share this code with new clients so they can self-register. Change it anytime to control who can join.</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:G.creamDark,borderRadius:9,marginBottom:10}}>
+                <span style={{fontSize:"0.7rem",color:G.textSoft}}>Current code:</span>
+                <span style={{fontSize:"1rem",fontWeight:900,color:G.mangoDeep,fontFamily:"monospace",letterSpacing:2}}>{inviteCode}</span>
+              </div>
+              <div style={{display:"flex",gap:7}}>
+                <input value={editInviteCode} onChange={e=>setEditInviteCode(e.target.value)} placeholder="New invite code..." style={{...iStyle,flex:1}}/>
+                <button onClick={()=>{
+                  if(!editInviteCode.trim()) return;
+                  setInviteCode(editInviteCode.trim());
+                  sbSetGlobal("atp-invitecode",editInviteCode.trim());
+                  setEditInviteCode("");
+                }} disabled={!editInviteCode.trim()} style={{padding:"9px 13px",borderRadius:9,border:"none",background:editInviteCode.trim()?G.mangoDeep:"#ccc",color:G.white,fontSize:"0.74rem",fontWeight:700,cursor:editInviteCode.trim()?"pointer":"not-allowed"}}>Update</button>
+              </div>
+            </div>
+
+            {/* Client Passcodes */}
+            <div style={{fontSize:"0.72rem",fontWeight:700,color:G.textSoft,marginTop:4}}>CLIENT PASSCODES</div>
             {clients.map(client=>(<div key={client.id} style={card}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><div style={{width:36,height:36,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,color:G.white}}>{client.avatar}</div><div style={{fontSize:"0.82rem",fontWeight:700,color:G.text}}>{client.name}</div></div>
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:G.creamDark,borderRadius:9,marginBottom:10}}><span style={{fontSize:"0.7rem",color:G.textSoft}}>Passcode:</span><span style={{fontSize:"0.82rem",fontWeight:700,color:G.green,fontFamily:"monospace"}}>{client.passcode}</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <div style={{width:36,height:36,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,color:G.white}}>{client.avatar}</div>
+                <div style={{flex:1}}><div style={{fontSize:"0.82rem",fontWeight:700,color:G.text}}>{client.name}</div>{client.email&&<div style={{fontSize:"0.62rem",color:G.textSoft}}>{client.email}</div>}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:G.creamDark,borderRadius:9,marginBottom:10}}>
+                <span style={{fontSize:"0.7rem",color:G.textSoft}}>Passcode:</span>
+                <span style={{fontSize:"0.82rem",fontWeight:700,color:G.green,fontFamily:"monospace",flex:1}}>{showPasscodeReveal[client.id]?client.passcode:"••••••"}</span>
+                <button onClick={()=>setShowPasscodeReveal(p=>({...p,[client.id]:!p[client.id]}))} style={{background:"none",border:"none",cursor:"pointer",fontSize:"0.9rem",color:G.textSoft}}>{showPasscodeReveal[client.id]?"🙈":"👁️"}</button>
+              </div>
               <div style={{display:"flex",gap:7}}><input value={editPasscode[client.id]||""} onChange={e=>setEditPasscode(p=>({...p,[client.id]:e.target.value}))} placeholder="New passcode..." style={{...iStyle,flex:1}}/><button onClick={()=>updateClientPasscode(client.id,editPasscode[client.id]||"")} disabled={!editPasscode[client.id]?.trim()} style={{padding:"9px 13px",borderRadius:9,border:"none",background:editPasscode[client.id]?.trim()?G.green:"#ccc",color:G.white,fontSize:"0.74rem",fontWeight:700,cursor:editPasscode[client.id]?.trim()?"pointer":"not-allowed"}}>Update</button></div>
             </div>))}
           </div>
         )}
 
-        {coachTab==="messages"&&(
+      {coachTab==="messages"&&(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
-            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>Send Messages</div>
-            {clients.map(client=>(<div key={client.id} style={card}>
-              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}><div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:700,color:G.white}}>{client.avatar}</div><div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{client.name}</div></div>
-              <textarea value={msgDraft[client.id]||""} onChange={e=>setMsgDraft(p=>({...p,[client.id]:e.target.value}))} placeholder={`Write to ${client.name.split(" ")[0]}...`} rows={2} style={{...iStyle,resize:"none",marginBottom:7}}/>
-              <button onClick={()=>sendCoachMessage(client.id,msgDraft[client.id]||"")} style={{...btnMango,padding:"9px",fontSize:"0.76rem"}}>✉️ Send</button>
-            </div>))}
+            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>💌 Messages</div>
+            {clients.map(client=>{
+              const allMsgs=messages[client.id]||[];
+              const clientMsgsIn=allMsgs.filter(m=>m.from==="client");
+              const coachMsgsOut=allMsgs.filter(m=>m.from==="coach");
+              const hasUnread=clientMsgsIn.length>0&&(coachMsgsOut.length===0||new Date(clientMsgsIn[clientMsgsIn.length-1].ts)>new Date(coachMsgsOut[coachMsgsOut.length-1].ts));
+              return(<div key={client.id} style={{...card,border:`1.5px solid ${hasUnread?G.mangoDeep:G.border}`,background:hasUnread?"#fff9f0":G.white}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
+                  <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:700,color:G.white}}>{client.avatar}</div>
+                  <div style={{flex:1}}><div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{client.name}</div></div>
+                  {hasUnread&&<div style={{fontSize:"0.62rem",padding:"2px 8px",borderRadius:20,background:"#fff3e0",color:G.mangoDeep,fontWeight:700}}>📩 Reply needed</div>}
+                </div>
+                {clientMsgsIn.length>0&&(
+                  <div style={{marginBottom:10,background:"#fff9f0",borderRadius:10,padding:"8px 10px",border:`1px solid ${G.mango}44`}}>
+                    <div style={{fontSize:"0.64rem",fontWeight:700,color:G.mangoDeep,marginBottom:6}}>From {client.name.split(" ")[0]}:</div>
+                    {clientMsgsIn.slice(-2).map((m,i)=>(<div key={i} style={{marginBottom:i<clientMsgsIn.slice(-2).length-1?6:0,paddingBottom:i<clientMsgsIn.slice(-2).length-1?6:0,borderBottom:i<clientMsgsIn.slice(-2).length-1?`1px solid ${G.border}`:"none"}}>
+                      <div style={{fontSize:"0.6rem",color:G.textSoft,marginBottom:2}}>{new Date(m.ts).toLocaleDateString()} {new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+                      <div style={{fontSize:"0.74rem",color:G.text}}>{m.text}</div>
+                    </div>))}
+                  </div>
+                )}
+                <textarea value={msgDraft[client.id]||""} onChange={e=>setMsgDraft(p=>({...p,[client.id]:e.target.value}))} placeholder={hasUnread?`Reply to ${client.name.split(" ")[0]}...`:`Message ${client.name.split(" ")[0]}...`} rows={2} style={{...iStyle,resize:"none",marginBottom:7}}/>
+                <button onClick={()=>sendCoachMessage(client.id,msgDraft[client.id]||"")} style={{...btnMango,padding:"9px",fontSize:"0.76rem"}}>✉️ Send</button>
+              </div>);
+            })}
           </div>
-        )}
+        )}  
 
         {coachTab==="resources"&&(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
