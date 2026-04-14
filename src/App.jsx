@@ -55,21 +55,27 @@ async function sbGetGlobal(key) {
 async function sbSetGlobal(key, value) {
   if(!SUPABASE_URL||!SUPABASE_KEY) return;
   try {
-    // Try PATCH first (update existing)
-    const patch = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}`, {
-      method: "PATCH",
-      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
-      body: JSON.stringify({data_value: value, updated_at: new Date().toISOString()})
+    // Check if row exists first
+    const check = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}&select=id`, {
+      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
     });
-    // If no row existed to patch, insert a new one
-    if(patch.status===404||patch.status===204&&!(await sbGetGlobal(key))){
+    const rows = await check.json();
+    if(rows && rows.length > 0) {
+      // Row exists — PATCH it
+      await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}`, {
+        method: "PATCH",
+        headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
+        body: JSON.stringify({data_value: value, updated_at: new Date().toISOString()})
+      });
+    } else {
+      // Row does not exist — POST it
       await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
         method: "POST",
         headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
         body: JSON.stringify({client_id:"__global__", data_key: key, data_value: value, updated_at: new Date().toISOString()})
       });
     }
-  } catch(e) {}
+  } catch(e) { console.error("Supabase sync error:",key,e); }
 }
 const G = {
   green:"#2d6a4f", greenMid:"#52b788", greenLight:"#b7e4c7",
