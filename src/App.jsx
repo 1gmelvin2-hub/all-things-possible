@@ -286,51 +286,58 @@ export default function AllThingsPossible(){
   useEffect(()=>{
     async function loadData(){
       try{
-        // Try Supabase first, fall back to localStorage
-        const sbClients = await sbGetGlobal(CLIENTS_KEY);
+        // Try Supabase with a 3-second timeout, fall back to localStorage
+        async function sbGetSafe(key){
+          try{
+            return await Promise.race([
+              sbGetGlobal(key),
+              new Promise((_,reject)=>setTimeout(()=>reject(new Error("timeout")),3000))
+            ]);
+          }catch(e){ return null; }
+        }
+        const sbClients = await sbGetSafe(CLIENTS_KEY);
         const cl = sbClients || JSON.parse(localStorage.getItem(CLIENTS_KEY)||"null");
         if(cl) setClients(cl);
 
-        const sbLogs = await sbGetGlobal(LOGS_KEY);
+       const sbLogs = await sbGetSafe(LOGS_KEY);
         const lg = sbLogs || JSON.parse(localStorage.getItem(LOGS_KEY)||"null");
         if(lg) setLogs(lg);
 
-        const sbMsgs = await sbGetGlobal(MSGS_KEY);
+        const sbMsgs = await sbGetSafe(MSGS_KEY);
         const ms = sbMsgs || JSON.parse(localStorage.getItem(MSGS_KEY)||"null");
         if(ms) setMessages(ms);
 
-        const sbPlans = await sbGetGlobal(PLANS_KEY);
+        const sbPlans = await sbGetSafe(PLANS_KEY);
         const pl = sbPlans || JSON.parse(localStorage.getItem(PLANS_KEY)||"null");
         if(pl) setPlans(pl);
 
-        const sbDesk = await sbGetGlobal(DESK_KEY);
+        const sbDesk = await sbGetSafe(DESK_KEY);
         const dk = sbDesk || JSON.parse(localStorage.getItem(DESK_KEY)||"null");
         if(dk) setDeskLog(dk);
 
-        const sbDeskMoves = await sbGetGlobal(DESKMOVES_KEY);
+        const sbDeskMoves = await sbGetSafe(DESKMOVES_KEY);
         const dm = sbDeskMoves || JSON.parse(localStorage.getItem(DESKMOVES_KEY)||"null");
         if(dm) setDeskMoves(dm);
 
-        const sbRatings = await sbGetGlobal(RATINGS_KEY);
+        const sbRatings = await sbGetSafe(RATINGS_KEY);
         const rt = sbRatings || JSON.parse(localStorage.getItem(RATINGS_KEY)||"null");
         if(rt) setRatings(rt);
 
-        const sbNutrition = await sbGetGlobal(NUTRITION_KEY);
+        const sbNutrition = await sbGetSafe(NUTRITION_KEY);
         const nt = sbNutrition || JSON.parse(localStorage.getItem(NUTRITION_KEY)||"null");
         if(nt) setNutrition(nt);
 
-        const sbMoveProfile = await sbGetGlobal(MOVEPROFILE_KEY);
+        const sbMoveProfile = await sbGetSafe(MOVEPROFILE_KEY);
         const mp = sbMoveProfile || JSON.parse(localStorage.getItem(MOVEPROFILE_KEY)||"null");
         if(mp) setMoveProfile(mp);
 
-        const sbProgram = await sbGetGlobal(PROGRAM_KEY);
+        const sbProgram = await sbGetSafe(PROGRAM_KEY);
         const pg = sbProgram || JSON.parse(localStorage.getItem(PROGRAM_KEY)||"null");
         if(pg) setProgram(pg);
 
-        const sbBodyStats = await sbGetGlobal(BODYSTATS_KEY);
+        const sbBodyStats = await sbGetSafe(BODYSTATS_KEY);
         const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
-        if(bs) setBodyStats(bs);
-
+        if(bs) setBodyStats(bs); 
         const sbInvite = await sbGetGlobal("atp-invitecode");
         if(sbInvite) setInviteCode(sbInvite);
         const sc=localStorage.getItem(SESSION_KEY);
