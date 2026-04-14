@@ -363,11 +363,60 @@ export default function AllThingsPossible(){
     loadData();
   },[]);
 
-  useEffect(()=>{
+ useEffect(()=>{
     async function loadData(){
       try{
-        // Try Supabase first, fall back to localStorage
-        const sbClients = await sbGetGlobal(CLIENTS_KEY);
+        // STEP 1 — Load localStorage instantly so app never freezes
+        async function sbGetSafe(key){
+          try{
+            return await Promise.race([
+              sbGetGlobal(key),
+              new Promise((_,reject)=>setTimeout(()=>reject(new Error("timeout")),3000))
+            ]);
+          }catch(e){ return null; }
+        }
+
+        // Load from localStorage immediately
+        try{
+          const cl=localStorage.getItem(CLIENTS_KEY); if(cl) setClients(JSON.parse(cl));
+          const lg=localStorage.getItem(LOGS_KEY); if(lg) setLogs(JSON.parse(lg));
+          const ms=localStorage.getItem(MSGS_KEY); if(ms) setMessages(JSON.parse(ms));
+          const pl=localStorage.getItem(PLANS_KEY); if(pl) setPlans(JSON.parse(pl));
+          const dk=localStorage.getItem(DESK_KEY); if(dk) setDeskLog(JSON.parse(dk));
+          const dm=localStorage.getItem(DESKMOVES_KEY); if(dm) setDeskMoves(JSON.parse(dm));
+          const rt=localStorage.getItem(RATINGS_KEY); if(rt) setRatings(JSON.parse(rt));
+          const nt=localStorage.getItem(NUTRITION_KEY); if(nt) setNutrition(JSON.parse(nt));
+          const mp=localStorage.getItem(MOVEPROFILE_KEY); if(mp) setMoveProfile(JSON.parse(mp));
+          const pg=localStorage.getItem(PROGRAM_KEY); if(pg) setProgram(JSON.parse(pg));
+          const bs=localStorage.getItem(BODYSTATS_KEY); if(bs) setBodyStats(JSON.parse(bs));
+        }catch(e){}
+
+        // Handle session immediately — don't wait for Supabase
+        const sc=localStorage.getItem(SESSION_KEY);
+        if(sc){
+          try{
+            const s=JSON.parse(sc);
+            const localClients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||"[]");
+            const clientList=localClients.length?localClients:DEMO_CLIENTS;
+            if(s.role==="coach"){ setScreen("coach"); }
+            else if(s.clientId){
+              const found=clientList.find(c=>c.id===s.clientId);
+              if(found){
+                setCurrentClient(found);
+                setScreen("client");
+                const todayLg=(JSON.parse(localStorage.getItem(LOGS_KEY)||"{}"))[found.id]||{};
+                const prayedToday=todayLg[todayStr()]?.prayerDone||false;
+                if(prayedToday){ setTab("checkin"); }
+                else { setTab("prayer"); }
+              }
+            }
+          }catch(e){}
+        } else {
+          setScreen("login");
+        }
+
+        // STEP 2 — Sync Supabase in background after UI is already showing
+        const sbClients = await sbGetSafe(CLIENTS_KEY);
         const cl = sbClients || JSON.parse(localStorage.getItem(CLIENTS_KEY)||"null");
         if(cl) setClients(cl);
 
@@ -411,28 +460,12 @@ export default function AllThingsPossible(){
         const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
         if(bs) setBodyStats(bs);
 
-        const sc=localStorage.getItem(SESSION_KEY);
-        if(sc){
-          const s=JSON.parse(sc);
-          if(s.role==="coach"){ setScreen("coach"); }
-          else if(s.clientId){
-            const clientList = cl || DEMO_CLIENTS;
-            const found = clientList.find(c=>c.id===s.clientId);
-            if(found){
-              setCurrentClient(found);
-              setScreen("client");
-              const todayLg=(lg||{})[found.id]||{};
-              const prayedToday=todayLg[todayStr()]?.prayerDone||false;
-            if(prayedToday){ setTab("checkin"); }
-            else { setTab("prayer"); }
-            }
-          }
-        }
-      }catch(e){ console.error("Load error:",e); }
-      setTimeout(()=>{ if(!localStorage.getItem(SESSION_KEY)) setScreen("login"); },1800);
+ }catch(e){ console.error("Load error:",e); }
     }
+    // Safety timeout — never stay on splash longer than 4 seconds
+    setTimeout(()=>{ setScreen(s=>s==="splash"?"login":s); },4000);
     loadData();
-  },[]);
+  },[]); 
 
  // localStorage-only useEffect removed — Supabase useEffect above handles everything 
 
