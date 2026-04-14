@@ -331,7 +331,7 @@ export default function AllThingsPossible(){
               setScreen("client");
               const todayLg=(lg||{})[found.id]||{};
               const prayedToday=todayLg[todayStr()]?.prayerDone||false;
-              if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
+              if(prayedToday){ setTab("checkin"); }
               else { setTab("prayer"); }
             }
           }
@@ -402,8 +402,8 @@ export default function AllThingsPossible(){
               setScreen("client");
               const todayLg=(lg||{})[found.id]||{};
               const prayedToday=todayLg[todayStr()]?.prayerDone||false;
-              if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
-              else { setTab("prayer"); }
+            if(prayedToday){ setTab("checkin"); }
+            else { setTab("prayer"); }
             }
           }
         }
