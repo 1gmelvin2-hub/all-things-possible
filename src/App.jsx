@@ -145,7 +145,8 @@ const SITUATIONS=[
   {id:"gym",     icon:"🏋️", label:"At the gym"},
 ];
 
-const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Cardio"];
+const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Full Body","Cardio"];
+const GYM_LIFT_WEIGHTS={"Shoulders":["Shoulder Press","Lateral Raise"],"Arms (Biceps/Triceps)":["Bicep Curl","Tricep Pushdown"],"Chest":["Bench Press","Chest Fly"],"Back":["Bent-Over Row","Lat Pulldown"],"Legs":["Squat","Leg Press"],"Core/Abs":[],"Full Body":["Squat","Deadlift"],"Cardio":[]};
 const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
 
 const MOVEPROFILE_KEY="atp-moveprofile";
@@ -165,8 +166,9 @@ export default function AllThingsPossible(){
   const [showMoveSetup,setShowMoveSetup] = useState(false);
   const [moveSetupSit,setMoveSetupSit] = useState("");
   const [moveSetupEnjoys,setMoveSetupEnjoys] = useState("");
-  const [gymTarget,setGymTarget]             = useState("");
+ const [gymTarget,setGymTarget]             = useState("");
   const [deskTarget,setDeskTarget]           = useState("");
+  const [gymLiftWeights,setGymLiftWeights]   = useState({});
   const [program,setProgram]       = useState({});
   const [bodyStats,setBodyStats]   = useState({});
   const [bodyForm,setBodyForm]     = useState({arms:"",chest:"",waist:"",hips:"",thighs:"",bloodSugar:"",cholesterol:"",bloodPressure:"",steps:"",heartRate:"",sleep:""});
@@ -927,7 +929,10 @@ Return ONLY valid JSON array (no markdown):
     setAiLoading(true); setAiReply("");
     const c=currentClient;
     const tl=(logs[c.id]||{})[todayStr()];
-    const prompt=`You are a warm faith-based coach for "All Things Possible." Client: ${c.name}, age ${c.age}, goal: "${c.goal}". ${tl?`Today: mood=${tl.mood}, energy=${tl.energy}.`:""} Write 3-4 sentences of warm personal encouragement rooted in Christian faith. End with a scripture. Be genuine.`;
+    const recentRatings=(ratings[c.id]||[]).slice(-3);
+    const avgRating=recentRatings.length>0?(recentRatings.reduce((a,r)=>a+r.rating,0)/recentRatings.length).toFixed(1):null;
+    const workoutCount=(ratings[c.id]||[]).length;
+    const prompt=`You are a warm faith-based coach for "All Things Possible." Client: ${c.name}, age ${c.age}, goal: "${c.goal}". ${tl?`Today: mood=${tl.mood}, energy=${tl.energy}.`:""} ${workoutCount>0?`Workout activity: ${workoutCount} workouts logged, recent avg difficulty rating ${avgRating}/5.`:"No workouts logged yet."} Write 3-4 sentences of warm personal encouragement rooted in Christian faith. IMPORTANT: If they have logged workouts, specifically acknowledge the hard work they are putting in at the gym or during their workouts — not just nutrition. Celebrate both their physical effort AND their eating habits. End with a short scripture. Be genuine and personal.`;
     try{ const r=await callClaude(prompt); setAiReply(r); }
     catch(e){ setAiReply("You are fearfully and wonderfully made. Keep going — all things are possible!"); }
     setAiLoading(false);
@@ -952,6 +957,8 @@ function submitSelfReg(){
     };
     const newClients=[...clients,nc];
     persist(newClients,null,null,null,null,null,null,null);
+    // Force immediate Supabase push for new registration
+    sbSetGlobal(CLIENTS_KEY, newClients);
     setCurrentClient(nc); setScreen("client"); setTab("prayer");
     setLoginMode("select");
     try{ localStorage.setItem(SESSION_KEY,JSON.stringify({role:"client",clientId:nc.id})); }catch(e){}
@@ -974,13 +981,14 @@ function submitSelfReg(){
       injury:selfReg.injury||"none", medical:selfReg.medical||"none",
       passcode:selfReg.passcode, active:true, onboarded:true
     };
-    const newClients=[...clients,nc];
+   
+const newClients=[...clients,nc];
     persist(newClients,null,null,null,null,null,null,null);
+    sbSetGlobal(CLIENTS_KEY, newClients);
     setCurrentClient(nc); setScreen("client"); setTab("prayer");
     setLoginMode("select");
     try{ localStorage.setItem(SESSION_KEY,JSON.stringify({role:"client",clientId:nc.id})); }catch(e){}
   }
-
   // ── HEALTH BOARD HELPERS ──────────────────────────────────────────────────
   const CYAN="#22d3ee";
   function getLoginStatus(cid){
@@ -1139,7 +1147,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
 
   // Prayer must be completed today before other tabs unlock
    const todayLog     = currentClient ? (logs[currentClient.id]||{})[todayStr()] : null;
-  const prayerDoneToday = todayLog?.prayerDone || (form.prayerDone && form.prayerDate===todayStr()) || false; const [lockedMsg,setLockedMsg] = useState("");
+  const prayerDoneToday = todayLog?.prayerDone || false; const [lockedMsg,setLockedMsg] = useState("");
   const [showMoreMenu,setShowMoreMenu] = useState(false);
   const clientPlan   = currentClient ? plans[currentClient.id] : null;
   const clientMoves  = currentClient ? (deskMoves[currentClient.id]||[]) : [];
@@ -1897,6 +1905,23 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 </div>
               )}
 
+              {/* Gym starting weights */}
+              {moveSetupSit==="gym"&&gymTarget&&(GYM_LIFT_WEIGHTS[gymTarget]||[]).length>0&&(
+                <div style={card}>
+                  <div style={lbl}>🏋️ How much can you comfortably lift?</div>
+                  <div style={{fontSize:"0.7rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>This helps us build progressive overload into your 12-week plan. Enter what feels comfortable for <strong>1 set of 10 reps</strong>.</div>
+                  {(GYM_LIFT_WEIGHTS[gymTarget]||[]).map(lift=>(
+                    <div key={lift} style={{marginBottom:10}}>
+                      <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:5}}>💪 {lift}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <input type="number" value={gymLiftWeights[lift]||""} onChange={e=>setGymLiftWeights(p=>({...p,[lift]:e.target.value}))} placeholder="e.g. 45" style={{...iStyle,width:90,padding:"7px 10px"}}/>
+                        <span style={{fontSize:"0.76rem",color:G.textSoft}}>lbs</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Enjoys input */}
               {moveSetupSit!=="gym"&&(
                 <div style={card}>
@@ -1911,7 +1936,9 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 if(moveSetupSit==="gym"&&!gymTarget){alert("Please select what you want to work on!");return;}
                 if(moveSetupSit==="desk"&&!deskTarget){alert("Please select how you are working!");return;}
                 setShowMoveSetup(false);
-                const enjoys=moveSetupSit==="gym"?gymTarget:moveSetupSit==="desk"?`${deskTarget} — enjoys: ${moveSetupEnjoys||c?.likes||"general fitness"}`:moveSetupEnjoys;
+               const liftInfo=moveSetupSit==="gym"&&Object.keys(gymLiftWeights).length>0?` Starting weights: ${Object.entries(gymLiftWeights).map(([k,v])=>`${k}: ${v}lbs`).join(", ")}. Build progressive overload into suggestions.`:"";
+                const enjoys=moveSetupSit==="gym"?gymTarget+liftInfo:moveSetupSit==="desk"?`${deskTarget} — enjoys: ${moveSetupEnjoys||c?.likes||"general fitness"}`:moveSetupEnjoys;
+                generateDeskMoves(moveSetupSit,enjoys); 
                 generateDeskMoves(moveSetupSit,enjoys);
               }} disabled={generatingDesk||!moveSetupSit||(moveSetupSit==="gym"&&!gymTarget)||(moveSetupSit==="desk"&&!deskTarget)} style={{...btnGreen,opacity:(moveSetupSit&&(moveSetupSit!=="gym"||gymTarget)&&(moveSetupSit!=="desk"||deskTarget))?1:0.5}}>
                 {generatingDesk?"✨ Creating your moves...":"✨ Create My Quick Moves"}
