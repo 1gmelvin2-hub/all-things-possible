@@ -55,24 +55,25 @@ async function sbGetGlobal(key) {
 async function sbSetGlobal(key, value) {
   if(!SUPABASE_URL||!SUPABASE_KEY) return;
   try {
-    // Check if row exists first
-    const check = await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}&select=id`, {
-      headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`}
+    const body = JSON.stringify({client_id:"__global__", data_key: key, data_value: value, updated_at: new Date().toISOString()});
+    const headers = {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=minimal"
+    };
+    // Use PUT-style upsert which Safari handles better than PATCH
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+      method: "POST",
+      headers,
+      body
     });
-    const rows = await check.json();
-    if(rows && rows.length > 0) {
-      // Row exists — PATCH it
+    if(!res.ok){
+      // Fallback — try PATCH directly
       await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}`, {
         method: "PATCH",
         headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
         body: JSON.stringify({data_value: value, updated_at: new Date().toISOString()})
-      });
-    } else {
-      // Row does not exist — POST it
-      await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
-        method: "POST",
-        headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
-        body: JSON.stringify({client_id:"__global__", data_key: key, data_value: value, updated_at: new Date().toISOString()})
       });
     }
   } catch(e) { console.error("Supabase sync error:",key,e); }
