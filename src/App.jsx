@@ -413,39 +413,7 @@ export default function AllThingsPossible(){
     loadData();
   },[]);
 
-  useEffect(()=>{ 
-    try{
-      const cl=localStorage.getItem(CLIENTS_KEY);  if(cl) setClients(JSON.parse(cl));
-      const lg=localStorage.getItem(LOGS_KEY);     if(lg) setLogs(JSON.parse(lg));
-      const ms=localStorage.getItem(MSGS_KEY);     if(ms) setMessages(JSON.parse(ms));
-      const pl=localStorage.getItem(PLANS_KEY);    if(pl) setPlans(JSON.parse(pl));
-      const dk=localStorage.getItem(DESK_KEY);     if(dk) setDeskLog(JSON.parse(dk));
-      const dm=localStorage.getItem(DESKMOVES_KEY);if(dm) setDeskMoves(JSON.parse(dm));
-      const rt=localStorage.getItem(RATINGS_KEY);  if(rt) setRatings(JSON.parse(rt));
-      const nt=localStorage.getItem(NUTRITION_KEY);if(nt) setNutrition(JSON.parse(nt));
-      const mp=localStorage.getItem(MOVEPROFILE_KEY);if(mp) setMoveProfile(JSON.parse(mp));
-      const pg=localStorage.getItem(PROGRAM_KEY);if(pg) setProgram(JSON.parse(pg));
-      const bs=localStorage.getItem(BODYSTATS_KEY);if(bs) setBodyStats(JSON.parse(bs));
-      const sc=localStorage.getItem(SESSION_KEY);
-      if(sc){
-        const s=JSON.parse(sc);
-        if(s.role==="coach"){ setScreen("coach"); }
-        else if(s.clientId){
-          const cl2=JSON.parse(localStorage.getItem(CLIENTS_KEY)||"[]");
-          const found=(cl2.length?cl2:DEMO_CLIENTS).find(c=>c.id===s.clientId);
-      if(found){
-            setCurrentClient(found);
-            setScreen("client");
-            const todayLg=(JSON.parse(localStorage.getItem(LOGS_KEY)||"{}"))[found.id]||{};
-            const prayedToday=todayLg[todayStr()]?.prayerDone||false;
-            if(prayedToday){ setForm(p=>({...p,prayerDone:true})); setTab("checkin"); }
-            else { setTab("prayer"); }
-          }
-        }
-      }
-    }catch(e){}
-    setTimeout(()=>{ if(!localStorage.getItem(SESSION_KEY)) setScreen("login"); },1800);
-  },[]);
+ // localStorage-only useEffect removed — Supabase useEffect above handles everything 
 
  useEffect(()=>{
     if(timerRunning&&timerSec>0){ timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000); }
