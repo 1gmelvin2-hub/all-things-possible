@@ -1019,6 +1019,7 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
 const sit=SITUATIONS.find(s=>s.id===situation);
     const isGym=situation==="gym";
     const prompt=isGym?
+const prompt=isGym?
 `Create exactly 5 gym exercises targeting: ${enjoys}. Client: ${c.name}, age ${c.age}, fitness level: ${c.level}, equipment: ${c.equipment||"full gym"}, goal: ${c.goal}.
 
 INJURIES TO RESPECT: ${c.injury&&c.injury!=="none"?`Client has: ${c.injury}. AVOID exercises that aggravate this.`:"None reported."}
@@ -1029,9 +1030,12 @@ Rules:
 - Each exercise: sets, reps, rest period, form tip
 - Focus ONLY on ${enjoys} — do not mix muscle groups
 - Progress from compound to isolation exercises
+- ONLY show THIS WEEK'S prescription — no future weeks, no progressions mentioned
+- ALL weights must be in 5lb increments ONLY (e.g. 25, 30, 35, 40, 45) — never use 27.5, 32.5 or any non-5lb increment
+- Rest periods between 60-90 seconds
 
 Return ONLY valid JSON array (no markdown):
-[{"id":"ex1","icon":"💪","label":"Exercise Name","unit":"reps","defaultAmt":10,"instruction":"Sets x Reps, weight suggestion, form tip"}]`
+[{"id":"ex1","icon":"💪","label":"Exercise Name","unit":"reps","defaultAmt":10,"instruction":"3 sets x 10 reps @ 45lbs — rest 60 sec — form tip here"}]`
 :
 `Create exactly 5 quick exercises for someone who is currently: "${sit?.label||situation}". They enjoy: "${enjoys||c.likes||"general fitness"}". Client: ${c.name}, age ${c.age}, fitness level: ${c.level}, goal: ${c.goal}.
 
