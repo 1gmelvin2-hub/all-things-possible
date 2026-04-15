@@ -1840,9 +1840,61 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     </button>);
                   })}
                 </div>
-                {selectedDay!==null&&currentWeekPlan.days?.[selectedDay]&&(()=>{
+               {selectedDay!==null&&currentWeekPlan.days?.[selectedDay]&&(()=>{
                   const day=currentWeekPlan.days[selectedDay];
+                  const sessionDuration=day.sessionDuration||(currentClient.workoutDuration||"45 min");
                   return(<div style={card}>
+                    {/* Session duration selector */}
+                    <div style={{marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${G.border}`}}>
+                      <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:8}}>⏱ How long do you have today?</div>
+                      <div style={{display:"flex",gap:6}}>
+                        {["30 min","45 min","60 min","90 min"].map(t=>(
+                          <button key={t} onClick={async()=>{
+                            if(t===sessionDuration) return;
+                            const cid=currentClient.id;
+                            const updatedDays=currentWeekPlan.days.map((d,i)=>i===selectedDay?{...d,sessionDuration:t}:d);
+                            const updatedWeek={...currentWeekPlan,days:updatedDays};
+                            const updatedProgram={...program,[cid]:{...program[cid],weeks:{...program[cid].weeks,[program[cid].currentWeek]:updatedWeek}}};
+                            setProgram(updatedProgram);
+                            try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(updatedProgram));}catch(e){}
+                            // Regenerate this day with new duration
+                            setGeneratingWeek(true);
+                            const c=currentClient;
+                            let workoutRows=sheetData.workouts||[];
+                            if(workoutRows.length===0){
+                              try{
+                                const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+                                const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+                                const text=await res.text();
+                                const json=JSON.parse(text.substring(47).slice(0,-2));
+                                workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+                              }catch(e){}
+                            }
+                            const exerciseCount=t==="30 min"?4:t==="45 min"?6:t==="60 min"?8:12;
+                            const catMap={"Chest":["gym chest"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Back":["gym back"],"Core/Abs":["gym core"],"Stretching":["beginning stretch","intermediate stretch"],"Boxing":["basic shadow boxing","heavy bag combo","boxing only","power punching","defensive footwork","kickboxing combo"]};
+                            const dayFocus=day.focus||"";
+                            const catGuess=Object.keys(catMap).find(k=>dayFocus.toLowerCase().includes(k.toLowerCase()))||null;
+                            const cats=catGuess?catMap[catGuess]:[];
+                            const sheetExs=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exerciseCount).map(row=>({name:row[0],instructions:row[5],muscles:row[6],progression:row[7]}));
+                            const hasSheet=sheetExs.length>=3;
+                            const prompt=`You are a personal trainer. Rebuild this workout day for exactly ${t}. Client: ${c.name}, level: ${c.level}, focus: ${day.focus}.${hasSheet?` Use ONLY these exercises: ${sheetExs.map(e=>e.name).join(", ")}.`:""} Include exactly ${exerciseCount} exercises with sets, reps, rest periods scaled to fit ${t} total. Return ONLY valid JSON: {"day":"${day.day}","type":"${day.type}","focus":"${day.focus}","duration":"${t}","sessionDuration":"${t}","exercises":[{"name":"Exercise","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]}`;
+                            try{
+                              const raw=await callClaude(prompt);
+                              const newDay=JSON.parse(raw.replace(/```json|```/g,"").trim());
+                              const rebuiltDays=currentWeekPlan.days.map((d,i)=>i===selectedDay?{...newDay,sessionDuration:t}:d);
+                              const rebuiltWeek={...currentWeekPlan,days:rebuiltDays};
+                              const rebuiltProgram={...program,[cid]:{...program[cid],weeks:{...program[cid].weeks,[program[cid].currentWeek]:rebuiltWeek}}};
+                              setProgram(rebuiltProgram);
+                              try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(rebuiltProgram));}catch(e){}
+                            }catch(e){console.error(e);}
+                            setGeneratingWeek(false);
+                          }} style={{flex:1,padding:"8px 0",borderRadius:10,border:`2px solid ${sessionDuration===t?G.green:G.border}`,background:sessionDuration===t?"#d8f3dc":G.cream,color:sessionDuration===t?G.green:G.textSoft,fontSize:"0.72rem",fontWeight:sessionDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+                        ))}
+                      </div>
+                      {sessionDuration!==(currentClient.workoutDuration||"45 min")&&(
+                        <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:5,fontStyle:"italic"}}>Default: {currentClient.workoutDuration||"45 min"} · Today: {sessionDuration}</div>
+                      )}
+                    </div> 
    {(()=>{
                       const exercises=day.exercises||[];
                       const groupSize=4;
