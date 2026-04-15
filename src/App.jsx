@@ -12,6 +12,8 @@ const NUTRITION_KEY  = "atp-nutrition";
 const PROGRAM_KEY    = "atp-program";
 const BODYSTATS_KEY  = "atp-bodystats";
 const GFIT_KEY       = "atp-googlefit";
+const GYM_KEY        = "atp-gym";
+const GYM_STARTS_KEY = "atp-gymstarts";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID||"";
 const SHEETS_ID = "1MQn0i-QXvMAOSLsvnBrtycQK9KFdLrvtNAToM10qC-0";
 const COACH_PASS     = "ATP2026coach";
@@ -165,6 +167,413 @@ const GYM_LIFT_WEIGHTS={"Shoulders":["Shoulder Press","Lateral Raise"],"Arms (Bi
 const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
 
 const MOVEPROFILE_KEY="atp-moveprofile";
+
+function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate}){
+  const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
+  const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
+  const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
+
+  // Load saved data
+  const [gymPhase,setGymPhase]=useState(()=>{
+    try{ const s=localStorage.getItem("atp-gymstarts"); return s?"session":"baseline"; }catch(e){ return "baseline"; }
+  });
+  const [baselineWeights,setBaselineWeights]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem("atp-gymstarts")||"{}"); }catch(e){ return {}; }
+  });
+  const [baselineForm,setBaselineForm]=useState({});
+  const [gymHistory,setGymHistory]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem("atp-gym")||"[]"); }catch(e){ return []; }
+  });
+
+  // Session setup
+  const [selectedGroups,setSelectedGroups]=useState([]);
+  const [gymDuration,setGymDuration]=useState(currentClient.workoutDuration||"45 min");
+  const [gymSession,setGymSession]=useState(null);
+  const [generatingGym,setGeneratingGym]=useState(false);
+
+  // Active session
+  const [activePhase,setActivePhase]=useState("setup");
+  const [currentExIdx,setCurrentExIdx]=useState(0);
+  const [currentSetIdx,setCurrentSetIdx]=useState(0);
+  const [completedSets,setCompletedSets]=useState({});
+  const [restTimerSec,setRestTimerSec]=useState(0);
+  const [restRunning,setRestRunning]=useState(false);
+  const [sessionRating,setSessionRating]=useState(null);
+  const [sessionComplete,setSessionComplete]=useState(false);
+  const restRef=useRef(null);
+
+  useEffect(()=>{
+    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
+    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
+    return()=>clearTimeout(restRef.current);
+  },[restRunning,restTimerSec]);
+
+  // Get current week number from program
+  function getCurrentWeek(){
+    try{
+      const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");
+      return prog[currentClient.id]?.currentWeek||1;
+    }catch(e){ return 1; }
+  }
+
+  // Calculate weight/reps for current week
+  function getWeekPrescription(exerciseName, weekNum){
+    const baseline=baselineWeights[exerciseName]||baselineWeights[BASELINE_EXERCISES.find(b=>exerciseName.toLowerCase().includes(b.toLowerCase().split(" ")[0]))]||45;
+    const weightWeeks=[3,6,9];
+    const weightIncrements=weightWeeks.filter(w=>w<=weekNum).length;
+    const currentWeight=Math.round((parseFloat(baseline)+(weightIncrements*5))/5)*5;
+    let reps=8;
+    if(weekNum===1) reps=8;
+    else if(weightWeeks.includes(weekNum)) reps=8;
+    else {
+      const lastWeightWeek=weightWeeks.filter(w=>w<weekNum).pop()||0;
+      const repWeeksAfter=weekNum-lastWeightWeek-1;
+      reps=Math.min(8+(repWeeksAfter*2),16);
+    }
+    return{weight:currentWeight,reps,sets:3};
+  }
+
+  async function generateGymSession(){
+    if(selectedGroups.length===0) return;
+    setGeneratingGym(true);
+    const mins=parseInt(gymDuration)||45;
+    const exPerGroup=mins<=30?3:mins<=45?4:mins<=60?5:7;
+
+    let workoutRows=sheetData.workouts||[];
+    if(workoutRows.length===0){
+      try{
+        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const text=await res.text();
+        const json=JSON.parse(text.substring(47).slice(0,-2));
+        workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+        setSheetData(p=>({...p,workouts:workoutRows}));
+        setSheetLoaded(true);
+      }catch(e){ console.error(e); }
+    }
+
+    const weekNum=getCurrentWeek();
+    const exercises=[];
+
+    // Get exercises for each selected group
+    selectedGroups.forEach(group=>{
+      const cats=GYM_CAT_MAP[group]||[];
+      const groupExs=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({
+        name:row[0]||"",
+        category:row[1]||"",
+        muscles:row[6]||group,
+        instructions:row[5]||"",
+        progression:row[7]||"increase gym",
+        group,
+      }));
+      exercises.push(...groupExs);
+    });
+
+    // Interleave exercises from both groups
+    const interleaved=[];
+    if(selectedGroups.length===2){
+      const group1=exercises.filter(e=>e.group===selectedGroups[0]);
+      const group2=exercises.filter(e=>e.group===selectedGroups[1]);
+      const maxLen=Math.max(group1.length,group2.length);
+      for(let i=0;i<maxLen;i++){
+        if(i<group1.length) interleaved.push(group1[i]);
+        if(i<group2.length) interleaved.push(group2[i]);
+      }
+    } else {
+      interleaved.push(...exercises);
+    }
+
+    // Add prescription to each exercise
+    const withPrescription=interleaved.map(ex=>({
+      ...ex,
+      ...getWeekPrescription(ex.name,weekNum),
+    }));
+
+    // Add warm-up and core
+    const warmupExs=workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("warm-up")).slice(0,3).map(row=>({name:row[0],instructions:row[5]||"",muscles:"Full Body",group:"Warm-up",sets:1,reps:8,weight:0,progression:"none"}));
+    if(warmupExs.length<3){
+      const defaults=["Jumping Jacks","Arm Circles","Hip Rotations"];
+      while(warmupExs.length<3) warmupExs.push({name:defaults[warmupExs.length],instructions:"Keep it light",muscles:"Full Body",group:"Warm-up",sets:1,reps:10,weight:0,progression:"none"});
+    }
+
+    const coreExs=[
+      {name:"Plank",instructions:"Hold for 60 seconds, core tight",muscles:"Core",group:"Core",sets:3,reps:"60 sec",weight:0,progression:"increase time"},
+      {name:"Crunches",instructions:"Focus on the squeeze at the top",muscles:"Core",group:"Core",sets:3,reps:15,weight:0,progression:"increase reps"},
+      {name:"Leg Raises",instructions:"Keep lower back pressed to floor",muscles:"Core",group:"Core",sets:3,reps:12,weight:0,progression:"increase reps"},
+    ];
+
+    const session={
+      groups:selectedGroups,
+      duration:gymDuration,
+      weekNum,
+      exercises:[...warmupExs,...withPrescription,...(selectedGroups.includes("Core/Abs")?[]:coreExs.slice(0,2))],
+      generatedAt:todayStr(),
+    };
+
+    setGymSession(session);
+    setCurrentExIdx(0);
+    setCurrentSetIdx(0);
+    setCompletedSets({});
+    setSessionRating(null);
+    setSessionComplete(false);
+    setActivePhase("preview");
+    setGeneratingGym(false);
+  }
+
+  function startGymSession(){
+    setActivePhase("active");
+    setCurrentExIdx(0);
+    setCurrentSetIdx(0);
+  }
+
+  function completeSet(exIdx,setIdx){
+    const key=`${exIdx}-${setIdx}`;
+    setCompletedSets(p=>({...p,[key]:true}));
+    // Auto-start rest timer
+    setRestTimerSec(75);
+    setRestRunning(true);
+  }
+
+  function saveGymSession(rating){
+    const entry={
+      date:todayStr(),
+      groups:gymSession.groups,
+      duration:gymSession.duration,
+      weekNum:gymSession.weekNum,
+      exercises:gymSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})),
+      rating,
+      ts:new Date().toISOString(),
+    };
+    const newHistory=[...gymHistory,entry];
+    setGymHistory(newHistory);
+    try{
+      localStorage.setItem("atp-gym",JSON.stringify(newHistory));
+      // Sync to Supabase
+      if(window.sbSetGlobal) window.sbSetGlobal("atp-gym-"+currentClient.id, newHistory);
+    }catch(e){}
+    setSessionComplete(true);
+    setSessionRating(rating);
+  }
+
+  const weekNum=getCurrentWeek();
+  const allSetsComplete=gymSession&&gymSession.exercises.every((ex,ei)=>
+    Array.from({length:ex.sets||1}).every((_,si)=>completedSets[`${ei}-${si}`])
+  );
+
+  // BASELINE SCREEN
+  if(gymPhase==="baseline") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym Tab Setup</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Let's set your starting weights</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",lineHeight:1.7}}>Enter what you can comfortably lift for 3 sets of 8 reps. We'll build your 12-week progression from here.</div>
+      </div>
+      {BASELINE_EXERCISES.map(ex=>(
+        <div key={ex} style={card}>
+          <div style={lbl}>💪 {ex}</div>
+          <div style={{fontSize:"0.68rem",color:G.textSoft,marginBottom:8}}>Comfortable weight for 3 × 8 reps</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <input type="number" value={baselineForm[ex]||""} onChange={e=>setBaselineForm(p=>({...p,[ex]:e.target.value}))} placeholder="e.g. 95" style={{...iStyle,width:100,padding:"8px 12px"}}/>
+            <span style={{fontSize:"0.76rem",color:G.textSoft}}>lbs</span>
+          </div>
+        </div>
+      ))}
+      <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`}}>
+        <div style={{fontSize:"0.72rem",color:G.green,lineHeight:1.7}}>💡 <strong>Core work</strong> is included automatically in every session — no starting weight needed!</div>
+      </div>
+      <button onClick={()=>{
+        if(BASELINE_EXERCISES.some(ex=>!baselineForm[ex])){alert("Please enter a starting weight for all exercises!");return;}
+        const weights={};
+        BASELINE_EXERCISES.forEach(ex=>weights[ex]=parseFloat(baselineForm[ex]));
+        setBaselineWeights(weights);
+        try{localStorage.setItem("atp-gymstarts",JSON.stringify(weights));}catch(e){}
+        setGymPhase("session");
+      }} style={btnGreen}>💪 Save & Start Training</button>
+    </div>
+  );
+
+  // SESSION SETUP
+  if(activePhase==="setup") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym Session</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Week {weekNum} — {["Foundation","Foundation","Foundation","Foundation","Build","Build","Build","Build","Peak","Peak","Peak","Peak"][weekNum-1]||"Build"} Phase</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Select your muscle groups and let's get to work!</div>
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>🎯 Muscle Groups (pick 1 or 2)</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {GYM_MUSCLE_GROUPS.map(g=>{
+            const selected=selectedGroups.includes(g);
+            return(<button key={g} onClick={()=>{
+              if(selected){ setSelectedGroups(p=>p.filter(x=>x!==g)); }
+              else if(selectedGroups.length<2){ setSelectedGroups(p=>([...p,g])); }
+            }} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${selected?"#6366f1":G.border}`,background:selected?"#eef2ff":G.cream,color:selected?"#6366f1":G.text,fontSize:"0.74rem",fontWeight:selected?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+              {selected?"✓ ":""}{g}
+            </button>);
+          })}
+        </div>
+        {selectedGroups.length>0&&<div style={{marginTop:8,fontSize:"0.68rem",color:"#6366f1",fontWeight:600}}>Selected: {selectedGroups.join(" + ")}</div>}
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>⏱ How long do you have?</div>
+        <div style={{display:"flex",gap:6}}>
+          {["30 min","45 min","60 min","90 min"].map(t=>(
+            <button key={t} onClick={()=>setGymDuration(t)} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${gymDuration===t?"#6366f1":G.border}`,background:gymDuration===t?"#eef2ff":G.cream,color:gymDuration===t?"#6366f1":G.textSoft,fontSize:"0.72rem",fontWeight:gymDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+          ))}
+        </div>
+      </div>
+
+      {gymHistory.length>0&&(
+        <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`}}>
+          <div style={lbl}>📊 Last Session</div>
+          <div style={{fontSize:"0.74rem",color:G.text}}>{gymHistory[gymHistory.length-1].groups.join(" + ")} — {fmtDate(gymHistory[gymHistory.length-1].date)}</div>
+          <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {gymHistory[gymHistory.length-1].weekNum} · Rated {gymHistory[gymHistory.length-1].rating}/5</div>
+        </div>
+      )}
+
+      <button onClick={generateGymSession} disabled={generatingGym||selectedGroups.length===0} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)",opacity:selectedGroups.length>0?1:0.5}}>
+        {generatingGym?"💪 Building your session...":"💪 Generate Gym Session"}
+      </button>
+
+      <button onClick={()=>setGymPhase("baseline")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>⚙️ Update starting weights</button>
+    </div>
+  );
+
+  // PREVIEW SCREEN
+  if(activePhase==="preview"&&gymSession) return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🏋️ Today's Session</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{gymSession.groups.join(" + ")} Day</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{gymSession.exercises.length} exercises · {gymDuration} · Week {weekNum}</div>
+      </div>
+
+      {gymSession.exercises.map((ex,i)=>(
+        <div key={i} style={{...card,borderLeft:`4px solid ${ex.group==="Warm-up"?"#60a5fa":ex.group==="Core"||ex.group==="Core/Abs"?G.greenMid:"#6366f1"}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{ex.name}</div>
+              <div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:2}}>{ex.muscles}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              {ex.weight>0?(
+                <div style={{fontSize:"0.78rem",fontWeight:700,color:"#6366f1"}}>{ex.sets}×{ex.reps} @ {ex.weight}lbs</div>
+              ):(
+                <div style={{fontSize:"0.78rem",fontWeight:700,color:G.greenMid}}>{ex.sets}×{ex.reps}</div>
+              )}
+            </div>
+          </div>
+          {ex.instructions&&<div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:5,fontStyle:"italic"}}>💡 {ex.instructions}</div>}
+        </div>
+      ))}
+
+      <button onClick={startGymSession} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>▶ Start Session</button>
+      <button onClick={()=>setActivePhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
+    </div>
+  );
+
+  // ACTIVE SESSION
+  if(activePhase==="active"&&gymSession){
+    const ex=gymSession.exercises[currentExIdx];
+    if(!ex) return null;
+    const totalSets=ex.sets||1;
+    const exComplete=Array.from({length:totalSets}).every((_,si)=>completedSets[`${currentExIdx}-${si}`]);
+
+    return(
+      <div style={{flex:1,display:"flex",flexDirection:"column",background:"#f8f7ff"}}>
+        {/* Progress bar */}
+        <div style={{height:6,background:"#e0e7ff"}}>
+          <div style={{height:"100%",width:`${Math.round((currentExIdx/gymSession.exercises.length)*100)}%`,background:"linear-gradient(90deg,#4f46e5,#6366f1)",transition:"width .5s"}}/>
+        </div>
+
+        {sessionComplete?(
+          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+            <div style={{fontSize:"3rem"}}>🏆</div>
+            <div style={{fontSize:"1.1rem",fontWeight:900,color:"#4f46e5",textAlign:"center"}}>Gym Session Complete!</div>
+            <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Week {weekNum} gym session done. All things are possible! 🙏</div>
+            <button onClick={()=>{setActivePhase("setup");setSessionComplete(false);setGymSession(null);setSelectedGroups([]);}} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)"}}>💪 New Session</button>
+          </div>
+        ):(
+          <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+            {/* Exercise counter */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:"0.68rem",color:"#6366f1",fontWeight:700}}>Exercise {currentExIdx+1} of {gymSession.exercises.length}</div>
+              <div style={{fontSize:"0.68rem",color:G.textSoft}}>{ex.group}</div>
+            </div>
+
+            {/* Main exercise display */}
+            <div style={{...card,border:`2px solid #6366f1`,background:"#eef2ff",padding:20,textAlign:"center"}}>
+              <div style={{fontSize:"1.3rem",fontWeight:900,color:"#4f46e5",marginBottom:8}}>{ex.name}</div>
+              {ex.weight>0?(
+                <div style={{fontSize:"1rem",fontWeight:700,color:"#6366f1",marginBottom:4}}>{ex.sets} sets × {ex.reps} reps @ {ex.weight} lbs</div>
+              ):(
+                <div style={{fontSize:"1rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>{ex.sets} sets × {ex.reps}</div>
+              )}
+              <div style={{fontSize:"0.68rem",color:G.textSoft,fontStyle:"italic",marginTop:6}}>{ex.instructions}</div>
+            </div>
+
+            {/* Set tracker */}
+            <div style={card}>
+              <div style={lbl}>Sets</div>
+              <div style={{display:"flex",gap:8}}>
+                {Array.from({length:totalSets}).map((_,si)=>{
+                  const done=completedSets[`${currentExIdx}-${si}`];
+                  return(<button key={si} onClick={()=>!done&&completeSet(currentExIdx,si)} style={{flex:1,padding:"14px 0",borderRadius:12,border:`2px solid ${done?"#6366f1":G.border}`,background:done?"#6366f1":G.cream,color:done?"#fff":G.textSoft,fontSize:"0.78rem",fontWeight:700,cursor:done?"default":"pointer"}}>
+                    {done?"✓":"Set "+(si+1)}
+                  </button>);
+                })}
+              </div>
+            </div>
+
+            {/* Rest timer */}
+            <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{fontSize:"0.7rem",fontWeight:700,color:G.green}}>⏱ Rest Timer</div>
+                <div style={{fontSize:"1.4rem",fontWeight:900,color:restRunning?G.green:restTimerSec>0?"#f87171":G.textSoft,fontVariantNumeric:"tabular-nums"}}>{Math.floor(restTimerSec/60).toString().padStart(2,"0")}:{(restTimerSec%60).toString().padStart(2,"0")}</div>
+              </div>
+              <div style={{display:"flex",gap:6,marginTop:8}}>
+                {[60,75,90,120].map(s=>(
+                  <button key={s} onClick={()=>{setRestTimerSec(s);setRestRunning(true);}} style={{flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.66rem",cursor:"pointer"}}>{s}s</button>
+                ))}
+                <button onClick={()=>{setRestRunning(false);setRestTimerSec(0);}} style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.66rem",cursor:"pointer"}}>↺</button>
+              </div>
+              {restTimerSec===0&&!restRunning&&<div style={{fontSize:"0.66rem",color:G.greenMid,fontWeight:600,textAlign:"center",marginTop:4}}>✅ Rest done — next set!</div>}
+            </div>
+
+            {/* Navigation */}
+            <div style={{display:"flex",gap:8}}>
+              {currentExIdx>0&&<button onClick={()=>setCurrentExIdx(i=>i-1)} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>← Back</button>}
+              {currentExIdx<gymSession.exercises.length-1?(
+                <button onClick={()=>{setCurrentExIdx(i=>i+1);setCurrentSetIdx(0);setRestRunning(false);setRestTimerSec(0);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f46e5,#6366f1)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>Next Exercise →</button>
+              ):(
+                allSetsComplete&&!sessionRating?(
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
+                    <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
+                    <div style={{display:"flex",gap:6}}>
+                      {[1,2,3,4,5].map(r=>(
+                        <button key={r} onClick={()=>saveGymSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${sessionRating===r?"#6366f1":G.border}`,background:sessionRating===r?"#eef2ff":G.cream,color:sessionRating===r?"#6366f1":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                      ))}
+                    </div>
+                    <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+                  </div>
+                ):(
+                  <button onClick={()=>{if(allSetsComplete&&sessionRating) saveGymSession(sessionRating);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:allSetsComplete?"linear-gradient(135deg,#4f46e5,#6366f1)":"#ccc",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:allSetsComplete?"pointer":"not-allowed"}}>
+                    {allSetsComplete?"✅ Complete Workout":"Finish all sets first"}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
 
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
   const [hiitPhase,setHiitPhase]=useState("setup");
@@ -1858,7 +2267,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥗","Nutrition"]];
-    const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"]];
+    const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -3032,6 +3441,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
+       {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
 
