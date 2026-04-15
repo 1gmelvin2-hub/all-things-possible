@@ -947,6 +947,7 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
       const newProgram={...program,[cid]:updated};
       setProgram(newProgram);
       try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(newProgram));}catch(e){}
+      sbSetGlobal(PROGRAM_KEY, newProgram);
     }catch(e){console.error(e);}
     setGeneratingWeek(false);
   }
@@ -958,6 +959,7 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
     const newProgram={...program,[cid]:{goals,currentWeek:1,weeks:{},startDate:todayStr()}};
     setProgram(newProgram);
     try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(newProgram));}catch(e){}
+    sbSetGlobal(PROGRAM_KEY, newProgram);
     await generateWeek(1,goals,3,"");
   }
 
@@ -1857,7 +1859,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                             const updatedProgram={...program,[cid]:{...program[cid],weeks:{...program[cid].weeks,[program[cid].currentWeek]:updatedWeek}}};
                             setProgram(updatedProgram);
                             try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(updatedProgram));}catch(e){}
-                            // Regenerate this day with new duration
+            sbSetGlobal(PROGRAM_KEY, updatedProgram);
+            // Regenerate this day with new duration
                             setGeneratingWeek(true);
                             const c=currentClient;
                             let workoutRows=sheetData.workouts||[];
@@ -1885,9 +1888,10 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                               const rebuiltWeek={...currentWeekPlan,days:rebuiltDays};
                               const rebuiltProgram={...program,[cid]:{...program[cid],weeks:{...program[cid].weeks,[program[cid].currentWeek]:rebuiltWeek}}};
                               setProgram(rebuiltProgram);
-                              try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(rebuiltProgram));}catch(e){}
-                            }catch(e){console.error(e);}
-                            setGeneratingWeek(false);
+                             try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(rebuiltProgram));}catch(e){}
+            sbSetGlobal(PROGRAM_KEY, rebuiltProgram);
+            }catch(e){console.error(e);}
+            setGeneratingWeek(false); 
                           }} style={{flex:1,padding:"8px 0",borderRadius:10,border:`2px solid ${sessionDuration===t?G.green:G.border}`,background:sessionDuration===t?"#d8f3dc":G.cream,color:sessionDuration===t?G.green:G.textSoft,fontSize:"0.72rem",fontWeight:sessionDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
                         ))}
                       </div>
