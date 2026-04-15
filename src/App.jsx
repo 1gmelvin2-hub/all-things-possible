@@ -1017,9 +1017,8 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
     setGeneratingDesk(true);
     const c=currentClient;
 const sit=SITUATIONS.find(s=>s.id===situation);
-    const isGym=situation==="gym";
-    const prompt=isGym?
-const prompt=isGym?
+  const isGym=situation==="gym";
+    const prompt=isGym? 
 `Create exactly 5 gym exercises targeting: ${enjoys}. Client: ${c.name}, age ${c.age}, fitness level: ${c.level}, equipment: ${c.equipment||"full gym"}, goal: ${c.goal}.
 
 INJURIES TO RESPECT: ${c.injury&&c.injury!=="none"?`Client has: ${c.injury}. AVOID exercises that aggravate this.`:"None reported."}
