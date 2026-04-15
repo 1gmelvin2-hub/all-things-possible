@@ -573,9 +573,86 @@ function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
       return data.content?.[0]?.text||"";
     }catch(e){ console.error("API error:",e); return ""; }
   }
+// ── WORKOUT SHEET LOOKUP ───────────────────────────────────────────────────
+  function getSheetExercises(category, level){
+    if(!sheetData.workouts||sheetData.workouts.length===0) return [];
+    const catMap={
+      "Chest":["Gym Chest"],
+      "Back":["Gym Back"],
+      "Shoulders":["Gym Shoulders"],
+      "Arms (Biceps/Triceps)":["Gym Biceps","Gym Triceps"],
+      "Legs":["Gym Legs"],
+      "Core/Abs":["Gym Core"],
+      "Full Body":["Gym Chest","Gym Shoulders","Gym Legs"],
+      "Cardio":["Warm-up","Kickboxing Combo","Heavy Bag Combo"],
+      "Stretching":["Beginning Stretch","Intermediate Stretch","Hard Stretch"],
+      "Boxing":["Basic Shadow Boxing","Advanced Shadow Boxing","Heavy Bag Combo","Boxing Only","Power Punching","Defensive Footwork","Kickboxing Combo"],
+      "HIIT":["Warm-up","Kickboxing Combo","Heavy Bag Combo"],
+    };
+    const levelMap={
+      "Beginner":["Stretch","Warm-up","Gym"],
+      "Intermediate":["Stretch","Warm-up","Gym","Shadow Boxing","Heavy Bag"],
+      "Advanced":["Stretch","Warm-up","Gym","Shadow Boxing","Heavy Bag","Kickboxing","Boxing"],
+    };
+    const cats=catMap[category]||[];
+    return sheetData.workouts.slice(1).filter(row=>{
+      const rowCat=(row[1]||"").toLowerCase();
+      const matchesCat=cats.some(c=>rowCat.includes(c.toLowerCase()));
+      return matchesCat;
+    }).map(row=>({
+      name:row[0]||"",
+      category:row[1]||"",
+      level:row[2]||"",
+      duration:row[3]||"",
+      equipment:row[4]||"",
+      instructions:row[5]||"",
+      muscles:row[6]||"",
+      progression:row[7]||"none",
+    }));
+  }
+
+  function getProgressionNote(exercise, weekNum){
+    const prog=exercise.progression||"none";
+    if(prog==="none") return "Same as week 1 — focus on form and consistency";
+    if(prog==="increase gym"){
+      const weightWeeks=[3,6,9];
+      const repWeeks=[2,4,5,7,8,10,11,12];
+      if(weekNum===1) return "Start with a comfortable weight for 6-8 reps";
+      if(weightWeeks.includes(weekNum)) return `Increase weight by 5lbs, reset to 6-8 reps`;
+      if(repWeeks.includes(weekNum)) return `Add 2 reps from last week`;
+    }
+    if(prog==="increase reps") return weekNum===1?"Start with comfortable reps":`Add 2 reps from last week`;
+    if(prog==="increase time") return weekNum===1?"Hold for starting duration":`Add 10 seconds from last week`;
+    if(prog.startsWith("increase time 1x/next:")){
+      const next=prog.split("next:")[1]?.trim();
+      if(weekNum<=4) return `Add 10 seconds each week`;
+      return `Progress to: ${next}`;
+    }
+    if(prog.startsWith("next:")){
+      const next=prog.split("next:")[1]?.trim();
+      if(weekNum<=6) return "Master current exercise — focus on form";
+      return `Progress to: ${next}`;
+    }
+    return "Follow coach guidance";
+  }
+
+  async function notifyCoachWorkout(clientName, request, found){
+    const cid="coach";
+    const msg=found
+      ?`💪 Workout Update: ${clientName} just requested "${request}" exercises and started their workout!`
+      :`⚠️ Workout Alert: ${clientName} requested "${request}" but this category isn't in the library yet. Add exercises to the sheet and let them know to retry!`;
+    const newMsgs={...messages};
+    // Send to all coach-visible threads — use client ID
+    const clientObj=clients.find(c=>c.name===clientName||c.id===currentClient?.id);
+    if(clientObj){
+      const thread=[...(messages[clientObj.id]||[]),{from:"client-alert",text:msg,ts:new Date().toISOString(),alert:true}];
+      const nm={...messages,[clientObj.id]:thread};
+      persist(null,null,nm,null,null,null,null,null);
+    }
+  }
 
   // ── GENERATE 7-DAY NUTRITION SUMMARY for check-in ─────────────────────────
-  async function generateNutriSummary(clientId, clientWeight){
+    async function generateNutriSummary(clientId, clientWeight){
     setLoadingNutri(true); setNutriSummary("");
     const clientNutr=nutrition[clientId]||{};
     const days=Object.keys(clientNutr).sort().slice(-7);
@@ -669,20 +746,64 @@ Write a SHORT, warm 3-4 sentence summary of how they did this week. Be encouragi
   }
 
   // ── WORKOUT ───────────────────────────────────────────────────────────────
-  async function generateWorkoutPlan(){
+ 
+async function generateWorkoutPlan(){
     if(!workoutGoalInput.trim()) return;
     setGeneratingPlan(true);
     const c=currentClient;
-    const prompt=`You are a certified personal trainer. Create a specific 7-day weekly workout plan for: Name: ${c.name}, Age: ${c.age}, Weight: ${c.weight}lbs, Goal weight: ${c.goalWeight}lbs, Fitness level: ${c.level}, Likes: ${c.likes||"general fitness"}, Goal: "${workoutGoalInput}". Be very specific — sets, reps, duration, rest periods, form tips. Rest days get light activity. Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"day":"Monday","type":"workout","focus":"Focus area","duration":"45 min","exercises":[{"name":"Exercise Name","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]},{"day":"Tuesday","type":"rest","focus":"Active Recovery","duration":"20 min","exercises":[{"name":"Light walk","sets":1,"reps":"20 min","rest":"","tip":"Keep it easy"}]}]}`;
+
+    // Load sheet if not loaded
+    if(!sheetLoaded) await fetchSheets();
+
+    // Try to match goal to sheet categories
+    const goalLower=workoutGoalInput.toLowerCase();
+    const categoryGuess=
+      goalLower.includes("shoulder")?"Shoulders":
+      goalLower.includes("arm")||goalLower.includes("bicep")||goalLower.includes("tricep")?"Arms (Biceps/Triceps)":
+      goalLower.includes("chest")?"Chest":
+      goalLower.includes("back")?"Back":
+      goalLower.includes("leg")||goalLower.includes("squat")?"Legs":
+      goalLower.includes("core")||goalLower.includes("ab")?"Core/Abs":
+      goalLower.includes("stretch")||goalLower.includes("flexib")?"Stretching":
+      goalLower.includes("box")||goalLower.includes("punch")||goalLower.includes("jab")?"Boxing":
+      goalLower.includes("cardio")||goalLower.includes("hiit")?"HIIT":
+      goalLower.includes("full")||goalLower.includes("total")?"Full Body":null;
+
+    const sheetExercises=categoryGuess?getSheetExercises(categoryGuess,c.level):[];
+    const hasSheetData=sheetExercises.length>=3;
+
+    // Notify Maria
+    await notifyCoachWorkout(c.name, workoutGoalInput, hasSheetData||!!categoryGuess);
+
+    // If no sheet match — alert and stop
+    if(categoryGuess&&!hasSheetData){
+      setGeneratingPlan(false);
+      setWorkoutGoalInput("");
+      alert(`I don't have "${workoutGoalInput}" exercises in the library yet! Your coach has been notified and will add them soon. Check your messages for an update! 🙏`);
+      return;
+    }
+
+    const exerciseList=hasSheetData
+      ?sheetExercises.slice(0,12).map(e=>`${e.name} (${e.muscles}, progression: ${e.progression}, instructions: ${e.instructions})`).join("\n")
+      :"Use general fitness exercises appropriate for the client";
+
+    const prompt=`You are a certified personal trainer. Create a specific 7-day weekly workout plan.
+CLIENT: ${c.name}, Age: ${c.age}, Weight: ${c.weight}lbs, Level: ${c.level}, Goal: "${workoutGoalInput}"
+Equipment: ${c.equipment||c.likes||"general fitness"}
+INJURIES: ${c.injury&&c.injury!=="none"?c.injury:"None"}
+
+${hasSheetData?`USE THESE SPECIFIC EXERCISES FROM THE COACH'S LIBRARY:\n${exerciseList}\n\nOnly use exercises from this list. Include sets, reps, rest periods and the exact instructions provided.`:"Be very specific — sets, reps, duration, rest periods, form tips."}
+
+Rest days get light stretching or walking.
+Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"day":"Monday","type":"workout","focus":"Focus area","duration":"45 min","exercises":[{"name":"Exercise Name","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]},{"day":"Tuesday","type":"rest","focus":"Active Recovery","duration":"20 min","exercises":[{"name":"Light walk","sets":1,"reps":"20 min","rest":"","tip":"Keep it easy"}]}]}`;
     try{
       const raw=await callClaude(prompt);
       const plan=JSON.parse(raw.replace(/```json|```/g,"").trim());
-      persist(null,null,null,{...plans,[c.id]:{...plan,generatedAt:todayStr(),intensityLevel:1}},null,null,null,null);
+      persist(null,null,null,{...plans,[c.id]:{...plan,generatedAt:todayStr(),intensityLevel:1,fromSheet:hasSheetData,category:categoryGuess}},null,null,null,null);
       setWorkoutGoalInput(""); setSelectedDay(null);
     }catch(e){ console.error(e); }
     setGeneratingPlan(false);
   }
-
   function connectGoogleFit(){
     const clientId=GOOGLE_CLIENT_ID;
     const redirectUri=window.location.origin;
