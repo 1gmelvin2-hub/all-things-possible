@@ -2776,21 +2776,306 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
        {/* ── HIIT ── */}
-        {tab==="hiit"&&(
-          <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>🔥 HIIT Workouts</div>
-            <div style={{...card,background:`linear-gradient(135deg,${G.mangoDeep},${G.mango})`,border:"none"}}>
-              <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>High Intensity Interval Training</div>
-              <div style={{fontSize:"0.88rem",fontWeight:700,color:G.white,marginBottom:4}}>Short. Intense. Effective.</div>
-              <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.88)",lineHeight:1.7}}>HIIT workouts alternate between intense bursts and short recovery periods. Even 15-20 minutes can torch calories and boost metabolism for hours.</div>
+        {tab==="hiit"&&(()=>{
+          const hiitKey="atp-hiit";
+          const [hiitPhase,setHiitPhase]=React.useState("setup");
+          const [hiitDuration,setHiitDuration]=React.useState(currentClient.workoutDuration||"45 min");
+          const [hiitType,setHiitType]=React.useState("boxing");
+          const [hiitSession,setHiitSession]=React.useState(null);
+          const [generatingHiit,setGeneratingHiit]=React.useState(false);
+          const [currentBlock,setCurrentBlock]=React.useState(0);
+          const [currentExercise,setCurrentExercise]=React.useState(0);
+          const [timerActive,setTimerActive]=React.useState(false);
+          const [timeLeft,setTimeLeft]=React.useState(0);
+          const [isRest,setIsRest]=React.useState(false);
+          const [sessionComplete,setSessionComplete]=React.useState(false);
+          const hiitTimerRef=React.useRef(null);
+
+          React.useEffect(()=>{
+            if(timerActive&&timeLeft>0){
+              hiitTimerRef.current=setTimeout(()=>setTimeLeft(t=>t-1),1000);
+            } else if(timerActive&&timeLeft===0){
+              advanceHiit();
+            }
+            return()=>clearTimeout(hiitTimerRef.current);
+          },[timerActive,timeLeft]);
+
+          function advanceHiit(){
+            if(!hiitSession) return;
+            const block=hiitSession.blocks[currentBlock];
+            if(!block){ setSessionComplete(true); setTimerActive(false); return; }
+            if(isRest){
+              // Rest done — move to next exercise
+              const nextEx=currentExercise+1;
+              if(nextEx>=block.exercises.length){
+                // Block done — move to next block
+                const nextBlock=currentBlock+1;
+                if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
+                setCurrentBlock(nextBlock);
+                setCurrentExercise(0);
+                setIsRest(false);
+                setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+              } else {
+                setCurrentExercise(nextEx);
+                setIsRest(false);
+                setTimeLeft(block.exercises[nextEx].duration);
+              }
+            } else {
+              // Exercise done — go to rest if block has rest
+              if(block.restBetween>0&&currentExercise<block.exercises.length-1){
+                setIsRest(true);
+                setTimeLeft(block.restBetween);
+              } else {
+                const nextEx=currentExercise+1;
+                if(nextEx>=block.exercises.length){
+                  const nextBlock=currentBlock+1;
+                  if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
+                  setCurrentBlock(nextBlock);
+                  setCurrentExercise(0);
+                  setIsRest(false);
+                  setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+                } else {
+                  setCurrentExercise(nextEx);
+                  setIsRest(false);
+                  setTimeLeft(block.exercises[nextEx].duration);
+                }
+              }
+            }
+          }
+
+          async function generateHiitSession(){
+            setGeneratingHiit(true);
+            const c=currentClient;
+            const mins=parseInt(hiitDuration)||45;
+
+            // Fetch sheet exercises
+            let workoutRows=sheetData.workouts||[];
+            if(workoutRows.length===0){
+              try{
+                const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+                const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+                const text=await res.text();
+                const json=JSON.parse(text.substring(47).slice(0,-2));
+                workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+                setSheetData(p=>({...p,workouts:workoutRows}));
+                setSheetLoaded(true);
+              }catch(e){ console.error(e); }
+            }
+
+            function getExercises(cats,count){
+              return workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase()))).slice(0,count).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[1]}));
+            }
+
+            // Build blocks based on duration
+            const warmupExs=getExercises(["warm-up"],5);
+            if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i],instructions:"Keep it light and easy",duration:60});
+
+            const shadowExs=getExercises(["shadow boxing","defensive footwork"],6);
+            if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i],instructions:"Stay light on your feet",duration:60});
+
+            const bagExs1=getExercises(["heavy bag","boxing only","power punching","kickboxing"],4);
+            if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross Combo","Power Hook","Body Shots","Uppercut Combo"][i],instructions:"Full power — let it go!",duration:60});
+
+            const bagExs2=getExercises(["heavy bag","kickboxing combo"],4).slice(2,6);
+            if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i],instructions:"Mix up your combinations",duration:60});
+
+            const bagExs3=getExercises(["heavy bag","power punching"],4).slice(4,8);
+            if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i],instructions:"Push through — last round!",duration:60});
+
+            const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
+            const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
+
+            const warmdownExs=getExercises(["beginning stretch","intermediate stretch"],8);
+            const abExs=[
+              {name:"Plank",instructions:"Hold strong — core tight",duration:60},
+              {name:"Crunches",instructions:"Focus on the squeeze",duration:60},
+              {name:"Leg Raises",instructions:"Control the movement",duration:60},
+              {name:"Russian Twists",instructions:"Rotate fully each side",duration:60},
+              {name:"Bicycle Crunches",instructions:"Slow and controlled",duration:60},
+            ];
+            const warmdownFull=[...abExs,...warmdownExs].slice(0,8);
+
+            const blocks=[
+              {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
+              {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
+              {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+              {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+              {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+              {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
+              {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
+              {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+            ];
+
+            const session={type:"boxing",duration:hiitDuration,blocks,generatedAt:todayStr()};
+            setHiitSession(session);
+            setCurrentBlock(0);
+            setCurrentExercise(0);
+            setIsRest(false);
+            setSessionComplete(false);
+            setHiitPhase("ready");
+            setGeneratingHiit(false);
+          }
+
+          function startSession(){
+            if(!hiitSession) return;
+            setHiitPhase("active");
+            setCurrentBlock(0);
+            setCurrentExercise(0);
+            setIsRest(false);
+            setTimeLeft(60);
+            setTimerActive(true);
+            setSessionComplete(false);
+          }
+
+          // Calculate progress
+          const totalExercises=hiitSession?hiitSession.blocks.reduce((a,b)=>a+b.exercises.length,0):0;
+          const completedExercises=hiitSession?hiitSession.blocks.slice(0,currentBlock).reduce((a,b)=>a+b.exercises.length,0)+currentExercise:0;
+          const progressPct=totalExercises>0?Math.round((completedExercises/totalExercises)*100):0;
+          const activeBlock=hiitSession?.blocks[currentBlock];
+          const activeExercise=activeBlock?.exercises[currentExercise];
+
+          // SETUP SCREEN
+          if(hiitPhase==="setup") return(
+            <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{...card,background:`linear-gradient(135deg,${G.mangoDeep},${G.mango})`,border:"none"}}>
+                <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🔥 HIIT Training</div>
+                <div style={{fontSize:"0.88rem",fontWeight:700,color:G.white,marginBottom:4}}>All Things Possible Boxing</div>
+                <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.88)",lineHeight:1.7}}>Warm-up → Shadow Boxing → Heavy Bag Rounds → Calisthenics → Warm Down</div>
+              </div>
+
+              <div style={card}>
+                <div style={lbl}>🥊 Session Type</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {[{id:"boxing",icon:"🥊",label:"Boxing",desc:"Shadow boxing, heavy bag, footwork"},{id:"kickboxing",icon:"🦵",label:"Kickboxing",desc:"Kicks, combos, heavy bag"},{id:"mixed",icon:"🔥",label:"Mixed",desc:"Boxing + kickboxing combined"}].map(t=>(
+                    <button key={t.id} onClick={()=>setHiitType(t.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 13px",borderRadius:10,border:`2px solid ${hiitType===t.id?G.mangoDeep:G.border}`,background:hiitType===t.id?"#fff3e0":G.cream,cursor:"pointer",textAlign:"left",width:"100%",fontFamily:"inherit"}}>
+                      <span style={{fontSize:"1.5rem"}}>{t.icon}</span>
+                      <div>
+                        <div style={{fontSize:"0.8rem",fontWeight:700,color:hiitType===t.id?G.mangoDeep:G.text}}>{t.label}</div>
+                        <div style={{fontSize:"0.65rem",color:G.textSoft}}>{t.desc}</div>
+                      </div>
+                      {hiitType===t.id&&<span style={{marginLeft:"auto",color:G.mangoDeep}}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={lbl}>⏱ Session Duration</div>
+                <div style={{display:"flex",gap:6}}>
+                  {["30 min","45 min","60 min","90 min"].map(t=>(
+                    <button key={t} onClick={()=>setHiitDuration(t)} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${hiitDuration===t?G.mangoDeep:G.border}`,background:hiitDuration===t?"#fff3e0":G.cream,color:hiitDuration===t?G.mangoDeep:G.textSoft,fontSize:"0.72rem",fontWeight:hiitDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={generateHiitSession} disabled={generatingHiit} style={{...btnMango,opacity:generatingHiit?0.7:1}}>
+                {generatingHiit?"🔥 Building your session...":"🔥 Generate Session"}
+              </button>
             </div>
-            <div style={{...card,textAlign:"center",padding:"28px 20px"}}>
-              <div style={{fontSize:"2rem",marginBottom:8}}>🏗️</div>
-              <div style={{fontSize:"0.82rem",fontWeight:700,color:G.brown,marginBottom:6}}>HIIT Workouts Coming Soon</div>
-              <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6}}>We're building personalized HIIT sessions pulled from your coach's workout library. Interval timers, heart rate zones, and custom rounds — all coming in the next update!</div>
+          );
+
+          // READY SCREEN
+          if(hiitPhase==="ready"&&hiitSession) return(
+            <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{...card,background:`linear-gradient(135deg,${G.mangoDeep},${G.mango})`,border:"none"}}>
+                <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🔥 Your Session</div>
+                <div style={{fontSize:"0.88rem",fontWeight:700,color:G.white,marginBottom:4}}>{hiitDuration} Boxing Workout</div>
+                <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.88)"}}>{hiitSession.blocks.length} blocks · {totalExercises} exercises</div>
+              </div>
+
+              {hiitSession.blocks.map((block,bi)=>(
+                <div key={bi} style={{...card,borderLeft:`4px solid ${block.color}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <div style={{fontSize:"0.78rem",fontWeight:700,color:G.text}}>{block.name}</div>
+                    <div style={{fontSize:"0.62rem",color:G.textSoft}}>{block.exercises.length} exercises{block.restBetween>0?` · ${block.restBetween}s rest`:""}</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {block.exercises.map((ex,ei)=>(
+                      <div key={ei} style={{fontSize:"0.7rem",color:G.textSoft,display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{width:5,height:5,borderRadius:"50%",background:block.color,flexShrink:0}}/>
+                        {ex.name} <span style={{color:G.textSoft,fontSize:"0.62rem"}}>· 1 min</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <button onClick={startSession} style={btnMango}>▶ Start Session</button>
+              <button onClick={()=>setHiitPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
             </div>
-          </div>
-        )}
+          );
+
+          // ACTIVE SESSION SCREEN
+          if(hiitPhase==="active"&&hiitSession) return(
+            <div style={{flex:1,display:"flex",flexDirection:"column",background:isRest?"#f0faf4":activeBlock?activeBlock.color+"11":"#fff"}}>
+              {/* Progress bar */}
+              <div style={{height:6,background:G.creamDark}}>
+                <div style={{height:"100%",width:`${progressPct}%`,background:`linear-gradient(90deg,${G.mangoDeep},${G.mango})`,transition:"width .5s"}}/>
+              </div>
+
+              {sessionComplete?(
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+                  <div style={{fontSize:"3rem"}}>🏆</div>
+                  <div style={{fontSize:"1.1rem",fontWeight:900,color:G.green,textAlign:"center"}}>Session Complete!</div>
+                  <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! You just completed a full boxing HIIT session. All things are possible! 🙏</div>
+                  <button onClick={()=>{setHiitPhase("setup");setSessionComplete(false);setTimerActive(false);}} style={btnGreen}>🔄 New Session</button>
+                </div>
+              ):(
+                <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+                  {/* Block indicator */}
+                  <div style={{display:"flex",gap:4}}>
+                    {hiitSession.blocks.map((_,i)=>(
+                      <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<currentBlock?G.greenMid:i===currentBlock?G.mangoDeep:G.border,transition:"background .3s"}}/>
+                    ))}
+                  </div>
+
+                  {/* Current block name */}
+                  <div style={{fontSize:"0.7rem",fontWeight:700,color:activeBlock?.color||G.text,textTransform:"uppercase",letterSpacing:1}}>{activeBlock?.name}</div>
+
+                  {/* Timer circle */}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:8}}>
+                    <div style={{width:160,height:160,borderRadius:"50%",background:isRest?"#d8f3dc":activeBlock?.color+"22",border:`6px solid ${isRest?G.greenMid:activeBlock?.color||G.mango}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 30px ${isRest?G.greenMid:activeBlock?.color||G.mango}44`}}>
+                      <div style={{fontSize:"0.65rem",color:isRest?G.greenMid:activeBlock?.color||G.mango,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{isRest?"REST":"GO"}</div>
+                      <div style={{fontSize:"3.5rem",fontWeight:900,color:isRest?G.greenMid:activeBlock?.color||G.mangoDeep,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timeLeft}</div>
+                      <div style={{fontSize:"0.58rem",color:G.textSoft,marginTop:4}}>seconds</div>
+                    </div>
+
+                    {/* Exercise name */}
+                    {!isRest&&activeExercise&&(
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:"1rem",fontWeight:900,color:G.text,marginBottom:4}}>{activeExercise.name}</div>
+                        <div style={{fontSize:"0.7rem",color:G.textSoft,lineHeight:1.6,maxWidth:280}}>{activeExercise.instructions}</div>
+                      </div>
+                    )}
+                    {isRest&&(
+                      <div style={{textAlign:"center"}}>
+                        <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
+                        <div style={{fontSize:"0.7rem",color:G.textSoft}}>
+                          Next: {activeBlock?.exercises[currentExercise+1]?.name||hiitSession.blocks[currentBlock+1]?.exercises[0]?.name||"Warm Down"}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Exercise list */}
+                  <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none"}}>
+                    {activeBlock?.exercises.map((ex,i)=>(
+                      <div key={i} style={{flexShrink:0,padding:"4px 10px",borderRadius:20,background:i<currentExercise?G.greenLight:i===currentExercise?activeBlock.color:G.creamDark,border:`1px solid ${i===currentExercise?activeBlock.color:G.border}`,fontSize:"0.62rem",color:i===currentExercise?G.white:G.textSoft,fontWeight:i===currentExercise?700:400}}>{ex.name}</div>
+                    ))}
+                  </div>
+
+                  {/* Controls */}
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setTimerActive(r=>!r)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:timerActive?G.mangoDeep:G.green,color:G.white,fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{timerActive?"⏸ Pause":"▶ Resume"}</button>
+                    <button onClick={advanceHiit} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+
+          return null;
+        })()}
 
         {/* ── MESSAGES ── */}
         {tab==="messages"&&(()=>{
