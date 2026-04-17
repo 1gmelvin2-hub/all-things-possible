@@ -2111,8 +2111,12 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
     const clientTabs=tabs.length>0?tabs:(program[c.id]?.tabs||[]);
     const tabInstructions=clientTabs.length>0?`
 SPECIALIZED TABS: This client uses these tabs: ${clientTabs.map(t=>t==="hiit"?"HIIT/Boxing":t==="gym"?"Gym":t==="cals"?"Calisthenics & Abs":t).join(", ")}.
-For days that use these tabs, set the exercise to ONLY: [{"name":"→ Go to [Tab Name] tab","sets":1,"reps":"Full session","rest":"","tip":"Open the [Tab] tab for today's workout"}]
-Distribute tab days naturally across the week based on client goals. Non-tab days get regular exercises.`:"";
+CRITICAL: The client's goals specify EXACTLY how many days per tab — read the goals carefully and match exactly:
+- Goals say "${goals.join(" and ")}"
+- Extract the exact number of days for each tab from the goals
+- Remaining days get home/bodyweight exercises or rest
+For tab days set exercises to ONLY: [{"name":"→ Go to [Tab Name] tab","sets":1,"reps":"Full session","rest":"","tip":"Open the [Tab Name] tab for today's workout"}]
+Non-tab days get specific home exercises with sets/reps.`:"";
     const prompt=`You are a certified personal trainer creating Week ${weekNum} of a 12-week progressive fitness program. CLIENT: ${c.name}, Age: ${c.age}, Weight: ${c.weight}lbs, Level: ${c.level}, Equipment: ${c.equipment||c.likes||"general fitness"}, 12-Week Goals: ${goals.filter(g=>g).join(" AND ")}, Phase: ${phase.name} (${phase.desc}), Week: ${weekNum} of 12. ${prevWeekSummary?"Last week: "+prevWeekSummary:""} Adjustment: ${intensity}.${tabInstructions} Create a specific 7-day plan. Return ONLY valid JSON (no markdown): {"week":${weekNum},"phase":"${phase.name}","focus":"Week focus in 5 words","days":[{"day":"Monday","type":"workout","focus":"Focus","duration":"45 min","exercises":[{"name":"Exercise","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]},{"day":"Tuesday","type":"rest","focus":"Active Recovery","duration":"20 min","exercises":[{"name":"Light walk","sets":1,"reps":"20 min","rest":"","tip":"Easy pace"}]}]}`;
     try{
       const raw=await callClaude(prompt);
@@ -3118,6 +3122,24 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     </div> 
    {(()=>{
                       const exercises=day.exercises||[];
+                      // Check if this is a tab-redirect day
+                      const isTabDay=exercises.length===1&&exercises[0]?.name?.startsWith("→ Go to");
+                      const tabName=isTabDay?exercises[0].name.replace("→ Go to ","").replace(" tab","").trim():"";
+                      const tabId=tabName.toLowerCase().includes("hiit")||tabName.toLowerCase().includes("boxing")?"hiit":tabName.toLowerCase().includes("gym")?"gym":tabName.toLowerCase().includes("calist")?"cals":"";
+                      const tabIcon=tabId==="hiit"?"🥊":tabId==="gym"?"🏋️":tabId==="cals"?"🤸":"💪";
+                      const tabColor=tabId==="hiit"?G.mangoDeep:tabId==="gym"?"#4f46e5":tabId==="cals"?"#7c3aed":G.green;
+                      if(isTabDay) return(
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,padding:"20px 0"}}>
+                          <div style={{width:80,height:80,borderRadius:"50%",background:tabColor+"22",border:`3px solid ${tabColor}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.5rem"}}>{tabIcon}</div>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:"1rem",fontWeight:900,color:tabColor,marginBottom:6}}>{tabName} Day! {tabIcon}</div>
+                            <div style={{fontSize:"0.74rem",color:G.textSoft,lineHeight:1.6,marginBottom:16}}>Today is your {tabName} session. Head over to the {tabName} tab to start your workout!</div>
+                          </div>
+                          <button onClick={()=>setTab(tabId)} style={{padding:"14px 28px",borderRadius:14,border:"none",background:tabColor,color:"#fff",fontSize:"0.88rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${tabColor}44`}}>
+                            → Open {tabName} Tab
+                          </button>
+                        </div>
+                      );
                       const groupSize=4;
                       const groups=[];
                       for(let i=0;i<exercises.length;i+=groupSize){ groups.push(exercises.slice(i,i+groupSize)); }
