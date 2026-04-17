@@ -1378,8 +1378,9 @@ export default function AllThingsPossible(){
   const [activeSheetTab,setActiveSheetTab] = useState("recipes");
   const [foodSearch,setFoodSearch]       = useState(""); const workoutTimerRef = useRef(null);
   const restTimerRef = useRef(null);
-  const [programGoal1,setProgramGoal1] = useState("");
+ const [programGoal1,setProgramGoal1] = useState("");
   const [programGoal2,setProgramGoal2] = useState("");
+  const [programTabs,setProgramTabs] = useState([]);
   const [generatingWeek,setGeneratingWeek] = useState(false);
   const [tab,setTab]               = useState("prayer");
   const [coachTab,setCoachTab]     = useState("clients");
@@ -2102,12 +2103,17 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
 
   function getPhase(week){if(week<=4) return{name:"Foundation",color:"#60a5fa",desc:"Building base fitness and habits"}; if(week<=8) return{name:"Build",color:G.greenMid,desc:"Increasing intensity and volume"}; return{name:"Peak",color:G.mangoDeep,desc:"Maximum effort and performance"}; }
 
-  async function generateWeek(weekNum,goals,avgRating,prevWeekSummary){
+  async function generateWeek(weekNum,goals,avgRating,prevWeekSummary,tabs=[]){
     setGeneratingWeek(true);
     const c=currentClient;
     const phase=getPhase(weekNum);
     const intensity=avgRating<=2?"increase the difficulty — more sets, reps, and intensity":avgRating>=4?"decrease the difficulty — fewer sets, lighter load, more rest":"maintain similar difficulty with natural progression";
-    const prompt=`You are a certified personal trainer creating Week ${weekNum} of a 12-week progressive fitness program. CLIENT: ${c.name}, Age: ${c.age}, Weight: ${c.weight}lbs, Level: ${c.level}, Equipment: ${c.equipment||c.likes||"general fitness"}, 12-Week Goals: ${goals.filter(g=>g).join(" AND ")}, Phase: ${phase.name} (${phase.desc}), Week: ${weekNum} of 12. ${prevWeekSummary?"Last week: "+prevWeekSummary:""} Adjustment: ${intensity}. Create a specific 7-day plan. Return ONLY valid JSON (no markdown): {"week":${weekNum},"phase":"${phase.name}","focus":"Week focus in 5 words","days":[{"day":"Monday","type":"workout","focus":"Focus","duration":"45 min","exercises":[{"name":"Exercise","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]},{"day":"Tuesday","type":"rest","focus":"Active Recovery","duration":"20 min","exercises":[{"name":"Light walk","sets":1,"reps":"20 min","rest":"","tip":"Easy pace"}]}]}`;
+    const clientTabs=tabs.length>0?tabs:(program[c.id]?.tabs||[]);
+    const tabInstructions=clientTabs.length>0?`
+SPECIALIZED TABS: This client uses these tabs: ${clientTabs.map(t=>t==="hiit"?"HIIT/Boxing":t==="gym"?"Gym":t==="cals"?"Calisthenics & Abs":t).join(", ")}.
+For days that use these tabs, set the exercise to ONLY: [{"name":"→ Go to [Tab Name] tab","sets":1,"reps":"Full session","rest":"","tip":"Open the [Tab] tab for today's workout"}]
+Distribute tab days naturally across the week based on client goals. Non-tab days get regular exercises.`:"";
+    const prompt=`You are a certified personal trainer creating Week ${weekNum} of a 12-week progressive fitness program. CLIENT: ${c.name}, Age: ${c.age}, Weight: ${c.weight}lbs, Level: ${c.level}, Equipment: ${c.equipment||c.likes||"general fitness"}, 12-Week Goals: ${goals.filter(g=>g).join(" AND ")}, Phase: ${phase.name} (${phase.desc}), Week: ${weekNum} of 12. ${prevWeekSummary?"Last week: "+prevWeekSummary:""} Adjustment: ${intensity}.${tabInstructions} Create a specific 7-day plan. Return ONLY valid JSON (no markdown): {"week":${weekNum},"phase":"${phase.name}","focus":"Week focus in 5 words","days":[{"day":"Monday","type":"workout","focus":"Focus","duration":"45 min","exercises":[{"name":"Exercise","sets":3,"reps":"10-12","rest":"60 sec","tip":"Form tip"}]},{"day":"Tuesday","type":"rest","focus":"Active Recovery","duration":"20 min","exercises":[{"name":"Light walk","sets":1,"reps":"20 min","rest":"","tip":"Easy pace"}]}]}`;
     try{
       const raw=await callClaude(prompt);
       const weekPlan=JSON.parse(raw.replace(/```json|```/g,"").trim());
@@ -2122,15 +2128,15 @@ Return ONLY valid JSON (no markdown): {"goal":"${workoutGoalInput}","days":[{"da
     setGeneratingWeek(false);
   }
 
-  async function startProgram(){
+ async function startProgram(){
     if(!programGoal1.trim()) return;
     const goals=[programGoal1.trim(),programGoal2.trim()].filter(g=>g);
     const cid=currentClient.id;
-    const newProgram={...program,[cid]:{goals,currentWeek:1,weeks:{},startDate:todayStr()}};
+    const newProgram={...program,[cid]:{goals,currentWeek:1,weeks:{},startDate:todayStr(),tabs:programTabs||[]}};
     setProgram(newProgram);
     try{localStorage.setItem(PROGRAM_KEY,JSON.stringify(newProgram));}catch(e){}
     sbSetGlobal(PROGRAM_KEY, newProgram);
-    await generateWeek(1,goals,3,"");
+    await generateWeek(1,goals,3,"",programTabs||[]);
   }
 
   async function checkAndAdvanceWeek(){
@@ -2944,7 +2950,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     ))}
                   </div>
                 </div>
-                <div style={card}>
+        <div style={card}>
                   <div style={lbl}>🎯 Goal 1 (required)</div>
                   <input value={programGoal1} onChange={e=>setProgramGoal1(e.target.value)} placeholder="e.g. Run a 5K, Do 10 push-ups, Walk 30 min..." style={iStyle}/>
                   <div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:5}}>Be specific — the more detail the better your program will be</div>
@@ -2953,6 +2959,44 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   <div style={lbl}>🎯 Goal 2 (optional)</div>
                   <input value={programGoal2} onChange={e=>setProgramGoal2(e.target.value)} placeholder="e.g. Build arm strength, Lose 15 lbs, Touch my toes..." style={iStyle}/>
                 </div>
+
+                {/* Specialized tab selector */}
+                <div style={card}>
+                  <div style={lbl}>💪 Which specialized tabs will you use?</div>
+                  <div style={{fontSize:"0.68rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>Select the tabs you plan to use. On those days your 12-week plan will direct you to the right tab. Leave unselected to have workouts built directly into your plan.</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {[
+                      {id:"hiit",icon:"🥊",label:"HIIT / Boxing",desc:"Shadow boxing, heavy bag, kickboxing"},
+                      {id:"gym",icon:"🏋️",label:"Gym",desc:"Weighted exercises with progressive overload"},
+                      {id:"cals",icon:"🤸",label:"Calisthenics & Abs",desc:"Bodyweight circuit training"},
+                      {id:"running",icon:"🏃",label:"Running",desc:"Couch to 5K, race training (coming soon)",soon:true},
+                    ].map(t=>{
+                      const selected=(programTabs||[]).includes(t.id);
+                      return(
+                        <button key={t.id} onClick={()=>{
+                          if(t.soon) return;
+                          setProgramTabs(p=>{
+                            const prev=p||[];
+                            return selected?prev.filter(x=>x!==t.id):[...prev,t.id];
+                          });
+                        }} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 13px",borderRadius:10,border:`2px solid ${selected?G.green:G.border}`,background:selected?"#d8f3dc":t.soon?G.creamDark:G.cream,cursor:t.soon?"default":"pointer",textAlign:"left",width:"100%",fontFamily:"inherit",opacity:t.soon?0.5:1}}>
+                          <span style={{fontSize:"1.4rem"}}>{t.icon}</span>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:"0.78rem",fontWeight:700,color:selected?G.green:G.text}}>{t.label}{t.soon&&<span style={{fontSize:"0.6rem",color:G.textSoft,fontWeight:400,marginLeft:6}}>coming soon</span>}</div>
+                            <div style={{fontSize:"0.64rem",color:G.textSoft}}>{t.desc}</div>
+                          </div>
+                          {selected&&<span style={{color:G.greenMid,fontSize:"1rem"}}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(programTabs||[]).length>0&&(
+                    <div style={{marginTop:10,padding:"8px 12px",background:"#f0faf4",borderRadius:8,fontSize:"0.68rem",color:G.green,lineHeight:1.6}}>
+                      ✅ Your 12-week plan will schedule {(programTabs||[]).map(t=>t==="hiit"?"HIIT/Boxing":t==="gym"?"Gym":t==="cals"?"Calisthenics":t).join(", ")} days and direct you to the right tab each day!
+                    </div>
+                  )}
+                </div>
+
                 <button onClick={startProgram} disabled={generatingWeek||!programGoal1.trim()} style={{...btnMango,opacity:programGoal1.trim()?1:0.5}}>
                   {generatingWeek?"✨ Building Week 1...":"🚀 Start My 12-Week Program"}
                 </button>
