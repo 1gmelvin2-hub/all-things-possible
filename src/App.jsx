@@ -168,6 +168,385 @@ const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
 
 const MOVEPROFILE_KEY="atp-moveprofile";
 
+function CalisthenicsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate}){
+  const CALS_KEY="atp-cals";
+  const [calsPhase,setCalsPhase]=useState("setup");
+  const [calsDuration,setCalsDuration]=useState(currentClient.workoutDuration||"45 min");
+  const [calsSession,setCalsSession]=useState(null);
+  const [generatingCals,setGeneratingCals]=useState(false);
+  const [currentExIdx,setCurrentExIdx]=useState(0);
+  const [timerSec,setTimerSec]=useState(0);
+  const [timerActive,setTimerActive]=useState(false);
+  const [isRest,setIsRest]=useState(false);
+  const [sessionComplete,setSessionComplete]=useState(false);
+  const [sessionRating,setSessionRating]=useState(null);
+  const [calsHistory,setCalsHistory]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem(CALS_KEY)||"[]"); }catch(e){ return []; }
+  });
+  const timerRef=useRef(null);
+
+  useEffect(()=>{
+    if(timerActive&&timerSec>0){
+      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    } else if(timerActive&&timerSec===0){
+      advanceCals();
+    }
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec]);
+
+  function getCurrentWeek(){
+    try{
+      const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");
+      return prog[currentClient.id]?.currentWeek||1;
+    }catch(e){ return 1; }
+  }
+
+  function getLastRating(){
+    if(calsHistory.length===0) return 3;
+    return calsHistory[calsHistory.length-1].rating||3;
+  }
+
+  function getDifficultyMix(weekNum, lastRating){
+    // Adjust based on rating
+    let weekAdj=weekNum;
+    if(lastRating<=2) weekAdj=Math.min(12,weekNum+1); // Too easy — bump up
+    if(lastRating>=4) weekAdj=Math.max(1,weekNum-1); // Too hard — ease back
+
+    if(weekAdj<=2) return{beginning:6,intermediate:4,advanced:0,superAdvanced:0};
+    if(weekAdj<=8) return{beginning:2,intermediate:5,advanced:3,superAdvanced:0};
+    return{beginning:1,intermediate:3,advanced:4,superAdvanced:2};
+  }
+
+  function getExerciseCount(duration){
+    if(duration==="30 min") return 12;
+    if(duration==="45 min") return 18;
+    if(duration==="60 min") return 20;
+    return 24;
+  }
+
+  function getWorkDuration(level){
+    if(level==="Beginning") return 30;
+    if(level==="Intermediate") return 40;
+    if(level==="Advanced") return 50;
+    return 60; // Super Advanced
+  }
+
+  async function generateCalsSession(){
+    setGeneratingCals(true);
+    const weekNum=getCurrentWeek();
+    const lastRating=getLastRating();
+    const mix=getDifficultyMix(weekNum,lastRating);
+    const totalCount=getExerciseCount(calsDuration);
+
+    let workoutRows=sheetData.workouts||[];
+    if(workoutRows.length===0){
+      try{
+        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const text=await res.text();
+        const json=JSON.parse(text.substring(47).slice(0,-2));
+        workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+        setSheetData(p=>({...p,workouts:workoutRows}));
+        setSheetLoaded(true);
+      }catch(e){ console.error(e); }
+    }
+
+    function getByLevelAndCat(cat,level,count){
+      return workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).slice(0,count).map(row=>({
+        name:row[0]||"",
+        category:row[1]||"",
+        level:row[2]||level,
+        duration:getWorkDuration(level),
+        instructions:row[5]||"",
+        muscles:row[6]||"",
+        progression:row[7]||"none",
+        videoUrl:row[8]||null,
+      }));
+    }
+
+    // Get exercises by difficulty for both calisthenics and abs
+    const half=Math.floor;
+    const calsBegin=getByLevelAndCat("Calisthenics","Beginning",mix.beginning);
+    const calsInter=getByLevelAndCat("Calisthenics","Intermediate",mix.intermediate);
+    const calsAdv=getByLevelAndCat("Calisthenics","Advanced",mix.advanced);
+    const calsSA=getByLevelAndCat("Calisthenics","Super Advanced",mix.superAdvanced);
+
+    const absBegin=getByLevelAndCat("Abs","Beginning",half(mix.beginning*0.8));
+    const absInter=getByLevelAndCat("Abs","Intermediate",half(mix.intermediate*0.8));
+    const absAdv=getByLevelAndCat("Abs","Advanced",half(mix.advanced*0.8));
+    const absSA=getByLevelAndCat("Abs","Super Advanced",half(mix.superAdvanced*0.8));
+
+    // Combine all exercises
+    const allExercises=[...calsBegin,...calsInter,...calsAdv,...calsSA,...absBegin,...absInter,...absAdv,...absSA];
+
+    // Shuffle for round 1
+    const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+    const round1=shuffle(allExercises).slice(0,totalCount);
+
+    // Round 2 — same exercises different order
+    const rounds=calsDuration==="30 min"?2:calsDuration==="45 min"?2:3;
+    const allRounds=[];
+    for(let r=0;r<rounds;r++){
+      allRounds.push(...shuffle(round1));
+    }
+
+    setCalsSession({
+      exercises:allRounds,
+      uniqueCount:round1.length,
+      rounds,
+      duration:calsDuration,
+      weekNum,
+      lastRating,
+      mix,
+      generatedAt:todayStr(),
+    });
+    setCurrentExIdx(0);
+    setIsRest(false);
+    setSessionComplete(false);
+    setSessionRating(null);
+    setCalsPhase("preview");
+    setGeneratingCals(false);
+  }
+
+  function startCalsSession(){
+    if(!calsSession) return;
+    setCalsPhase("active");
+    setCurrentExIdx(0);
+    setIsRest(false);
+    const firstEx=calsSession.exercises[0];
+    setTimerSec(firstEx?.duration||30);
+    setTimerActive(true);
+    setSessionComplete(false);
+  }
+
+  function advanceCals(){
+    if(!calsSession) return;
+    if(isRest){
+      // Rest done — next exercise
+      const nextIdx=currentExIdx+1;
+      if(nextIdx>=calsSession.exercises.length){
+        setSessionComplete(true);
+        setTimerActive(false);
+        return;
+      }
+      setCurrentExIdx(nextIdx);
+      setIsRest(false);
+      setTimerSec(calsSession.exercises[nextIdx].duration||30);
+    } else {
+      // Exercise done — rest
+      setIsRest(true);
+      setTimerSec(15);
+    }
+  }
+
+  function saveCalsSession(rating){
+    const entry={
+      date:todayStr(),
+      duration:calsSession.duration,
+      weekNum:calsSession.weekNum,
+      exercises:calsSession.uniqueCount,
+      rounds:calsSession.rounds,
+      rating,
+      mix:calsSession.mix,
+      ts:new Date().toISOString(),
+    };
+    const newHistory=[...calsHistory,entry];
+    setCalsHistory(newHistory);
+    try{
+      localStorage.setItem(CALS_KEY,JSON.stringify(newHistory));
+      // Supabase sync
+      fetch(`${window.SUPABASE_URL}/rest/v1/atp_data`,{method:"POST",headers:{"apikey":window.SUPABASE_KEY,"Authorization":`Bearer ${window.SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({client_id:"__global__",data_key:CALS_KEY+"-"+currentClient.id,data_value:newHistory,updated_at:new Date().toISOString()})}).catch(()=>{});
+    }catch(e){}
+    setSessionRating(rating);
+    setSessionComplete(true);
+  }
+
+  const weekNum=getCurrentWeek();
+  const phase=weekNum<=2?"Foundation":weekNum<=8?"Build":"Peak";
+  const phaseColor=weekNum<=2?"#60a5fa":weekNum<=8?G.greenMid:G.mangoDeep;
+  const activeEx=calsSession?.exercises[currentExIdx];
+  const currentRound=calsSession?Math.floor(currentExIdx/calsSession.uniqueCount)+1:1;
+  const progressPct=calsSession?Math.round((currentExIdx/calsSession.exercises.length)*100):0;
+
+  // SETUP SCREEN
+  if(calsPhase==="setup") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#7c3aed,#a78bfa)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🤸 Calisthenics & Abs</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Week {weekNum} — {phase} Phase</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>Circuit training — calisthenics and abs mixed throughout. No equipment needed!</div>
+      </div>
+
+      {/* Phase indicator */}
+      <div style={{...card,border:`2px solid ${phaseColor}44`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={lbl}>📊 Current Difficulty Mix</div>
+          <div style={{fontSize:"0.62rem",padding:"2px 8px",borderRadius:20,background:phaseColor+"22",color:phaseColor,fontWeight:700}}>{phase}</div>
+        </div>
+        {(()=>{
+          const lastRating=getLastRating();
+          const mix=getDifficultyMix(weekNum,lastRating);
+          return(
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              {[{l:"Beginning",v:mix.beginning,c:"#60a5fa"},{l:"Intermediate",v:mix.intermediate,c:G.greenMid},{l:"Advanced",v:mix.advanced,c:G.mango},{l:"Super Advanced",v:mix.superAdvanced,c:G.mangoDeep}].filter(x=>x.v>0).map((x,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"0.68rem",color:G.textSoft}}>{x.l}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{width:60,height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${(x.v/10)*100}%`,background:x.c,borderRadius:3}}/>
+                    </div>
+                    <span style={{fontSize:"0.68rem",fontWeight:700,color:x.c}}>{x.v}</span>
+                  </div>
+                </div>
+              ))}
+              {lastRating<=2&&<div style={{fontSize:"0.64rem",color:G.greenMid,fontStyle:"italic",marginTop:4}}>💪 Bumped up — you rated last session {lastRating}/5!</div>}
+              {lastRating>=4&&<div style={{fontSize:"0.64rem",color:G.mango,fontStyle:"italic",marginTop:4}}>💙 Eased back — you rated last session {lastRating}/5</div>}
+            </div>
+          );
+        })()}
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>⏱ How long do you have?</div>
+        <div style={{display:"flex",gap:6}}>
+          {["30 min","45 min","60 min","90 min"].map(t=>(
+            <button key={t} onClick={()=>setCalsDuration(t)} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${calsDuration===t?"#7c3aed":G.border}`,background:calsDuration===t?"#f5f3ff":G.cream,color:calsDuration===t?"#7c3aed":G.textSoft,fontSize:"0.72rem",fontWeight:calsDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
+          ))}
+        </div>
+        <div style={{marginTop:8,fontSize:"0.62rem",color:G.textSoft}}>{getExerciseCount(calsDuration)} exercises × {calsDuration==="30 min"?2:calsDuration==="45 min"?2:3} rounds</div>
+      </div>
+
+      {calsHistory.length>0&&(
+        <div style={{...card,background:"#f5f3ff",border:`1px solid #a78bfa44`}}>
+          <div style={lbl}>📊 Last Session</div>
+          <div style={{fontSize:"0.74rem",color:G.text}}>{calsHistory[calsHistory.length-1].duration} · {fmtDate(calsHistory[calsHistory.length-1].date)}</div>
+          <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {calsHistory[calsHistory.length-1].weekNum} · Rated {calsHistory[calsHistory.length-1].rating}/5</div>
+        </div>
+      )}
+
+      <button onClick={generateCalsSession} disabled={generatingCals} style={{...btnGreen,background:"linear-gradient(135deg,#7c3aed,#a78bfa)",boxShadow:"0 4px 14px rgba(124,58,237,.3)",opacity:generatingCals?0.7:1}}>
+        {generatingCals?"🤸 Building your session...":"🤸 Generate Session"}
+      </button>
+    </div>
+  );
+
+  // PREVIEW SCREEN
+  if(calsPhase==="preview"&&calsSession) return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#7c3aed,#a78bfa)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🤸 Your Session</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{calsDuration} Circuit — {calsSession.rounds} Rounds</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{calsSession.uniqueCount} unique exercises · {calsSession.exercises.length} total sets</div>
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>Round 1 Preview</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {calsSession.exercises.slice(0,calsSession.uniqueCount).map((ex,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:G.creamDark,borderRadius:10}}>
+              <div style={{width:24,height:24,borderRadius:"50%",background:ex.level==="Beginning"?"#60a5fa":ex.level==="Intermediate"?G.greenMid:ex.level==="Advanced"?G.mango:"#7c3aed",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.6rem",fontWeight:700,flexShrink:0}}>{ex.duration}s</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"0.76rem",fontWeight:700,color:G.text}}>{ex.name}</div>
+                <div style={{fontSize:"0.6rem",color:G.textSoft}}>{ex.level} · {ex.category}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={startCalsSession} style={{...btnGreen,background:"linear-gradient(135deg,#7c3aed,#a78bfa)",boxShadow:"0 4px 14px rgba(124,58,237,.3)"}}>▶ Start Session</button>
+      <button onClick={()=>setCalsPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
+    </div>
+  );
+
+  // ACTIVE SESSION
+  if(calsPhase==="active"&&calsSession) return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:isRest?"#f0faf4":"#f5f3ff"}}>
+      {/* Progress bar */}
+      <div style={{height:6,background:"#e9d5ff"}}>
+        <div style={{height:"100%",width:`${progressPct}%`,background:"linear-gradient(90deg,#7c3aed,#a78bfa)",transition:"width .5s"}}/>
+      </div>
+
+      {sessionComplete?(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+          <div style={{fontSize:"3rem"}}>🏆</div>
+          <div style={{fontSize:"1.1rem",fontWeight:900,color:"#7c3aed",textAlign:"center"}}>Session Complete!</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! All things are possible! 🙏</div>
+          {!sessionRating&&(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
+              <div style={{display:"flex",gap:6}}>
+                {[1,2,3,4,5].map(r=>(
+                  <button key={r} onClick={()=>saveCalsSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${sessionRating===r?"#7c3aed":G.border}`,background:sessionRating===r?"#f5f3ff":G.cream,color:sessionRating===r?"#7c3aed":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                ))}
+              </div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+            </div>
+          )}
+          {sessionRating&&<button onClick={()=>{setCalsPhase("setup");setSessionComplete(false);setCalsSession(null);}} style={{...btnGreen,background:"linear-gradient(135deg,#7c3aed,#a78bfa)"}}>🤸 New Session</button>}
+        </div>
+      ):(
+        <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+          {/* Round indicator */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:"0.68rem",color:"#7c3aed",fontWeight:700}}>Round {currentRound} of {calsSession.rounds}</div>
+            <div style={{fontSize:"0.68rem",color:G.textSoft}}>Exercise {(currentExIdx%calsSession.uniqueCount)+1} of {calsSession.uniqueCount}</div>
+          </div>
+
+          {/* Block indicators */}
+          <div style={{display:"flex",gap:3}}>
+            {Array.from({length:calsSession.uniqueCount}).map((_,i)=>{
+              const globalIdx=(currentRound-1)*calsSession.uniqueCount+i;
+              const done=globalIdx<currentExIdx;
+              const active=globalIdx===currentExIdx;
+              return(<div key={i} style={{flex:1,height:4,borderRadius:2,background:done?G.greenMid:active?"#7c3aed":G.border,transition:"background .3s"}}/>);
+            })}
+          </div>
+
+          {/* Big timer */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12}}>
+            <div style={{width:170,height:170,borderRadius:"50%",background:isRest?"#d8f3dc":"#ede9fe",border:`6px solid ${isRest?G.greenMid:"#7c3aed"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 30px ${isRest?G.greenMid:"#7c3aed"}44`}}>
+              <div style={{fontSize:"0.65rem",color:isRest?G.greenMid:"#7c3aed",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{isRest?"REST":"GO"}</div>
+              <div style={{fontSize:"3.5rem",fontWeight:900,color:isRest?G.greenMid:"#7c3aed",fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timerSec}</div>
+              <div style={{fontSize:"0.58rem",color:G.textSoft,marginTop:4}}>seconds</div>
+            </div>
+
+            {!isRest&&activeEx&&(
+              <div style={{textAlign:"center",width:"100%"}}>
+                <div style={{fontSize:"1.1rem",fontWeight:900,color:G.text,marginBottom:4}}>{activeEx.name}</div>
+                <div style={{fontSize:"0.62rem",padding:"3px 10px",borderRadius:20,background:activeEx.level==="Beginning"?"#dbeafe":activeEx.level==="Intermediate"?"#d1fae5":activeEx.level==="Advanced"?"#fef3c7":"#ede9fe",color:activeEx.level==="Beginning"?"#1d4ed8":activeEx.level==="Intermediate"?G.green:activeEx.level==="Advanced"?G.brown:"#7c3aed",fontWeight:600,display:"inline-block",marginBottom:8}}>{activeEx.level}</div>
+                <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6,maxWidth:280,margin:"0 auto"}}>{activeEx.instructions}</div>
+                {/* Video placeholder */}
+                <div style={{marginTop:10,padding:"8px 14px",borderRadius:10,background:"#f1f5f9",border:`1px dashed ${G.border}`,display:"inline-flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:"1rem"}}>🎥</span>
+                  <span style={{fontSize:"0.64rem",color:G.textSoft}}>Video Coming Soon</span>
+                </div>
+              </div>
+            )}
+
+            {isRest&&(
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
+                <div style={{fontSize:"0.7rem",color:G.textSoft}}>
+                  Next: {calsSession.exercises[currentExIdx+1]?.name||"Done!"}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setTimerActive(r=>!r)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:timerActive?"#7c3aed":G.green,color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{timerActive?"⏸ Pause":"▶ Resume"}</button>
+            <button onClick={()=>{setTimerActive(false);advanceCals();setTimeout(()=>setTimerActive(true),100);}} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return null;
+}
+
 function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate}){
   const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
@@ -576,6 +955,37 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
 }
 
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
+  // Audio ping function
+  function playPing(type="tick"){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if(type==="end"){
+        osc.frequency.setValueAtTime(880,ctx.currentTime);
+        osc.frequency.setValueAtTime(660,ctx.currentTime+0.1);
+        gain.gain.setValueAtTime(0.3,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime+0.4);
+      } else if(type==="tick"){
+        osc.frequency.setValueAtTime(440,ctx.currentTime);
+        gain.gain.setValueAtTime(0.2,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime+0.1);
+      } else if(type==="start"){
+        osc.frequency.setValueAtTime(660,ctx.currentTime);
+        osc.frequency.setValueAtTime(880,ctx.currentTime+0.15);
+        gain.gain.setValueAtTime(0.3,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime+0.4);
+      }
+    }catch(e){}
+  }
   const [hiitPhase,setHiitPhase]=useState("setup");
   const [hiitDuration,setHiitDuration]=useState(currentClient.workoutDuration||"45 min");
   const [hiitType,setHiitType]=useState("boxing");
@@ -587,52 +997,92 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
   const [timeLeft,setTimeLeft]=useState(0);
   const [isRest,setIsRest]=useState(false);
   const [sessionComplete,setSessionComplete]=useState(false);
+  const [isGloveTime,setIsGloveTime]=useState(false);
+  const [hiitRating,setHiitRating]=useState(null);
   const hiitTimerRef=useRef(null);
 
-  useEffect(()=>{
+ useEffect(()=>{
     if(timerActive&&timeLeft>0){
+      // Play ping at 3,2,1 seconds
+      if(timeLeft<=3&&!isRest) playPing("tick");
       hiitTimerRef.current=setTimeout(()=>setTimeLeft(t=>t-1),1000);
     } else if(timerActive&&timeLeft===0){
+      playPing("end");
       advanceHiit();
     }
     return()=>clearTimeout(hiitTimerRef.current);
   },[timerActive,timeLeft]);
 
-  function advanceHiit(){
+function advanceHiit(){
     if(!hiitSession) return;
     const block=hiitSession.blocks[currentBlock];
     if(!block){ setSessionComplete(true); setTimerActive(false); return; }
+
+    if(isGloveTime){
+      // Glove time done — advance to next heavy bag block
+      const nextBlock=currentBlock+1;
+      setIsGloveTime(false);
+      setIsRest(false);
+      setCurrentBlock(nextBlock);
+      setCurrentExercise(0);
+      setTimeLeft(hiitSession.blocks[nextBlock]?.exercises[0]?.duration||60);
+      playPing("start");
+      return;
+    }
     if(isRest){
       const nextEx=currentExercise+1;
       if(nextEx>=block.exercises.length){
         const nextBlock=currentBlock+1;
         if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
-        setCurrentBlock(nextBlock);
-        setCurrentExercise(0);
-        setIsRest(false);
-        setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+        const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
+        const currentBlockName=block.name.toLowerCase();
+        if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
+          setIsRest(true);
+          setIsGloveTime(true);
+          setTimeLeft(30);
+        } else {
+          setIsGloveTime(false);
+          setCurrentBlock(nextBlock);
+          setCurrentExercise(0);
+          setIsRest(false);
+          setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+          playPing("start");
+        }
       } else {
         setCurrentExercise(nextEx);
         setIsRest(false);
         setTimeLeft(block.exercises[nextEx].duration);
+        playPing("start");
       }
     } else {
       if(block.restBetween>0&&currentExercise<block.exercises.length-1){
         setIsRest(true);
+        setIsGloveTime(false);
         setTimeLeft(block.restBetween);
       } else {
         const nextEx=currentExercise+1;
         if(nextEx>=block.exercises.length){
           const nextBlock=currentBlock+1;
           if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
-          setCurrentBlock(nextBlock);
-          setCurrentExercise(0);
-          setIsRest(false);
-          setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+          const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
+          const currentBlockName=block.name.toLowerCase();
+          if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
+            setIsRest(true);
+            setIsGloveTime(true);
+            setTimeLeft(30);
+          } else {
+            setIsGloveTime(false);
+            setCurrentBlock(nextBlock);
+            setCurrentExercise(0);
+            setIsRest(false);
+            setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
+            playPing("start");
+          }
         } else {
           setCurrentExercise(nextEx);
           setIsRest(false);
           setTimeLeft(block.exercises[nextEx].duration);
+          playPing("start");
         }
       }
     }
@@ -686,7 +1136,15 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
     ];
     const warmdownFull=[...abExs,...warmdownExs].slice(0,8);
 
-    const blocks=[
+   const mins=parseInt(hiitDuration)||45;
+    const blocks=mins<=30?[
+      {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
+    ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
@@ -694,8 +1152,32 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
+      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+    ]:mins<=60?[
+      {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:[...cals1,...cals2].slice(0,2)},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+    ]:[
+      {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
+      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
       {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
-    ];
+    ]; 
 
     setHiitSession({type:hiitType,duration:hiitDuration,blocks,generatedAt:todayStr()});
     setCurrentBlock(0); setCurrentExercise(0); setIsRest(false); setSessionComplete(false);
@@ -782,11 +1264,26 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
         <div style={{height:"100%",width:`${progressPct}%`,background:`linear-gradient(90deg,${G.mangoDeep},${G.mango})`,transition:"width .5s"}}/>
       </div>
       {sessionComplete?(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
           <div style={{fontSize:"3rem"}}>🏆</div>
           <div style={{fontSize:"1.1rem",fontWeight:900,color:G.green,textAlign:"center"}}>Session Complete!</div>
           <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! You completed a full boxing HIIT session. All things are possible! 🙏</div>
-          <button onClick={()=>{setHiitPhase("setup");setSessionComplete(false);setTimerActive(false);}} style={btnGreen}>🔄 New Session</button>
+          {!hiitRating?(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
+              <div style={{display:"flex",gap:6}}>
+                {[1,2,3,4,5].map(r=>(
+                  <button key={r} onClick={()=>setHiitRating(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${hiitRating===r?G.mangoDeep:G.border}`,background:hiitRating===r?"#fff3e0":G.cream,color:hiitRating===r?G.mangoDeep:G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                ))}
+              </div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+            </div>
+          ):(
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:"0.82rem",fontWeight:700,color:G.green,marginBottom:12}}>Rating saved — {hiitRating<=2?"We'll push harder next time! 💪":hiitRating===3?"Perfect intensity! 🌟":"We'll adjust for next time 🙏"}</div>
+              <button onClick={()=>{setHiitPhase("setup");setSessionComplete(false);setTimerActive(false);setHiitRating(null);setIsGloveTime(false);}} style={btnGreen}>🔄 New Session</button>
+            </div>
+          )}
         </div>
       ):(
         <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
@@ -795,23 +1292,30 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
               <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<currentBlock?G.greenMid:i===currentBlock?G.mangoDeep:G.border,transition:"background .3s"}}/>
             ))}
           </div>
-          <div style={{fontSize:"0.7rem",fontWeight:700,color:activeBlock?.color||G.text,textTransform:"uppercase",letterSpacing:1}}>{activeBlock?.name}</div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:8}}>
-            <div style={{width:160,height:160,borderRadius:"50%",background:isRest?"#d8f3dc":activeBlock?.color+"22",border:`6px solid ${isRest?G.greenMid:activeBlock?.color||G.mango}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 30px ${isRest?G.greenMid:activeBlock?.color||G.mango}44`}}>
-              <div style={{fontSize:"0.65rem",color:isRest?G.greenMid:activeBlock?.color||G.mango,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{isRest?"REST":"GO"}</div>
-              <div style={{fontSize:"3.5rem",fontWeight:900,color:isRest?G.greenMid:activeBlock?.color||G.mangoDeep,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timeLeft}</div>
-              <div style={{fontSize:"0.58rem",color:G.textSoft,marginTop:4}}>seconds</div>
+         <div style={{fontSize:"0.75rem",fontWeight:700,color:activeBlock?.color||G.text,textTransform:"uppercase",letterSpacing:1}}>{activeBlock?.name}</div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12}}>
+            <div style={{width:180,height:180,borderRadius:"50%",background:isGloveTime?"#fff3e0":isRest?"#d8f3dc":activeBlock?.color+"22",border:`6px solid ${isGloveTime?G.mangoDeep:isRest?G.greenMid:activeBlock?.color||G.mango}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 30px ${isGloveTime?G.mangoDeep:isRest?G.greenMid:activeBlock?.color||G.mango}44`}}>
+              <div style={{fontSize:"0.7rem",color:isGloveTime?G.mangoDeep:isRest?G.greenMid:activeBlock?.color||G.mango,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{isGloveTime?"GLOVES":isRest?"REST":"GO"}</div>
+              <div style={{fontSize:"4rem",fontWeight:900,color:timeLeft<=3&&!isRest?"#f87171":isGloveTime?G.mangoDeep:isRest?G.greenMid:activeBlock?.color||G.mangoDeep,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timeLeft}</div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>seconds</div>
             </div>
-            {!isRest&&activeExercise&&(
+
+            {isGloveTime&&(
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:"1rem",fontWeight:900,color:G.text,marginBottom:4}}>{activeExercise.name}</div>
-                <div style={{fontSize:"0.7rem",color:G.textSoft,lineHeight:1.6,maxWidth:280}}>{activeExercise.instructions}</div>
+                <div style={{fontSize:"1.1rem",fontWeight:900,color:G.mangoDeep,marginBottom:4}}>🥊 Next Up — Put your gloves back on!</div>
+                <div style={{fontSize:"0.74rem",color:G.textSoft}}>Heavy bag round coming up next...</div>
               </div>
             )}
-            {isRest&&(
+            {!isRest&&!isGloveTime&&activeExercise&&(
+              <div style={{textAlign:"center",paddingHorizontal:8}}>
+                <div style={{fontSize:"1.3rem",fontWeight:900,color:G.text,marginBottom:6}}>{activeExercise.name}</div>
+                <div style={{fontSize:"0.76rem",color:G.textSoft,lineHeight:1.7,maxWidth:300,margin:"0 auto"}}>{activeExercise.instructions}</div>
+              </div>
+            )}
+            {isRest&&!isGloveTime&&(
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
-                <div style={{fontSize:"0.7rem",color:G.textSoft}}>Next: {activeBlock?.exercises[currentExercise+1]?.name||hiitSession.blocks[currentBlock+1]?.exercises[0]?.name||"Warm Down"}</div>
+                <div style={{fontSize:"1rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
+                <div style={{fontSize:"0.76rem",color:G.textSoft}}>Next: {activeBlock?.exercises[currentExercise+1]?.name||hiitSession.blocks[currentBlock+1]?.exercises[0]?.name||"Warm Down"}</div>
               </div>
             )}
           </div>
@@ -2266,8 +2770,8 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // CLIENT APP
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
-const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥗","Nutrition"]];
-    const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"]];
+const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
+  const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -3441,7 +3945,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
-       {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+       {tab==="cals"&&<CalisthenicsTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+        {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
 
