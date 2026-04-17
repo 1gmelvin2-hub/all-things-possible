@@ -1439,7 +1439,7 @@ export default function AllThingsPossible(){
   const EQUIPMENT_OPTIONS=["Dumbbells","Resistance bands","Yoga mat","Treadmill","Pull-up bar","Gym membership","No equipment"];
   const DAYS_OF_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const WORKOUT_TIMES=["Morning","Afternoon","Evening","No preference"];
- const [selfReg,setSelfReg]       = useState({name:"",email:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:""});
+ const [selfReg,setSelfReg]       = useState({name:"",email:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:"",phone:"",textConsent:false,agreedToTerms:false,agreedAt:""});
   const [selfRegGroup,setSelfRegGroup] = useState(0);
   const [selfRegError,setSelfRegError] = useState("");
   const [tempPasscode,setTempPasscode] = useState({});
@@ -2267,8 +2267,10 @@ Return ONLY valid JSON array (no markdown):
     setAiLoading(false);
   }
 function submitSelfReg(){
+    if(!selfReg.agreedToTerms){ setSelfRegError("Please read and agree to the terms before continuing."); return; }
     if(selfReg.passcode.length<4){ setSelfRegError("Passcode must be at least 4 characters."); return; }
     if(selfReg.passcode!==selfReg.confirmPasscode){ setSelfRegError("Passcodes don't match — please try again."); return; }
+    if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
     if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
     const equipList=[...selfReg.equipment,...(selfReg.equipmentOther.trim()?[selfReg.equipmentOther.trim()]:[])].join(", ")||"None";
     const nc={
@@ -2281,9 +2283,12 @@ function submitSelfReg(){
       workoutDuration:selfReg.workoutDuration||"45 min",
       quickMoveDays:selfReg.quickMoveDays, longRunDay:selfReg.longRunDay||"",
       canUpdateSchedule:selfReg.canUpdateSchedule,
-      injury:selfReg.injury||"none", medical:selfReg.medical||"none",
-      passcode:selfReg.passcode, active:true, onboarded:true
-    };
+     injury:selfReg.injury||"none", medical:selfReg.medical||"none",
+      passcode:selfReg.passcode, active:true, onboarded:true,
+      phone:selfReg.phone||"",
+      textConsent:selfReg.textConsent||false,
+      agreedToTerms:true,
+      agreedAt:selfReg.agreedAt||new Date().toISOString(),     };
     const newClients=[...clients,nc];
     persist(newClients,null,null,null,null,null,null,null);
     // Force immediate Supabase push for new registration
@@ -2619,9 +2624,10 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
         {title:"Personal Info",icon:"👤",fields:[
           {q:"What's your full name?",field:"name",placeholder:"e.g. Maria Santos",type:"text"},
           {q:"Your email address",field:"email",placeholder:"e.g. maria@email.com",type:"email"},
-          {q:"How old are you?",field:"age",placeholder:"e.g. 45",type:"number"},
+         {q:"How old are you?",field:"age",placeholder:"e.g. 45",type:"number"},
           {q:"Current weight (lbs)?",field:"weight",placeholder:"e.g. 165",type:"number"},
           {q:"Goal weight (lbs)?",field:"goalWeight",placeholder:"e.g. 145",type:"number"},
+          {q:"Phone number?",field:"phone",placeholder:"e.g. 407-555-1234",type:"tel"},
         ]},
         {title:"Goals & Activity",icon:"🎯",fields:[
           {q:"What is your wellness goal?",field:"goal",placeholder:"e.g. Lose weight, feel energized, reduce stress...",type:"text"},
@@ -2637,6 +2643,9 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
         {title:"Health Info",icon:"🏥",fields:[
           {q:"Any injuries your coach should know about?",field:"injury",placeholder:"e.g. Bad left knee, or type 'none'",type:"text"},
           {q:"Any medical conditions your coach should know about?",field:"medical",placeholder:"e.g. Type 2 diabetes, or type 'none'",type:"text"},
+        ]},
+        {title:"Terms & Agreement",icon:"📋",fields:[
+          {q:"disclaimer",field:"agreedToTerms",type:"disclaimer"},
         ]},
         {title:"Create Account",icon:"🔑",fields:[
           {q:"Create your personal passcode",field:"passcode",placeholder:"Min 4 characters — you'll use this to log in",type:"password"},
@@ -2743,7 +2752,40 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
                       </div>
                     </div>
                   )}
-                  {f.type!=="select"&&f.type!=="equipment"&&f.type!=="workoutDays"&&(
+            {f.type==="disclaimer"&&(
+                    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                      <div style={{height:280,overflowY:"auto",padding:"14px 16px",background:G.creamDark,borderRadius:10,border:`1px solid ${G.border}`,fontSize:"0.68rem",color:G.text,lineHeight:1.8}}>
+                        <div style={{fontWeight:700,fontSize:"0.78rem",color:G.green,marginBottom:8,textAlign:"center"}}>ALL THINGS POSSIBLE HEALTH COACHING</div>
+                        <div style={{fontWeight:700,fontSize:"0.72rem",color:G.text,marginBottom:12,textAlign:"center"}}>Client Acknowledgement & Informed Consent</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Health & Medical Disclaimer</div>
+                        <div style={{marginBottom:10}}>The coaching services provided by All Things Possible Health Coaching are for general wellness and motivational purposes only. MJ Melvin is not a licensed physician, registered dietitian, or certified medical professional. Nothing in this program constitutes medical advice, diagnosis, or treatment. Always consult your physician or qualified healthcare provider before beginning any new exercise program, nutrition plan, or wellness regimen — especially if you have any pre-existing medical conditions, injuries, or are pregnant.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Assumption of Risk</div>
+                        <div style={{marginBottom:10}}>I understand that participation in any fitness or nutrition program involves inherent risks, including but not limited to physical injury, muscle soreness, or adverse health effects. I voluntarily assume full responsibility for any risks, injuries, or damages that may occur during participation in this program.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Results Disclaimer</div>
+                        <div style={{marginBottom:10}}>Individual results vary. All Things Possible Health Coaching makes no guarantees regarding specific outcomes including weight loss, fitness improvements, or health benefits. Your results will depend on many factors including your commitment, consistency, and individual physiology.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Faith-Based Approach</div>
+                        <div style={{marginBottom:10}}>I understand that All Things Possible Health Coaching incorporates Christian faith-based principles including prayer, scripture, and spiritual encouragement as part of the coaching experience. Participation in these elements is optional but encouraged.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Data & Privacy</div>
+                        <div style={{marginBottom:10}}>My personal information including name, weight, health data, and wellness goals will be stored securely and used solely for coaching purposes. This information will not be sold or shared with third parties.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Text Message Consent</div>
+                        <div style={{marginBottom:10}}>If I have provided my phone number and consented to receive text messages, I understand I may receive coaching tips, encouragement, and program updates via SMS. Message and data rates may apply. I may opt out at any time by replying STOP.</div>
+                        <div style={{fontWeight:700,color:G.brown,marginBottom:4}}>Acknowledgement</div>
+                        <div style={{marginBottom:10}}>By checking the box below I confirm that I am 18 years of age or older, I have read and understood this entire agreement, I agree to participate voluntarily and take full responsibility for my health decisions, and I release All Things Possible Health Coaching and MJ Melvin from any liability.</div>
+                        <div style={{fontStyle:"italic",textAlign:"center",color:G.green,fontWeight:600}}>"I can do all things through Christ who strengthens me." — Philippians 4:13</div>
+                      </div>
+                      {/* Text consent */}
+                      <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
+                        <button onClick={()=>setSelfReg(p=>({...p,textConsent:!p.textConsent}))} style={{width:24,height:24,borderRadius:5,border:`2px solid ${selfReg.textConsent?G.greenMid:G.border}`,background:selfReg.textConsent?G.greenMid:G.cream,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.white,fontSize:"0.85rem",flexShrink:0,marginTop:1}}>{selfReg.textConsent?"✓":""}</button>
+                        <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6}}>I consent to receive text messages from All Things Possible Health Coaching. Message & data rates may apply. Reply STOP to opt out.</div>
+                      </div>
+                      {/* Agreement checkbox */}
+                      <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",background:selfReg.agreedToTerms?"#d8f3dc":G.redLight,borderRadius:10,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`}}>
+                        <button onClick={()=>setSelfReg(p=>({...p,agreedToTerms:!p.agreedToTerms,agreedAt:!p.agreedToTerms?new Date().toISOString():""}))} style={{width:24,height:24,borderRadius:5,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`,background:selfReg.agreedToTerms?G.greenMid:G.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.white,fontSize:"0.85rem",flexShrink:0,marginTop:1}}>{selfReg.agreedToTerms?"✓":""}</button>
+                        <div style={{fontSize:"0.74rem",color:selfReg.agreedToTerms?G.green:G.red,fontWeight:600,lineHeight:1.6}}>I have read and agree to the All Things Possible Health Coaching terms and informed consent agreement.</div>
+                      </div>
+                    </div>
+                  )}
+                  {f.type!=="select"&&f.type!=="equipment"&&f.type!=="workoutDays"&&f.type!=="disclaimer"&&(
                     <input type={f.type} value={selfReg[f.field]||""} onChange={e=>{setSelfReg(p=>({...p,[f.field]:e.target.value}));setSelfRegError("");}} placeholder={f.placeholder} style={iStyle} autoFocus={i===0}/>
                   )}
                 </div>
@@ -4205,6 +4247,30 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 <textarea value={msgDraft[selectedClientCoach.id]||""} onChange={e=>setMsgDraft(p=>({...p,[selectedClientCoach.id]:e.target.value}))} placeholder={`Write to ${selectedClientCoach.name.split(" ")[0]}...`} rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
                 <button onClick={()=>sendCoachMessage(selectedClientCoach.id,msgDraft[selectedClientCoach.id]||"")} style={btnMango}>✉️ Send Message</button>
               </div>
+
+              {/* Legal agreement */}
+              {selectedClientCoach.agreedToTerms&&(
+                <div style={{...card,border:`1.5px solid ${G.greenLight}`,background:"#f0faf4"}}>
+                  <div style={lbl}>📋 Legal Agreement</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:"0.74rem",color:G.text,fontWeight:600}}>✅ Terms Agreed</span>
+                      <span style={{fontSize:"0.68rem",color:G.textSoft}}>{new Date(selectedClientCoach.agreedAt||"").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
+                    </div>
+                    {selectedClientCoach.phone&&(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:"0.74rem",color:G.textSoft}}>📱 Phone</span>
+                        <span style={{fontSize:"0.74rem",fontWeight:700,color:G.text}}>{selectedClientCoach.phone}</span>
+                      </div>
+                    )}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:"0.74rem",color:G.textSoft}}>💬 Text Consent</span>
+                      <span style={{fontSize:"0.74rem",fontWeight:700,color:selectedClientCoach.textConsent?G.green:G.red}}>{selectedClientCoach.textConsent?"Yes — OK to text":"No — do not text"}</span>
+                    </div>
+                    <div style={{marginTop:4,padding:"8px 10px",background:G.white,borderRadius:8,fontSize:"0.64rem",color:G.textSoft,fontStyle:"italic",lineHeight:1.6}}>Client agreed to All Things Possible Health Coaching terms and informed consent on the date above.</div>
+                  </div>
+                </div>
+              )}
 
               {/* Client health info */}
               {(selectedClientCoach.injury||selectedClientCoach.medical||selectedClientCoach.equipment)&&(
