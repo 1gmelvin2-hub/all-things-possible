@@ -1133,17 +1133,17 @@ function advanceHiit(){
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-    const shadowExs=hiitType==="kickboxing"?getExercises(["kickboxing","kickboxing combo"],6):hiitType==="mixed"?getExercises(["kickboxing","kickboxing combo","heavy bag combo"],6):getExercises(["heavy bag combo","boxing only","power punching"],6);
+    const shadowExs=hiitType==="kickboxing"?getExercises(["kickboxing"],6):hiitType==="mixed"?getExercises(["kickboxing","heavy bag"],6):getExercises(["heavy bag","boxing only","power punching"],6);
     if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
 
-    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing","kickboxing combo"],4):getExercises(["heavy bag","boxing only","power punching"],4);
+    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing"],4):getExercises(["heavy bag","boxing only","power punching"],4);
     if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross Combo","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:60});
 
-    const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo","heavy bag"],8).slice(2,6):getExercises(["heavy bag","kickboxing combo"],8).slice(2,6);
+  const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing"],8).slice(2,6):getExercises(["heavy bag"],8).slice(2,6);  
     if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:60});
 
   
-const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo","heavy bag"],12).slice(4,8):getExercises(["heavy bag","power punching"],12).slice(4,8);
+const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8):getExercises(["heavy bag","power punching"],12).slice(4,8);
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
     const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
