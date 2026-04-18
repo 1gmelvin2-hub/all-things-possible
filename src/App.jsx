@@ -11,6 +11,7 @@ const RATINGS_KEY   = "atp-ratings";
 const NUTRITION_KEY  = "atp-nutrition";
 const PROGRAM_KEY    = "atp-program";
 const BODYSTATS_KEY  = "atp-bodystats";
+const FAVORITES_KEY  = "atp-favorites";
 const GFIT_KEY       = "atp-googlefit";
 const GYM_KEY        = "atp-gym";
 const GYM_STARTS_KEY = "atp-gymstarts";
@@ -461,11 +462,11 @@ function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,
         );
       })}
 
-      {selectedPlan&&(
+     {selectedPlan&&(
         <button onClick={()=>startRun(selectedPlan)} style={{...btnGreen,background:`linear-gradient(135deg,#064e3b,#10b981)`,boxShadow:"0 4px 14px rgba(16,185,129,.3)"}}>
-          🏃 Start Week {planWeek} Run
+          🏃 Week {planWeek} Run → Go!
         </button>
-      )}
+      )} 
     </div>
   );
 
@@ -1867,8 +1868,12 @@ export default function AllThingsPossible(){
   const [loadingNutri,setLoadingNutri]   = useState(false);
 
   // nutrition form
-  const [mealType,setMealType]     = useState("Breakfast");
+ const [mealType,setMealType]     = useState("Breakfast");
   const [mealText,setMealText]     = useState("");
+  const [favorites,setFavorites]   = useState({});
+  const [showFavSetup,setShowFavSetup] = useState(false);
+  const [favForm,setFavForm]       = useState({Breakfast:"",Lunch:"",Dinner:"",Snack:""});
+  const [editingFavs,setEditingFavs] = useState(false);
   const [waterGlasses,setWaterGlasses] = useState(0); // water lives in nutrition now
   const [analyzingMeal,setAnalyzingMeal] = useState(false);
 
@@ -1973,7 +1978,11 @@ export default function AllThingsPossible(){
 
         const sbBodyStats = await sbGetSafe(BODYSTATS_KEY);
         const bs = sbBodyStats || JSON.parse(localStorage.getItem(BODYSTATS_KEY)||"null");
-        if(bs) setBodyStats(bs); 
+        if(bs) setBodyStats(bs);
+
+        const sbFavs = await sbGetSafe(FAVORITES_KEY);
+        const fv = sbFavs || JSON.parse(localStorage.getItem(FAVORITES_KEY)||"null");
+        if(fv) setFavorites(fv); 
         const sbInvite = await sbGetGlobal("atp-invitecode");
         if(sbInvite) setInviteCode(sbInvite);
         const sc=localStorage.getItem(SESSION_KEY);
@@ -2155,7 +2164,8 @@ function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
     sbSetGlobal(NUTRITION_KEY, nt);
     sbSetGlobal(MOVEPROFILE_KEY, moveProfile);
     sbSetGlobal(PROGRAM_KEY, program);
-    sbSetGlobal(BODYSTATS_KEY, bodyStats);
+   sbSetGlobal(BODYSTATS_KEY, bodyStats);
+    sbSetGlobal(FAVORITES_KEY, favorites);
   }
   function startClientLogin(c){ setLoginTarget(c); setPasscodeInput(""); setPasscodeError(""); setLoginMode("passcode"); }
 
@@ -3973,9 +3983,69 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()} 
 
         {/* ── NUTRITION ── */}
-        {tab==="nutrition"&&(
+        {tab==="nutrition"&&(()=>{
+          const clientFavs=favorites[currentClient.id]||null;
+          const needsSetup=!clientFavs&&!showFavSetup;
+
+          // First time setup
+          if(needsSetup||showFavSetup) return(
+            <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}>
+                <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🥗 Quick Add Setup</div>
+                <div style={{fontSize:"0.88rem",fontWeight:700,color:G.white,marginBottom:4}}>{editingFavs?"Update Your Favorites":"Let's set up your favorites!"}</div>
+                <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>Tell us what you typically eat — we'll add quick-tap buttons to make logging meals faster!</div>
+              </div>
+
+              {["Breakfast","Lunch","Dinner","Snack"].map(meal=>(
+                <div key={meal} style={card}>
+                  <div style={lbl}>{meal==="Breakfast"?"🌅":meal==="Lunch"?"☀️":meal==="Dinner"?"🌙":"🍎"} Typical {meal} foods</div>
+                  <div style={{fontSize:"0.68rem",color:G.textSoft,marginBottom:8}}>Separate with commas — e.g. "scrambled eggs, bacon, coffee"</div>
+                  <textarea value={favForm[meal]||""} onChange={e=>setFavForm(p=>({...p,[meal]:e.target.value}))} placeholder={
+                    meal==="Breakfast"?"e.g. scrambled eggs, bacon, protein shake, oatmeal":
+                    meal==="Lunch"?"e.g. grilled chicken, salad, turkey wrap":
+                    meal==="Dinner"?"e.g. steak, salmon, ground beef, roasted veggies":
+                    "e.g. almonds, cheese, protein bar, hard boiled eggs"
+                  } rows={2} style={{...iStyle,resize:"none"}}/>
+                </div>
+              ))}
+
+              <button onClick={()=>{
+                // Parse favorites into arrays
+                const parsed={};
+                ["Breakfast","Lunch","Dinner","Snack"].forEach(meal=>{
+                  parsed[meal]=(favForm[meal]||"").split(",").map(f=>f.trim()).filter(f=>f.length>0);
+                });
+                const newFavs={...favorites,[currentClient.id]:parsed};
+                setFavorites(newFavs);
+                try{
+                  localStorage.setItem(FAVORITES_KEY,JSON.stringify(newFavs));
+                  sbSetGlobal(FAVORITES_KEY,newFavs);
+                }catch(e){}
+                setShowFavSetup(false);
+                setEditingFavs(false);
+              }} style={btnGreen}>✓ Save My Favorites</button>
+
+              {editingFavs&&<button onClick={()=>{setShowFavSetup(false);setEditingFavs(false);}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Cancel</button>}
+            </div>
+          );
+
+          return(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>🥗 Nutrition Tracker</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>🥗 Nutrition Tracker</div>
+              <button onClick={()=>{
+                // Pre-fill form with existing favorites
+                const existing=favorites[currentClient.id]||{};
+                setFavForm({
+                  Breakfast:(existing.Breakfast||[]).join(", "),
+                  Lunch:(existing.Lunch||[]).join(", "),
+                  Dinner:(existing.Dinner||[]).join(", "),
+                  Snack:(existing.Snack||[]).join(", "),
+                });
+                setEditingFavs(true);
+                setShowFavSetup(true);
+              }} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.64rem",cursor:"pointer",fontFamily:"inherit"}}>✏️ Edit Favorites</button>
+            </div>
 
             {/* Daily macro summary */}
             <div style={{...card,background:"linear-gradient(135deg,#f0faf4,#fff9f0)",border:`1px solid ${G.greenLight}`}}>
@@ -4009,6 +4079,21 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               <div style={lbl}>Log a Meal</div>
               <div style={{display:"flex",gap:5,marginBottom:9,flexWrap:"wrap"}}>{MEAL_TYPES.map(t=>(<button key={t} onClick={()=>setMealType(t)} style={{padding:"5px 11px",borderRadius:20,border:`2px solid ${mealType===t?G.green:G.border}`,background:mealType===t?"#d8f3dc":G.cream,color:mealType===t?G.green:G.textSoft,fontSize:"0.72rem",fontWeight:mealType===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>))}</div>
               
+             {/* Favorites quick-tap */}
+              {clientFavs&&clientFavs[mealType]&&clientFavs[mealType].length>0&&(
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:600,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>⚡ Quick Add</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {clientFavs[mealType].map((fav,i)=>(
+                      <button key={i} onClick={()=>setMealText(p=>p?p+", "+fav:fav)} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${G.greenLight}`,background:"#f0faf4",color:G.green,fontSize:"0.72rem",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        + {fav}
+                      </button>
+                    ))}
+                    <button onClick={()=>setMealText("")} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.68rem",cursor:"pointer",fontFamily:"inherit"}}>✕ Clear</button>
+                  </div>
+                </div>
+              )}
+
               {/* Two input options */}
               <div style={{display:"flex",gap:8,marginBottom:10}}>
                 <button onClick={()=>photoInputRef.current?.click()} style={{flex:1,padding:"12px",borderRadius:12,border:`2px dashed ${G.greenMid}`,background:"#f0faf4",color:G.green,fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
@@ -4059,10 +4144,11 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
             {/* Today's meal log */}
             {todayMeals.length>0&&(<div style={card}><div style={lbl}>Today's Meals</div><div style={{display:"flex",flexDirection:"column",gap:10}}>{todayMeals.map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"10px 12px",borderLeft:`3px solid ${G.greenMid}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:"0.78rem",fontWeight:700,color:G.green}}>{m.meal}</span><span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span></div><div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:5}}>{m.text}</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[{l:"P",v:m.protein,c:"#4ade80"},{l:"F",v:m.fat,c:"#fbbf24"},{l:"C",v:m.carbs,c:"#fb923c"},{l:"S",v:m.sugar,c:"#f87171"}].map((x,j)=>(<span key={j} style={{fontSize:"0.65rem"}}><span style={{fontWeight:700,color:x.c}}>{x.v}g</span><span style={{color:G.textSoft}}> {x.l}</span></span>))}<span style={{fontSize:"0.65rem",color:G.brown,fontWeight:600}}>{m.calories} kcal</span></div>{m.feedback&&<div style={{fontSize:"0.63rem",color:G.green,fontStyle:"italic",marginTop:4}}>💡 {m.feedback}</div>}</div>))}</div></div>)}
 
-            {/* Weekly averages */}
+      {/* Weekly averages */}
             {(()=>{const weekly=getWeeklyNutrition(currentClient.id);if(!weekly) return null;return(<div style={card}><div style={lbl}>7-Day Averages ({weekly.days} days)</div><div style={{display:"flex",flexDirection:"column",gap:6}}><MacroBar label="🥩 Protein avg" value={weekly.protein} target={targets.protein} isLow={true}/><MacroBar label="🌾 Carbs avg" value={weekly.carbs} target={targets.carbs} isLow={false}/><MacroBar label="🍬 Sugar avg" value={weekly.sugar} target={targets.sugar} isLow={false}/></div><div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:"0.65rem",color:G.textSoft}}><span>Avg calories</span><span style={{fontWeight:700,color:G.brown}}>{weekly.calories} kcal/day</span></div></div>);})()}
           </div>
-        )}
+          );
+        })()} 
 
         {/* ── PRAYER ── */}
         {tab==="prayer"&&(
