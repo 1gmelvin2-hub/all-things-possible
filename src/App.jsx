@@ -168,6 +168,445 @@ const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
 
 const MOVEPROFILE_KEY="atp-moveprofile";
 
+function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,sbSetGlobal}){
+  const RUNNING_KEY="atp-running";
+  const PLANS={
+    "c25k":{
+      name:"Couch to 5K",icon:"🏃",weeks:9,goal:"5K (3.1 miles)",
+      desc:"Go from couch to running 5K in 9 weeks",color:"#10b981",
+      schedule:[
+        {week:1,intervals:[{run:1,walk:2,repeat:6}],totalMin:23},
+        {week:2,intervals:[{run:2,walk:2,repeat:5}],totalMin:24},
+        {week:3,intervals:[{run:3,walk:2,repeat:4}],totalMin:24},
+        {week:4,intervals:[{run:5,walk:2,repeat:3}],totalMin:26},
+        {week:5,intervals:[{run:8,walk:2,repeat:2},{run:5,walk:0,repeat:1}],totalMin:28},
+        {week:6,intervals:[{run:12,walk:2,repeat:2}],totalMin:32},
+        {week:7,intervals:[{run:20,walk:0,repeat:1}],totalMin:30},
+        {week:8,intervals:[{run:25,walk:0,repeat:1}],totalMin:35},
+        {week:9,intervals:[{run:30,walk:0,repeat:1}],totalMin:40},
+      ]
+    },
+    "5kto10k":{
+      name:"5K to 10K",icon:"🏃",weeks:8,goal:"10K (6.2 miles)",
+      desc:"Build from 5K to 10K in 8 weeks",color:"#3b82f6",
+      schedule:[
+        {week:1,intervals:[{run:5,walk:1,repeat:4}],totalMin:28},
+        {week:2,intervals:[{run:8,walk:1,repeat:3}],totalMin:29},
+        {week:3,intervals:[{run:10,walk:1,repeat:3}],totalMin:35},
+        {week:4,intervals:[{run:15,walk:1,repeat:2}],totalMin:34},
+        {week:5,intervals:[{run:20,walk:1,repeat:2}],totalMin:44},
+        {week:6,intervals:[{run:25,walk:0,repeat:1},{run:10,walk:1,repeat:1}],totalMin:38},
+        {week:7,intervals:[{run:35,walk:0,repeat:1}],totalMin:45},
+        {week:8,intervals:[{run:50,walk:0,repeat:1}],totalMin:60},
+      ]
+    },
+    "half":{
+      name:"Half Marathon",icon:"🏅",weeks:12,goal:"Half Marathon (13.1 miles)",
+      desc:"Train for your first half marathon in 12 weeks",color:"#8b5cf6",
+      schedule:[
+        {week:1,intervals:[{run:20,walk:0,repeat:1}],totalMin:30},
+        {week:2,intervals:[{run:25,walk:0,repeat:1}],totalMin:35},
+        {week:3,intervals:[{run:30,walk:0,repeat:1}],totalMin:40},
+        {week:4,intervals:[{run:35,walk:0,repeat:1}],totalMin:45},
+        {week:5,intervals:[{run:40,walk:0,repeat:1}],totalMin:50},
+        {week:6,intervals:[{run:45,walk:0,repeat:1}],totalMin:55},
+        {week:7,intervals:[{run:50,walk:0,repeat:1}],totalMin:60},
+        {week:8,intervals:[{run:55,walk:0,repeat:1}],totalMin:65},
+        {week:9,intervals:[{run:60,walk:0,repeat:1}],totalMin:70},
+        {week:10,intervals:[{run:70,walk:0,repeat:1}],totalMin:80},
+        {week:11,intervals:[{run:45,walk:0,repeat:1}],totalMin:55},
+        {week:12,intervals:[{run:30,walk:0,repeat:1}],totalMin:40},
+      ]
+    },
+    "full":{
+      name:"Full Marathon",icon:"🏆",weeks:16,goal:"Full Marathon (26.2 miles)",
+      desc:"Train for the ultimate distance in 16 weeks",color:"#f59e0b",
+      schedule:[
+        {week:1,intervals:[{run:25,walk:0,repeat:1}],totalMin:35},
+        {week:2,intervals:[{run:30,walk:0,repeat:1}],totalMin:40},
+        {week:3,intervals:[{run:35,walk:0,repeat:1}],totalMin:45},
+        {week:4,intervals:[{run:40,walk:0,repeat:1}],totalMin:50},
+        {week:5,intervals:[{run:45,walk:0,repeat:1}],totalMin:55},
+        {week:6,intervals:[{run:50,walk:0,repeat:1}],totalMin:60},
+        {week:7,intervals:[{run:55,walk:0,repeat:1}],totalMin:65},
+        {week:8,intervals:[{run:60,walk:0,repeat:1}],totalMin:70},
+        {week:9,intervals:[{run:70,walk:0,repeat:1}],totalMin:80},
+        {week:10,intervals:[{run:80,walk:0,repeat:1}],totalMin:90},
+        {week:11,intervals:[{run:90,walk:0,repeat:1}],totalMin:100},
+        {week:12,intervals:[{run:100,walk:0,repeat:1}],totalMin:110},
+        {week:13,intervals:[{run:110,walk:0,repeat:1}],totalMin:120},
+        {week:14,intervals:[{run:90,walk:0,repeat:1}],totalMin:100},
+        {week:15,intervals:[{run:60,walk:0,repeat:1}],totalMin:70},
+        {week:16,intervals:[{run:30,walk:0,repeat:1}],totalMin:40},
+      ]
+    },
+  };
+
+  const [runPhase,setRunPhase]=useState(()=>{
+    try{ const s=localStorage.getItem(RUNNING_KEY+"_plan"); return s?"session":"setup"; }catch(e){ return "setup"; }
+  });
+  const [selectedPlan,setSelectedPlan]=useState(()=>{
+    try{ return localStorage.getItem(RUNNING_KEY+"_plan")||""; }catch(e){ return ""; }
+  });
+  const [runHistory,setRunHistory]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem(RUNNING_KEY)||"[]"); }catch(e){ return []; }
+  });
+  const [activePhase,setActivePhase]=useState("setup");
+  const [currentIntervalIdx,setCurrentIntervalIdx]=useState(0);
+  const [currentRepeat,setCurrentRepeat]=useState(0);
+  const [isRunning,setIsRunning]=useState(true);
+  const [timerSec,setTimerSec]=useState(0);
+  const [timerActive,setTimerActive]=useState(false);
+  const [sessionComplete,setSessionComplete]=useState(false);
+  const [runRating,setRunRating]=useState(null);
+  const [warmupDone,setWarmupDone]=useState(false);
+  const [cooldownActive,setCooldownActive]=useState(false);
+  const timerRef=useRef(null);
+
+  function getCurrentWeek(){
+    try{
+      const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");
+      return prog[currentClient.id]?.currentWeek||1;
+    }catch(e){ return 1; }
+  }
+
+  function getPlanWeek(planKey){
+    // Auto-detect week based on run history
+    const planRuns=runHistory.filter(r=>r.plan===planKey);
+    const plan=PLANS[planKey];
+    if(!plan) return 1;
+    const weekNum=Math.min(plan.weeks, Math.floor(planRuns.length/3)+1);
+    return weekNum;
+  }
+
+  useEffect(()=>{
+    if(timerActive&&timerSec>0){
+      // Ping at 3,2,1
+      if(timerSec<=3){
+        try{
+          const ctx=new(window.AudioContext||window.webkitAudioContext)();
+          const osc=ctx.createOscillator();
+          const gain=ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(440,ctx.currentTime);
+          gain.gain.setValueAtTime(0.2,ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+          osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.1);
+        }catch(e){}
+      }
+      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    } else if(timerActive&&timerSec===0){
+      advanceRun();
+    }
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec]);
+
+  function buildSession(planKey){
+    const plan=PLANS[planKey];
+    const weekNum=getPlanWeek(planKey);
+    const weekPlan=plan.schedule[weekNum-1];
+    if(!weekPlan) return null;
+
+    // Build full interval list
+    const intervals=[];
+    weekPlan.intervals.forEach(interval=>{
+      for(let r=0;r<interval.repeat;r++){
+        if(interval.run>0) intervals.push({type:"run",duration:interval.run*60,label:`Run ${interval.run} min`});
+        if(interval.walk>0) intervals.push({type:"walk",duration:interval.walk*60,label:`Walk ${interval.walk} min`});
+      }
+    });
+
+    return{
+      plan:planKey,
+      planName:plan.name,
+      weekNum,
+      totalWeeks:plan.weeks,
+      goal:plan.goal,
+      color:plan.color,
+      warmup:{duration:5*60,label:"Warm-up Walk"},
+      intervals,
+      cooldown:{duration:5*60,label:"Cool-down Walk"},
+      totalMin:weekPlan.totalMin+10,
+    };
+  }
+
+  const [currentSession,setCurrentSession]=useState(null);
+
+  function startRun(planKey){
+    const session=buildSession(planKey);
+    if(!session) return;
+    setCurrentSession(session);
+    setActivePhase("preview");
+  }
+
+  function beginSession(){
+    setActivePhase("active");
+    setWarmupDone(false);
+    setCooldownActive(false);
+    setCurrentIntervalIdx(0);
+    setCurrentRepeat(0);
+    setSessionComplete(false);
+    setRunRating(null);
+    // Start with warmup
+    setIsRunning(false);
+    setTimerSec(5*60);
+    setTimerActive(true);
+  }
+
+  function advanceRun(){
+    if(!currentSession) return;
+
+    // Play end sound
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880,ctx.currentTime);
+      osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);
+      gain.gain.setValueAtTime(0.4,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.5);
+    }catch(e){}
+
+    if(!warmupDone){
+      // Warmup done — start intervals
+      setWarmupDone(true);
+      const first=currentSession.intervals[0];
+      setIsRunning(first.type==="run");
+      setCurrentIntervalIdx(0);
+      setTimerSec(first.duration);
+      return;
+    }
+
+    if(cooldownActive){
+      // Cooldown done — session complete!
+      setSessionComplete(true);
+      setTimerActive(false);
+      return;
+    }
+
+    const nextIdx=currentIntervalIdx+1;
+    if(nextIdx>=currentSession.intervals.length){
+      // All intervals done — start cooldown
+      setCooldownActive(true);
+      setIsRunning(false);
+      setTimerSec(5*60);
+      return;
+    }
+
+    const next=currentSession.intervals[nextIdx];
+    setCurrentIntervalIdx(nextIdx);
+    setIsRunning(next.type==="run");
+    setTimerSec(next.duration);
+  }
+
+  async function saveRun(rating){
+    const entry={
+      date:todayStr(),
+      plan:currentSession.plan,
+      planName:currentSession.planName,
+      weekNum:currentSession.weekNum,
+      totalMin:currentSession.totalMin,
+      rating,
+      clientId:currentClient.id,
+      ts:new Date().toISOString(),
+    };
+    const newHistory=[...runHistory,entry];
+    setRunHistory(newHistory);
+    try{
+      localStorage.setItem(RUNNING_KEY,JSON.stringify(newHistory));
+      await sbSetGlobal("atp-running-"+currentClient.id, newHistory);
+    }catch(e){}
+    setRunRating(rating);
+  }
+
+  const plan=selectedPlan?PLANS[selectedPlan]:null;
+  const planWeek=selectedPlan?getPlanWeek(selectedPlan):1;
+  const progressPct=currentSession?Math.round((currentIntervalIdx/currentSession.intervals.length)*100):0;
+  const activeInterval=currentSession?.intervals[currentIntervalIdx];
+
+  // PLAN SELECTION
+  if(activePhase==="setup") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#064e3b,#10b981)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏃 Running</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Plan</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>From first steps to full marathon — your faith-powered running journey starts here!</div>
+      </div>
+
+      {Object.entries(PLANS).map(([key,p])=>{
+        const weekNum=getPlanWeek(key);
+        const runs=runHistory.filter(r=>r.plan===key);
+        const isActive=selectedPlan===key;
+        return(
+          <button key={key} onClick={()=>{setSelectedPlan(key);try{localStorage.setItem(RUNNING_KEY+"_plan",key);}catch(e){}}} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid ${isActive?p.color:G.border}`,background:isActive?p.color+"11":"#fff"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+              <div style={{width:48,height:48,borderRadius:"50%",background:p.color+"22",border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.5rem",flexShrink:0}}>{p.icon}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"0.85rem",fontWeight:700,color:isActive?p.color:G.text}}>{p.name}</div>
+                <div style={{fontSize:"0.68rem",color:G.textSoft}}>{p.goal}</div>
+              </div>
+              {isActive&&<div style={{fontSize:"0.68rem",padding:"3px 9px",borderRadius:20,background:p.color,color:"#fff",fontWeight:700}}>Active</div>}
+            </div>
+            <div style={{fontSize:"0.7rem",color:G.textSoft,marginBottom:8}}>{p.desc}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <div style={{flex:1,height:5,background:G.creamDark,borderRadius:3,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${Math.round((weekNum/p.weeks)*100)}%`,background:p.color,borderRadius:3}}/>
+              </div>
+              <div style={{fontSize:"0.66rem",color:p.color,fontWeight:700}}>Week {weekNum}/{p.weeks}</div>
+            </div>
+            {runs.length>0&&<div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>{runs.length} runs completed</div>}
+          </button>
+        );
+      })}
+
+      {selectedPlan&&(
+        <button onClick={()=>startRun(selectedPlan)} style={{...btnGreen,background:`linear-gradient(135deg,#064e3b,#10b981)`,boxShadow:"0 4px 14px rgba(16,185,129,.3)"}}>
+          🏃 Start Week {planWeek} Run
+        </button>
+      )}
+    </div>
+  );
+
+  // PREVIEW
+  if(activePhase==="preview"&&currentSession) return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#064e3b,#10b981)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🏃 {currentSession.planName}</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Week {currentSession.weekNum} of {currentSession.totalWeeks}</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{currentSession.totalMin} min total · {currentSession.intervals.length} intervals</div>
+      </div>
+
+      {/* Warmup */}
+      <div style={{...card,borderLeft:`4px solid #60a5fa`}}>
+        <div style={{fontSize:"0.78rem",fontWeight:700,color:G.text,marginBottom:4}}>🚶 Warm-up Walk</div>
+        <div style={{fontSize:"0.7rem",color:G.textSoft}}>5 minutes easy walking to prepare your body</div>
+      </div>
+
+      {/* Intervals */}
+      <div style={card}>
+        <div style={lbl}>Today's Intervals</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {currentSession.intervals.map((interval,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:interval.type==="run"?currentSession.color+"11":"#dbeafe",borderRadius:8,borderLeft:`3px solid ${interval.type==="run"?currentSession.color:"#60a5fa"}`}}>
+              <span style={{fontSize:"1rem"}}>{interval.type==="run"?"🏃":"🚶"}</span>
+              <span style={{fontSize:"0.76rem",fontWeight:600,color:interval.type==="run"?currentSession.color:"#3b82f6"}}>{interval.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cooldown */}
+      <div style={{...card,borderLeft:`4px solid #60a5fa`}}>
+        <div style={{fontSize:"0.78rem",fontWeight:700,color:G.text,marginBottom:4}}>🚶 Cool-down Walk</div>
+        <div style={{fontSize:"0.7rem",color:G.textSoft}}>5 minutes easy walking to recover</div>
+      </div>
+
+      <button onClick={beginSession} style={{...btnGreen,background:`linear-gradient(135deg,#064e3b,#10b981)`,boxShadow:"0 4px 14px rgba(16,185,129,.3)"}}>▶ Start Run</button>
+      <button onClick={()=>setActivePhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Plan</button>
+    </div>
+  );
+
+  // ACTIVE RUN
+  if(activePhase==="active"&&currentSession) return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:isRunning?"#f0fdf4":"#eff6ff"}}>
+      {/* Progress bar */}
+      <div style={{height:6,background:"#d1fae5"}}>
+        <div style={{height:"100%",width:`${progressPct}%`,background:`linear-gradient(90deg,#064e3b,#10b981)`,transition:"width .5s"}}/>
+      </div>
+
+      {sessionComplete?(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+          <div style={{fontSize:"3rem"}}>🏆</div>
+          <div style={{fontSize:"1.1rem",fontWeight:900,color:"#10b981",textAlign:"center"}}>Run Complete!</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Week {currentSession.weekNum} done. You are getting closer to your {currentSession.goal} goal! All things are possible! 🙏</div>
+          {!runRating?(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your run?</div>
+              <div style={{display:"flex",gap:6}}>
+                {[1,2,3,4,5].map(r=>(
+                  <button key={r} onClick={()=>saveRun(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${runRating===r?"#10b981":G.border}`,background:runRating===r?"#d1fae5":G.cream,color:runRating===r?"#10b981":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                ))}
+              </div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+            </div>
+          ):(
+            <div style={{textAlign:"center",display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{fontSize:"0.82rem",fontWeight:700,color:"#10b981"}}>Run saved! {runRating<=2?"Next week we'll push harder! 💪":runRating===3?"Perfect pace! 🌟":"Great effort — keep going! 🙏"}</div>
+              <button onClick={()=>{setActivePhase("setup");setSessionComplete(false);setCurrentSession(null);}} style={{...btnGreen,background:"linear-gradient(135deg,#064e3b,#10b981)"}}>🏃 Back to Plans</button>
+            </div>
+          )}
+        </div>
+      ):(
+        <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+          {/* Phase label */}
+          <div style={{fontSize:"0.75rem",fontWeight:700,color:!warmupDone?"#3b82f6":cooldownActive?"#3b82f6":isRunning?currentSession.color:"#3b82f6",textTransform:"uppercase",letterSpacing:1}}>
+            {!warmupDone?"🚶 WARM-UP":cooldownActive?"🚶 COOL-DOWN":isRunning?"🏃 RUN":"🚶 WALK"}
+          </div>
+
+          {/* Interval progress dots */}
+          {warmupDone&&!cooldownActive&&(
+            <div style={{display:"flex",gap:3}}>
+              {currentSession.intervals.map((_,i)=>(
+                <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<currentIntervalIdx?"#10b981":i===currentIntervalIdx?currentSession.color:G.border,transition:"background .3s"}}/>
+              ))}
+            </div>
+          )}
+
+          {/* Big timer */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:16}}>
+            <div style={{width:190,height:190,borderRadius:"50%",background:!warmupDone||cooldownActive?"#dbeafe":isRunning?currentSession.color+"22":"#dbeafe",border:`6px solid ${!warmupDone||cooldownActive?"#3b82f6":isRunning?currentSession.color:"#3b82f6"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 40px ${isRunning?currentSession.color+"44":"#3b82f644"}`}}>
+              <div style={{fontSize:"0.7rem",color:!warmupDone||cooldownActive?"#3b82f6":isRunning?currentSession.color:"#3b82f6",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>
+                {!warmupDone?"WARM UP":cooldownActive?"COOL DOWN":isRunning?"RUN":"WALK"}
+              </div>
+              <div style={{fontSize:"4rem",fontWeight:900,color:timerSec<=10?"#f87171":!warmupDone||cooldownActive?"#3b82f6":isRunning?currentSession.color:"#3b82f6",fontVariantNumeric:"tabular-nums",lineHeight:1}}>
+                {Math.floor(timerSec/60).toString().padStart(2,"0")}:{(timerSec%60).toString().padStart(2,"0")}
+              </div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>remaining</div>
+            </div>
+
+            {/* Next interval preview */}
+            {warmupDone&&!cooldownActive&&activeInterval&&(
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:G.textSoft}}>
+                  {currentIntervalIdx<currentSession.intervals.length-1?
+                    `Next: ${currentSession.intervals[currentIntervalIdx+1]?.label||"Cool-down"}`:
+                    "Next: Cool-down Walk"}
+                </div>
+                <div style={{fontSize:"0.66rem",color:G.textSoft,marginTop:2}}>
+                  Interval {currentIntervalIdx+1} of {currentSession.intervals.length}
+                </div>
+              </div>
+            )}
+
+            {/* Motivation */}
+            <div style={{...card,background:"linear-gradient(135deg,#f0fdf4,#fff)",border:`1px solid ${currentSession.color}44`,padding:"10px 14px",textAlign:"center",maxWidth:300}}>
+              <div style={{fontSize:"0.72rem",color:"#064e3b",fontStyle:"italic",lineHeight:1.6}}>
+                {isRunning?
+                  ['"I can do all things through Christ who strengthens me." — Phil 4:13',
+                   '"Run with perseverance the race marked out for us." — Heb 12:1',
+                   '"Be strong and courageous." — Joshua 1:9',
+                   '"Those who hope in the Lord will renew their strength." — Isaiah 40:31'
+                  ][currentIntervalIdx%4]:
+                  "Great work! Breathe deep and recover. You\'re doing amazing! 🙏"}
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setTimerActive(r=>!r)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:timerActive?"#ef4444":"#10b981",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{timerActive?"⏸ Pause":"▶ Resume"}</button>
+            <button onClick={()=>{setTimerActive(false);advanceRun();setTimeout(()=>setTimerActive(true),100);}} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return null;
+}
+
 function CalisthenicsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate}){
   const CALS_KEY="atp-cals";
   const [calsPhase,setCalsPhase]=useState("setup");
@@ -2883,7 +3322,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
-  const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"]];
+  const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["running","🏃","Run"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -3074,8 +3513,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     {[
                       {id:"hiit",icon:"🥊",label:"HIIT / Boxing",desc:"Shadow boxing, heavy bag, kickboxing"},
                       {id:"gym",icon:"🏋️",label:"Gym",desc:"Weighted exercises with progressive overload"},
-                      {id:"cals",icon:"🤸",label:"Calisthenics & Abs",desc:"Bodyweight circuit training"},
-                      {id:"running",icon:"🏃",label:"Running",desc:"Couch to 5K, race training (coming soon)",soon:true},
+                     {id:"cals",icon:"🤸",label:"Calisthenics & Abs",desc:"Bodyweight circuit training"},
+                      {id:"running",icon:"🏃",label:"Running",desc:"Couch to 5K, half marathon, full marathon"},
                     ].map(t=>{
                       const selected=(programTabs||[]).includes(t.id);
                       return(
@@ -4113,7 +4552,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
-       {tab==="cals"&&<CalisthenicsTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}
+        {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
