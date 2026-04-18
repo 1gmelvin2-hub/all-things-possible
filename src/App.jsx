@@ -2281,13 +2281,18 @@ Return ONLY valid JSON array (no markdown):
     const c=currentClient;
     const tl=(logs[c.id]||{})[todayStr()];
 
-   // Gather all workout history from Supabase
-    const hiitRaw=await sbGetGlobal("atp-hiit-"+c.id)||JSON.parse(localStorage.getItem("atp-hiit")||"[]");
-    const gymRaw=await sbGetGlobal("atp-gym-"+c.id)||JSON.parse(localStorage.getItem("atp-gym")||"[]");
-    const calsRaw=await sbGetGlobal("atp-cals-"+c.id)||JSON.parse(localStorage.getItem("atp-cals")||"[]");
-    const hiitHistory=(Array.isArray(hiitRaw)?hiitRaw:[]).slice(-7);
-    const gymHistory=(Array.isArray(gymRaw)?gymRaw:[]).slice(-7);
-    const calsHistory=(Array.isArray(calsRaw)?calsRaw:[]).slice(-7); 
+ // Gather all workout history from Supabase
+    let hiitHistory=[],gymHistory=[],calsHistory=[];
+    try{
+      const [hiitRaw,gymRaw,calsRaw]=await Promise.all([
+        sbGetGlobal("atp-hiit-"+c.id),
+        sbGetGlobal("atp-gym-"+c.id),
+        sbGetGlobal("atp-cals-"+c.id),
+      ]);
+      hiitHistory=Array.isArray(hiitRaw)?hiitRaw.slice(-7):[];
+      gymHistory=Array.isArray(gymRaw)?gymRaw.slice(-7):[];
+      calsHistory=Array.isArray(calsRaw)?calsRaw.slice(-7):[];
+    }catch(e){ console.error("Workout history fetch error:",e); }
     const workoutRatings=(ratings[c.id]||[]).slice(-7);
     const quickMoves=Object.keys((deskLog[c.id]||{})).slice(-7);
 
