@@ -713,7 +713,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     setRestRunning(true);
   }
 
-  function saveGymSession(rating){
+  async function saveGymSession(rating){
     const entry={
       date:todayStr(),
       groups:gymSession.groups,
@@ -721,14 +721,14 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       weekNum:gymSession.weekNum,
       exercises:gymSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})),
       rating,
+      clientId:currentClient.id,
       ts:new Date().toISOString(),
     };
     const newHistory=[...gymHistory,entry];
     setGymHistory(newHistory);
     try{
       localStorage.setItem("atp-gym",JSON.stringify(newHistory));
-      // Sync to Supabase
-      if(window.sbSetGlobal) window.sbSetGlobal("atp-gym-"+currentClient.id, newHistory);
+      await sbSetGlobal("atp-gym-"+currentClient.id, newHistory);
     }catch(e){}
     setSessionComplete(true);
     setSessionRating(rating);
@@ -999,7 +999,29 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
   const [sessionComplete,setSessionComplete]=useState(false);
   const [isGloveTime,setIsGloveTime]=useState(false);
   const [hiitRating,setHiitRating]=useState(null);
+  const [hiitHistory,setHiitHistory]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem("atp-hiit")||"[]"); }catch(e){ return []; }
+  });
   const hiitTimerRef=useRef(null);
+
+  async function saveHiitSession(rating){
+    const entry={
+      date:new Date().toISOString().split("T")[0],
+      type:hiitSession?.type||"boxing",
+      duration:hiitSession?.duration||"45 min",
+      blocks:hiitSession?.blocks?.length||0,
+      rating,
+      clientId:currentClient.id,
+      ts:new Date().toISOString(),
+    };
+    const newHistory=[...hiitHistory,entry];
+    setHiitHistory(newHistory);
+    try{
+      localStorage.setItem("atp-hiit",JSON.stringify(newHistory));
+      await sbSetGlobal("atp-hiit-"+currentClient.id, newHistory);
+    }catch(e){}
+    setHiitRating(rating);
+  }
 
  useEffect(()=>{
     if(timerActive&&timeLeft>0){
@@ -1268,14 +1290,14 @@ function advanceHiit(){
           <div style={{fontSize:"3rem"}}>🏆</div>
           <div style={{fontSize:"1.1rem",fontWeight:900,color:G.green,textAlign:"center"}}>Session Complete!</div>
           <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! You completed a full boxing HIIT session. All things are possible! 🙏</div>
-          {!hiitRating?(
-            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
-              <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
-              <div style={{display:"flex",gap:6}}>
-                {[1,2,3,4,5].map(r=>(
-                  <button key={r} onClick={()=>setHiitRating(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${hiitRating===r?G.mangoDeep:G.border}`,background:hiitRating===r?"#fff3e0":G.cream,color:hiitRating===r?G.mangoDeep:G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
-                ))}
-              </div>
+      {!hiitRating?(
+                <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {[1,2,3,4,5].map(r=>(
+                      <button key={r} onClick={()=>saveHiitSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${hiitRating===r?G.mangoDeep:G.border}`,background:hiitRating===r?"#fff3e0":G.cream,color:hiitRating===r?G.mangoDeep:G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                    ))}
+                  </div>
               <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
             </div>
           ):(
@@ -2254,14 +2276,41 @@ Return ONLY valid JSON array (no markdown):
     setMsgDraft(p=>({...p,[cid]:""}));
   }
 
-  async function getAIEncouragement(){
+ async function getAIEncouragement(){
     setAiLoading(true); setAiReply("");
     const c=currentClient;
     const tl=(logs[c.id]||{})[todayStr()];
+
+    // Gather all workout history
+    const hiitHistory=JSON.parse(localStorage.getItem("atp-hiit")||"[]").filter(h=>h.clientId===c.id).slice(-7);
+    const gymHistory=JSON.parse(localStorage.getItem("atp-gym")||"[]").filter(h=>h.clientId===c.id).slice(-7);
+    const calsHistory=JSON.parse(localStorage.getItem("atp-cals")||"[]").filter(h=>h.clientId===c.id).slice(-7);
+    const workoutRatings=(ratings[c.id]||[]).slice(-7);
+    const quickMoves=Object.keys((deskLog[c.id]||{})).slice(-7);
+
+    const hiitSummary=hiitHistory.length>0?`Boxing/HIIT: ${hiitHistory.length} sessions this week, avg rating ${(hiitHistory.reduce((a,h)=>a+h.rating,0)/hiitHistory.length).toFixed(1)}/5`:"";
+    const gymSummary=gymHistory.length>0?`Gym: ${gymHistory.length} sessions — ${[...new Set(gymHistory.flatMap(h=>h.groups||[]))].join(", ")} worked`:"";
+    const calsSummary=calsHistory.length>0?`Calisthenics: ${calsHistory.length} sessions this week`:"";
+    const workoutSummary=workoutRatings.length>0?`Home workouts: ${workoutRatings.length} sessions, avg rating ${(workoutRatings.reduce((a,r)=>a+r.rating,0)/workoutRatings.length).toFixed(1)}/5`:"";
+    const quickSummary=quickMoves.length>0?`Quick Moves: active ${quickMoves.length} days this week`:"";
+
+    const allWorkouts=[hiitSummary,gymSummary,calsSummary,workoutSummary,quickSummary].filter(s=>s).join(". ");
+
     const recentRatings=(ratings[c.id]||[]).slice(-3);
     const avgRating=recentRatings.length>0?(recentRatings.reduce((a,r)=>a+r.rating,0)/recentRatings.length).toFixed(1):null;
-    const workoutCount=(ratings[c.id]||[]).length;
-    const prompt=`You are a warm faith-based coach for "All Things Possible." Client: ${c.name}, age ${c.age}, goal: "${c.goal}". ${tl?`Today: mood=${tl.mood}, energy=${tl.energy}.`:""} ${workoutCount>0?`Workout activity: ${workoutCount} workouts logged, recent avg difficulty rating ${avgRating}/5.`:"No workouts logged yet."} Write 3-4 sentences of warm personal encouragement rooted in Christian faith. IMPORTANT: If they have logged workouts, specifically acknowledge the hard work they are putting in at the gym or during their workouts — not just nutrition. Celebrate both their physical effort AND their eating habits. End with a short scripture. Be genuine and personal.`;
+
+    const prompt=`You are a warm faith-based coach for "All Things Possible." Client: ${c.name}, age ${c.age}, goal: "${c.goal}". ${tl?`Today: mood=${tl.mood}, energy=${tl.energy}.`:""}
+
+WORKOUT ACTIVITY THIS WEEK:
+${allWorkouts||"No workouts logged yet this week."}
+
+Write 3-4 sentences of warm personal encouragement rooted in Christian faith. 
+- If they worked out, SPECIFICALLY mention which workouts they did (boxing, gym, calisthenics etc.) by name
+- Celebrate their physical effort AND nutrition together
+- If no workouts yet, encourage them to get started
+- End with a short relevant scripture
+Be genuine, personal and specific — not generic. Like a coach who actually knows what they did this week.`;
+
     try{ const r=await callClaude(prompt); setAiReply(r); }
     catch(e){ setAiReply("You are fearfully and wonderfully made. Keep going — all things are possible!"); }
     setAiLoading(false);
