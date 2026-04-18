@@ -1126,8 +1126,11 @@ function advanceHiit(){
       }catch(e){ console.error(e); }
     }
 
-    function getExercises(cats,count){
-      return workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase()))).slice(0,count).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[1]}));
+  function getExercises(cats,count){
+      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[1]}));
+      // Shuffle and pick random exercises so every session is different
+      const shuffled=[...matches].sort(()=>Math.random()-0.5);
+      return shuffled.slice(0,count);
     }
 
     const warmupExs=getExercises(["warm-up"],5);
