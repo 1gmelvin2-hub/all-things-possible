@@ -1394,6 +1394,110 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   return null;
 }
 
+function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl}){
+  const GROCERY_KEY="atp-grocery";
+  const [budget,setBudget]=useState("");
+  const [preferences,setPreferences]=useState("");
+  const [dislikes,setDislikes]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [groceryList,setGroceryList]=useState(null);
+  const [savedList,setSavedList]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(GROCERY_KEY+"-"+currentClient.id)||"null");}catch{return null;}
+  });
+  const API_KEY=import.meta.env.VITE_API_KEY||"";
+  const macros={protein:Math.round(currentClient.weight*0.7),carbs:75,sugar:25};
+
+  async function generateList(){
+    if(!budget){alert("Please enter a weekly budget first.");return;}
+    setLoading(true);setGroceryList(null);
+    try{
+      const prompt=`You are a Christian health coach's grocery planning assistant following the Upside Down Food Pyramid philosophy.
+Client macro targets: ${macros.protein}g protein/day, under ${macros.carbs}g carbs/day, under ${macros.sugar}g sugar/day.
+Weekly grocery budget: $${budget}
+Food preferences: ${preferences||"none specified"}
+Foods to avoid: ${dislikes||"none specified"}
+Generate a weekly grocery shopping list that fits this budget and hits the macro targets across 7 days. Organize items by store section. Return ONLY a JSON object with no markdown, no explanation — just this shape:
+{"sections":[{"name":"Proteins","items":[{"item":"Chicken breast","quantity":"3 lbs"},{"item":"Eggs","quantity":"18 count"}]},{"name":"Produce","items":[]}],"totalEstimate":"$87","tip":"One sentence faith-based encouragement about nourishing the body God gave you."}
+Sections to include: Proteins, Produce, Dairy & Eggs, Pantry & Spices, Frozen, Snacks & Extras (only if budget allows).`;
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:prompt}]})
+      });
+      const data=await res.json();
+      const raw=data.content?.[0]?.text||"{}";
+      const clean=raw.replace(/```json|```/g,"").trim();
+      const parsed=JSON.parse(clean);
+      setGroceryList(parsed);
+      localStorage.setItem(GROCERY_KEY+"-"+currentClient.id,JSON.stringify(parsed));
+      setSavedList(parsed);
+    }catch(err){console.error(err);alert("Could not generate list. Please try again.");}
+    setLoading(false);
+  }
+
+  function clearList(){
+    setGroceryList(null);setSavedList(null);
+    localStorage.removeItem(GROCERY_KEY+"-"+currentClient.id);
+    setBudget("");setPreferences("");setDislikes("");
+  }
+
+  const displayList=groceryList||savedList;
+
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:`linear-gradient(135deg,#7c3aed,#a78bfa)`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🛒 Weekly Grocery List</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>AI-Powered Shopping List</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>Enter your budget and preferences — AI builds a macro-friendly list organized by store section.</div>
+      </div>
+
+      <div style={{...card,background:"#F9F5FF",border:"1px solid #D8B4FE"}}>
+        <div style={lbl}>Weekly Budget ($)</div>
+        <input type="number" placeholder="e.g. 100" value={budget} onChange={e=>setBudget(e.target.value)} style={{...iStyle,marginBottom:12}}/>
+        <div style={lbl}>Foods I love / prefer</div>
+        <input type="text" placeholder="e.g. chicken, Greek yogurt, avocado" value={preferences} onChange={e=>setPreferences(e.target.value)} style={{...iStyle,marginBottom:12}}/>
+        <div style={lbl}>Foods to avoid</div>
+        <input type="text" placeholder="e.g. pork, shellfish, gluten" value={dislikes} onChange={e=>setDislikes(e.target.value)} style={{...iStyle,marginBottom:10}}/>
+        <div style={{textAlign:"center",fontSize:"0.64rem",color:"#7C3AED",marginBottom:12}}>
+          📊 Targets: {macros.protein}g protein · &lt;{macros.carbs}g carbs · &lt;{macros.sugar}g sugar/day
+        </div>
+        <button onClick={generateList} disabled={loading} style={{...btnGreen,background:loading?"#C4B5FD":"linear-gradient(135deg,#6d28d9,#7c3aed)",boxShadow:"0 4px 14px rgba(124,58,237,.3)",cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"✨ Building your list...":"🛒 Generate My Grocery List"}
+        </button>
+      </div>
+
+      {displayList&&(
+        <div>
+          {displayList.tip&&(
+            <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:10,padding:12,marginBottom:12,textAlign:"center",fontSize:"0.74rem",color:"#92400E",fontStyle:"italic",lineHeight:1.6}}>
+              ✝️ {displayList.tip}
+            </div>
+          )}
+          {displayList.totalEstimate&&(
+            <div style={{textAlign:"center",fontWeight:700,fontSize:"1.1rem",color:"#059669",marginBottom:12}}>
+              Estimated Total: {displayList.totalEstimate}
+            </div>
+          )}
+          {(displayList.sections||[]).map((section,i)=>(
+            <div key={i} style={{...card,marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:"0.82rem",color:"#6B46C1",borderBottom:"2px solid #E9D5FF",paddingBottom:6,marginBottom:8}}>{section.name}</div>
+              {(section.items||[]).map((item,j)=>(
+                <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"7px 4px",borderBottom:"1px solid #F3F4F6",fontSize:"0.78rem"}}>
+                  <span>{item.item}</span>
+                  <span style={{color:"#6B7280",fontSize:"0.68rem"}}>{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <button onClick={clearList} style={{width:"100%",marginTop:4,padding:10,background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit"}}>
+            🔄 Start New List
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
   // Audio ping function
   function playPing(type="tick"){
@@ -3332,7 +3436,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
-  const MORE_TABS=[["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["running","🏃","Run"]];
+ const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["running","🏃","Run"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -4638,8 +4742,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
-      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}
-        {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+     {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl}/>}
+      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
