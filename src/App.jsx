@@ -1142,12 +1142,9 @@ function advanceHiit(){
     const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo","heavy bag"],8).slice(2,6):getExercises(["heavy bag","kickboxing combo"],8).slice(2,6);
     if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:60});
 
-    const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo","heavy bag"],12).slice(4,8):getExercises(["heavy bag","power punching"],12).slice(4,8);
+  
+const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo","heavy bag"],12).slice(4,8):getExercises(["heavy bag","power punching"],12).slice(4,8);
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
-
-    const bagExs3=getExercises(["heavy bag","power punching"],12).slice(4,8);
-    if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
-
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
     const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
 
@@ -2284,10 +2281,13 @@ Return ONLY valid JSON array (no markdown):
     const c=currentClient;
     const tl=(logs[c.id]||{})[todayStr()];
 
-    // Gather all workout history
-    const hiitHistory=JSON.parse(localStorage.getItem("atp-hiit")||"[]").filter(h=>h.clientId===c.id).slice(-7);
-    const gymHistory=JSON.parse(localStorage.getItem("atp-gym")||"[]").filter(h=>h.clientId===c.id).slice(-7);
-    const calsHistory=JSON.parse(localStorage.getItem("atp-cals")||"[]").filter(h=>h.clientId===c.id).slice(-7);
+   // Gather all workout history from Supabase
+    const hiitRaw=await sbGetGlobal("atp-hiit-"+c.id)||JSON.parse(localStorage.getItem("atp-hiit")||"[]");
+    const gymRaw=await sbGetGlobal("atp-gym-"+c.id)||JSON.parse(localStorage.getItem("atp-gym")||"[]");
+    const calsRaw=await sbGetGlobal("atp-cals-"+c.id)||JSON.parse(localStorage.getItem("atp-cals")||"[]");
+    const hiitHistory=(Array.isArray(hiitRaw)?hiitRaw:[]).slice(-7);
+    const gymHistory=(Array.isArray(gymRaw)?gymRaw:[]).slice(-7);
+    const calsHistory=(Array.isArray(calsRaw)?calsRaw:[]).slice(-7); 
     const workoutRatings=(ratings[c.id]||[]).slice(-7);
     const quickMoves=Object.keys((deskLog[c.id]||{})).slice(-7);
 
