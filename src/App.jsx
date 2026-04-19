@@ -2337,6 +2337,7 @@ export default function AllThingsPossible(){
   const [inviteCode,setInviteCode] = useState("ATP2026join");
   const [inviteCodeInput,setInviteCodeInput] = useState("");
   const [editInviteCode,setEditInviteCode] = useState("");
+  const [showInactive,setShowInactive] = useState(false);
   const [photoPreview,setPhotoPreview] = useState(null);
   const [photoMacros,setPhotoMacros] = useState(null);
   const [analyzingPhoto,setAnalyzingPhoto] = useState(false);
@@ -5137,8 +5138,11 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
         {coachTab==="clients"&&!selectedClientCoach&&(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:9}}>
-            <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>Your Clients</div>
-            {clients.map(client=>{
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:"0.83rem",fontWeight:700,color:G.brown}}>Your Clients</div>
+              <button onClick={()=>setShowInactive(s=>!s)} style={{fontSize:"0.62rem",padding:"3px 10px",borderRadius:20,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,cursor:"pointer",fontFamily:"inherit"}}>{showInactive?"Hide Inactive":"Show Inactive"}</button>
+            </div>
+            {[...clients].sort((a,b)=>(b.active===false?-1:1)-(a.active===false?-1:1)).filter(c=>c.active!==false||showInactive).map(client=>{
               const cl=logs[client.id]||{},checked=!!cl[todayStr()];
               const last=Object.values(cl).sort((a,b)=>a.date>b.date?-1:1)[0];
               const clientR=ratings[client.id]||[];
