@@ -1507,8 +1507,7 @@ function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
     setSelectedItems(prev=>{
       const updated={...prev};
       if(updated[key]){delete updated[key];}
-      else{updated[key]={name:itemName,qty:String(qty||1),unit,section};}
-      localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
+       else{updated[key]={name:itemName,qty:String(Math.round(qty)||1),unit,section};}     localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
       return updated;
     });
   }
@@ -1651,7 +1650,7 @@ Return ONLY valid JSON, no markdown:
                         </div>
                         {isSelected?(
                           <div style={{display:"flex",alignItems:"center",gap:4}}>
-                            <input type="text" inputMode="decimal" value={displayQty||""} onChange={e=>updateQty(sec.section,item.name,e.target.value.replace(/[^0-9.]/g,""))} onFocus={e=>e.target.select()} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" value={displayQty||""} onChange={e=>updateQty(sec.section,item.name,e.target.value.replace(/[^0-9]/g,""))} onFocus={e=>e.target.select()} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
                             <span style={{fontSize:"0.62rem",color:G.textSoft}}>{item.unit}</span>
                           </div>
                         ):(
@@ -1712,7 +1711,7 @@ Return ONLY valid JSON, no markdown:
 
       <div style={card}>
         <div style={lbl}>Weekly grocery budget ($)</div>
-       <input type="text" inputMode="decimal" value={budget} onChange={e=>setBudget(e.target.value.replace(/[^0-9.]/g,""))} placeholder="e.g. 100" style={{...iStyle,fontSize:"1.1rem",fontWeight:700,textAlign:"center"}}/>
+       <input type="text" inputMode="numeric" pattern="[0-9]*" value={budget} onChange={e=>setBudget(e.target.value.replace(/[^0-9]/g,""))} placeholder="e.g. 100" style={{...iStyle,fontSize:"1.1rem",fontWeight:700,textAlign:"center"}}/>
         <div style={{marginTop:10,padding:"10px 12px",background:"#f0fdf4",borderRadius:10,border:"1px solid #bbf7d0"}}>
           <div style={{fontSize:"0.72rem",color:"#15803d",lineHeight:1.7,fontStyle:"italic"}}>
             💡 <strong>Fun fact:</strong> A week of fast food for one person averages $75–$100. A week of high-protein, low-carb groceries? Often under $80 — and your body will thank you. Healthy eating is not expensive. It just takes a plan.
