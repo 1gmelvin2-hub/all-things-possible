@@ -3406,7 +3406,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   if(screen==="splash") return(
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${G.green},${G.greenMid} 50%,${G.mango})`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Palatino Linotype',Palatino,serif"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{width:90,height:90,borderRadius:"50%",background:"rgba(255,255,255,.2)",border:"3px solid rgba(255,255,255,.5)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:"2.8rem"}}>✦</div>
+        <img src="/marialogo.png" alt="All Things Possible" style={{width:90,height:90,borderRadius:"50%",objectFit:"cover",margin:"0 auto 20px",display:"block",border:"3px solid rgba(255,255,255,.5)",boxShadow:"0 4px 20px rgba(0,0,0,.2)"}}/>
         <div style={{fontSize:"2rem",fontWeight:900,color:G.white,textShadow:"0 2px 8px rgba(0,0,0,.2)"}}>All Things Possible</div>
         <div style={{fontSize:"0.85rem",color:"rgba(255,255,255,.85)",marginTop:6,letterSpacing:"2px",textTransform:"uppercase"}}>Health & Wellness Coaching</div>
         <div style={{marginTop:28,fontSize:"0.82rem",color:"rgba(255,255,255,.7)",fontStyle:"italic"}}>Philippians 4:13</div>
@@ -3418,7 +3418,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // LOGIN
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="login"){
-    const Header=()=>(<div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"26px 24px 20px",textAlign:"center"}}><div style={{width:56,height:56,borderRadius:"50%",background:"rgba(255,255,255,.2)",border:"2px solid rgba(255,255,255,.4)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 10px",fontSize:"1.6rem"}}>✦</div><div style={{fontSize:"1.5rem",fontWeight:900,color:G.white}}>All Things Possible</div><div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",marginTop:4,fontStyle:"italic"}}>"I can do all things through Christ who strengthens me"</div></div>);
+   const Header=()=>(<div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"26px 24px 20px",textAlign:"center"}}><img src="/marialogo.png" alt="All Things Possible" style={{width:56,height:56,borderRadius:"50%",objectFit:"cover",margin:"0 auto 10px",display:"block",border:"2px solid rgba(255,255,255,.4)",boxShadow:"0 2px 10px rgba(0,0,0,.15)"}}/><div style={{fontSize:"1.5rem",fontWeight:900,color:G.white}}>All Things Possible</div><div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",marginTop:4,fontStyle:"italic"}}>"I can do all things through Christ who strengthens me"</div></div>); 
     if(loginMode==="select") return(
       <div style={{minHeight:"100vh",background:G.cream,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column"}}><Header/>
         <div style={{flex:1,padding:"22px 20px",display:"flex",flexDirection:"column",gap:12}}>
