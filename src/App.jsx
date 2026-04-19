@@ -1440,9 +1440,11 @@ function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   // Upside down pyramid food library
   const PYRAMID_FOODS=[
     {section:"Proteins 🥩",color:"#dc2626",tip:"Foundation of the pyramid — eat most",items:[
-      {name:"Chicken breast",unit:"lbs",defaultQty:3,perWeek:3},
+      {name:"Steak (ribeye or sirloin)",unit:"lbs",defaultQty:2,perWeek:2},
       {name:"Eggs",unit:"count",defaultQty:12,perWeek:12,smartMultiplier:true},
       {name:"Ground beef (85/15)",unit:"lbs",defaultQty:2,perWeek:2},
+      {name:"Chicken thighs",unit:"lbs",defaultQty:3,perWeek:3},
+      {name:"Chicken breast",unit:"lbs",defaultQty:2,perWeek:2},
       {name:"Salmon",unit:"lbs",defaultQty:1.5,perWeek:1.5},
       {name:"Tuna (canned)",unit:"cans",defaultQty:4,perWeek:4},
       {name:"Turkey (ground)",unit:"lbs",defaultQty:1,perWeek:1},
