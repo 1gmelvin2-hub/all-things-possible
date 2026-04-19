@@ -3197,37 +3197,6 @@ Be genuine, personal and specific — not generic. Like a coach who actually kno
     setAiLoading(false);
   }
 function submitSelfReg(){
-    if(!selfReg.agreedToTerms){ setSelfRegError("Please read and agree to the terms before continuing."); return; }
-    if(selfReg.passcode.length<4){ setSelfRegError("Passcode must be at least 4 characters."); return; }
-    if(selfReg.passcode!==selfReg.confirmPasscode){ setSelfRegError("Passcodes don't match — please try again."); return; }
-    if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
-    if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
-    const equipList=[...selfReg.equipment,...(selfReg.equipmentOther.trim()?[selfReg.equipmentOther.trim()]:[])].join(", ")||"None";
-    const nc={
-      id:"c"+Date.now(), name:selfReg.name, age:parseInt(selfReg.age)||0,
-      weight:parseFloat(selfReg.weight)||0, goalWeight:parseFloat(selfReg.goalWeight)||0,
-      goal:selfReg.goal||"General wellness", level:selfReg.level,
-      joined:todayStr(), avatar:selfReg.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),
-      likes:selfReg.likes||"", equipment:equipList,
-     workoutDays:selfReg.workoutDays, workoutTime:selfReg.workoutTime||"Morning",
-      workoutDuration:selfReg.workoutDuration||"45 min",
-      quickMoveDays:selfReg.quickMoveDays, longRunDay:selfReg.longRunDay||"",
-      canUpdateSchedule:selfReg.canUpdateSchedule,
-     injury:selfReg.injury||"none", medical:selfReg.medical||"none",
-      passcode:selfReg.passcode, active:true, onboarded:true,
-      phone:selfReg.phone||"",
-      textConsent:selfReg.textConsent||false,
-      agreedToTerms:true,
-      agreedAt:selfReg.agreedAt||new Date().toISOString(),     };
-    const newClients=[...clients,nc];
-    persist(newClients,null,null,null,null,null,null,null);
-    // Force immediate Supabase push for new registration
-    sbSetGlobal(CLIENTS_KEY, newClients);
-    setCurrentClient(nc); setScreen("client"); setTab("prayer");
-    setLoginMode("select");
-    try{ localStorage.setItem(SESSION_KEY,JSON.stringify({role:"client",clientId:nc.id})); }catch(e){}
-  }
-function submitSelfReg(){
     if(selfReg.passcode.length<4){ setSelfRegError("Passcode must be at least 4 characters."); return; }
     if(selfReg.passcode!==selfReg.confirmPasscode){ setSelfRegError("Passcodes don't match — please try again."); return; }
     if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
@@ -3702,22 +3671,20 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
                         <div style={{marginBottom:10}}>By checking the box below I confirm that I am 18 years of age or older, I have read and understood this entire agreement, I agree to participate voluntarily and take full responsibility for my health decisions, and I release All Things Possible Health Coaching and MJ Melvin from any liability.</div>
                         <div style={{fontStyle:"italic",textAlign:"center",color:G.green,fontWeight:600}}>"I can do all things through Christ who strengthens me." — Philippians 4:13</div>
                       </div>
-             {/* Text consent */}
+           {/* Text consent */}
                       <div style={{padding:"12px 14px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
                         <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6,marginBottom:10}}>I consent to receive text messages from All Things Possible Health Coaching. Message & data rates may apply. Reply STOP to opt out.</div>
                         <div style={{display:"flex",gap:8}}>
-                          {[{label:"Yes",val:true},{label:"No",val:false}].map(opt=>(
-                            <button key={String(opt.val)} onPointerDown={e=>{e.preventDefault();setSelfReg(p=>({...p,textConsent:opt.val}));}} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${selfReg.textConsent===opt.val?G.greenMid:G.border}`,background:selfReg.textConsent===opt.val?"#d8f3dc":G.cream,color:selfReg.textConsent===opt.val?G.green:G.textSoft,fontSize:"0.82rem",fontWeight:selfReg.textConsent===opt.val?700:400,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>{opt.label}</button>
-                          ))}
+                          <button onClick={()=>setSelfReg(p=>({...p,textConsent:true}))} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.textConsent===true?G.greenMid:G.border}`,background:selfReg.textConsent===true?"#d8f3dc":G.cream,color:selfReg.textConsent===true?G.green:G.textSoft,fontSize:"0.82rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Yes</button>
+                          <button onClick={()=>setSelfReg(p=>({...p,textConsent:false}))} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.textConsent===false&&selfReg.textConsent!==undefined?G.border:G.border}`,background:selfReg.textConsent===false&&selfReg.textConsent!==undefined?G.creamDark:G.cream,color:G.textSoft,fontSize:"0.82rem",fontWeight:400,cursor:"pointer",fontFamily:"inherit"}}>No</button>
                         </div>
                       </div>
-                      {/* Agreement — Yes/No buttons */}
+                      {/* Agreement */}
                       <div style={{padding:"12px 14px",background:selfReg.agreedToTerms?"#d8f3dc":G.redLight,borderRadius:10,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`}}>
                         <div style={{fontSize:"0.74rem",color:selfReg.agreedToTerms?G.green:G.red,fontWeight:600,lineHeight:1.6,marginBottom:10}}>I have read and agree to the All Things Possible Health Coaching terms and informed consent agreement.</div>
                         <div style={{display:"flex",gap:8}}>
-                          {[{label:"✓ I Agree",val:true},{label:"✕ I Do Not Agree",val:false}].map(opt=>(
-                            <button key={String(opt.val)} onPointerDown={e=>{e.preventDefault();setSelfReg(p=>({...p,agreedToTerms:opt.val,agreedAt:opt.val?new Date().toISOString():""}));}} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.agreedToTerms===opt.val?(opt.val?G.greenMid:G.red):G.border}`,background:selfReg.agreedToTerms===opt.val?(opt.val?"#d8f3dc":G.redLight):G.cream,color:selfReg.agreedToTerms===opt.val?(opt.val?G.green:G.red):G.textSoft,fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>{opt.label}</button>
-                          ))}
+                          <button onClick={()=>setSelfReg(p=>({...p,agreedToTerms:true,agreedAt:new Date().toISOString()}))} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.border}`,background:selfReg.agreedToTerms?"#d8f3dc":G.cream,color:selfReg.agreedToTerms?G.green:G.textSoft,fontSize:"0.82rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✓ I Agree</button>
+                          <button onClick={()=>setSelfReg(p=>({...p,agreedToTerms:false,agreedAt:""}))} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.agreedToTerms===false?G.red:G.border}`,background:selfReg.agreedToTerms===false?G.redLight:G.cream,color:selfReg.agreedToTerms===false?G.red:G.textSoft,fontSize:"0.82rem",fontWeight:400,cursor:"pointer",fontFamily:"inherit"}}>✕ No</button>
                         </div>
                       </div>
                     </div>
