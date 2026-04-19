@@ -3406,10 +3406,10 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   if(screen==="splash") return(
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${G.green},${G.greenMid} 50%,${G.mango})`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Palatino Linotype',Palatino,serif"}}>
       <div style={{textAlign:"center"}}>
-        <img src="/marialogo.png" alt="All Things Possible" style={{width:180,height:180,borderRadius:"50%",objectFit:"cover",margin:"0 auto 24px",display:"block",border:"4px solid rgba(255,255,255,.6)",boxShadow:"0 6px 30px rgba(0,0,0,.25)"}}/>
-      <div style={{fontSize:"1.3rem",fontWeight:900,color:G.white,textShadow:"0 2px 8px rgba(0,0,0,.2)"}}>All Things Possible</div>
-        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",marginTop:4,letterSpacing:"2px",textTransform:"uppercase"}}>Health & Wellness Coaching</div>
-        <div style={{marginTop:16,fontSize:"0.72rem",color:"rgba(255,255,255,.7)",fontStyle:"italic"}}>Philippians 4:13</div>  
+       <img src="/marialogo.png" alt="All Things Possible" style={{width:280,height:280,borderRadius:"50%",objectFit:"cover",margin:"0 auto 24px",display:"block",border:"4px solid rgba(255,255,255,.6)",boxShadow:"0 6px 30px rgba(0,0,0,.25)"}}/> 
+      <div style={{fontSize:"0.95rem",fontWeight:700,color:G.white,textShadow:"0 2px 8px rgba(0,0,0,.2)"}}>All Things Possible</div>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.85)",marginTop:4,letterSpacing:"2px",textTransform:"uppercase"}}>Health & Wellness Coaching</div>
+        <div style={{marginTop:12,fontSize:"0.65rem",color:"rgba(255,255,255,.7)",fontStyle:"italic"}}>Philippians 4:13</div> 
       </div>
     </div>
   );
