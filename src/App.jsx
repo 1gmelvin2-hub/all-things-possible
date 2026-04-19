@@ -1550,11 +1550,12 @@ Client selected these items:
 ${itemList}
 
 Your job:
-1. Use the selected items as the BASE of the list. Add quantities where smart (if they eat eggs daily, round up to a full carton or multi-pack).
-2. Suggest 2-3 ADDITIONAL budget-friendly items that would fill nutritional gaps or save money (e.g. canned tuna, frozen chicken, cabbage).
-3. DO NOT spend their entire budget. Show them that eating healthy can be CHEAPER than junk food. Aim to come in 15-25% UNDER budget.
-4. Give a savings message celebrating how much they saved vs a typical grocery trip.
-5. Organize by store section.
+1. Use ONLY the items the client selected — do NOT add any items they did not choose.
+2. Keep the quantities as specified unless a quantity makes no sense (e.g. round eggs up to nearest carton of 12).
+3. Estimate a realistic price for each item at a regular grocery store.
+4. DO NOT spend their entire budget. Show them that eating healthy can be CHEAPER than junk food. Aim to come in 15-25% UNDER budget if possible.
+5. Give a savings message celebrating how much they saved vs budget AND vs a typical week of fast food.
+6. Organize by store section.
 
 Return ONLY valid JSON, no markdown:
 {
@@ -1648,9 +1649,13 @@ Return ONLY valid JSON, no markdown:
                           <div style={{fontSize:"0.76rem",fontWeight:isSelected?700:400,color:isSelected?sec.color:G.text}}>{item.name}</div>
                           {isSmart&&<div style={{fontSize:"0.58rem",color:"#059669",fontWeight:600}}>🧠 Smart qty based on your logs</div>}
                         </div>
-                        {isSelected?(
-                          <div style={{display:"flex",alignItems:"center",gap:4}}>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" value={displayQty||""} onChange={e=>updateQty(sec.section,item.name,e.target.value.replace(/[^0-9]/g,""))} onFocus={e=>e.target.select()} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
+                    {isSelected?(
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <button onClick={e=>{e.stopPropagation();const cur=parseFloat(selectedItems[sec.section+"::"+item.name]?.qty)||1;updateQty(sec.section,item.name,String(Math.max(1,cur-1)));}} style={{width:28,height:28,borderRadius:8,border:`2px solid ${sec.color}`,background:"#fff",color:sec.color,fontSize:"1rem",fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>−</button>
+                            <div style={{minWidth:32,textAlign:"center",fontSize:"0.82rem",fontWeight:700,color:sec.color}}>{displayQty}</div>
+                   <button onPointerDown={e=>{e.stopPropagation();e.preventDefault();const cur=parseFloat(selectedItems[sec.section+"::"+item.name]?.qty)||1;updateQty(sec.section,item.name,String(Math.max(1,cur-1)));}} style={{width:32,height:32,borderRadius:8,border:`2px solid ${sec.color}`,background:"#fff",color:sec.color,fontSize:"1.2rem",fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,touchAction:"manipulation"}}>−</button>
+                            <div style={{minWidth:36,textAlign:"center",fontSize:"0.88rem",fontWeight:700,color:sec.color}}>{displayQty}</div>
+                            <button onPointerDown={e=>{e.stopPropagation();e.preventDefault();const cur=parseFloat(selectedItems[sec.section+"::"+item.name]?.qty)||1;updateQty(sec.section,item.name,String(cur+1));}} style={{width:32,height:32,borderRadius:8,border:`2px solid ${sec.color}`,background:sec.color,color:"#fff",fontSize:"1.2rem",fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,touchAction:"manipulation"}}>+</button>   
                             <span style={{fontSize:"0.62rem",color:G.textSoft}}>{item.unit}</span>
                           </div>
                         ):(
