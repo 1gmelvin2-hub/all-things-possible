@@ -1507,7 +1507,7 @@ function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
     setSelectedItems(prev=>{
       const updated={...prev};
       if(updated[key]){delete updated[key];}
-      else{updated[key]={name:itemName,qty,unit,section};}
+      else{updated[key]={name:itemName,qty:String(qty||1),unit,section};}
       localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
       return updated;
     });
@@ -1651,7 +1651,7 @@ Return ONLY valid JSON, no markdown:
                         </div>
                         {isSelected?(
                           <div style={{display:"flex",alignItems:"center",gap:4}}>
-                            <input type="text" inputMode="decimal" value={displayQty} onChange={e=>updateQty(sec.section,item.name,e.target.value.replace(/[^0-9.]/g,""))} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
+                            <input type="text" inputMode="decimal" value={displayQty||""} onChange={e=>updateQty(sec.section,item.name,e.target.value.replace(/[^0-9.]/g,""))} onFocus={e=>e.target.select()} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
                             <span style={{fontSize:"0.62rem",color:G.textSoft}}>{item.unit}</span>
                           </div>
                         ):(
