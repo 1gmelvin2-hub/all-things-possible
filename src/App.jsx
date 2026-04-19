@@ -1394,109 +1394,421 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   return null;
 }
 
-function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl}){
+function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
-  const [budget,setBudget]=useState("");
-  const [preferences,setPreferences]=useState("");
-  const [dislikes,setDislikes]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [groceryList,setGroceryList]=useState(null);
-  const [savedList,setSavedList]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem(GROCERY_KEY+"-"+currentClient.id)||"null");}catch{return null;}
-  });
   const API_KEY=import.meta.env.VITE_API_KEY||"";
   const macros={protein:Math.round(currentClient.weight*0.7),carbs:75,sugar:25};
 
+  // Phases: "select" | "budget" | "list" | "shop"
+  const [phase,setPhase]=useState("select");
+  const [loading,setLoading]=useState(false);
+  const [groceryList,setGroceryList]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(GROCERY_KEY+"-"+currentClient.id)||"null");}catch{return null;}
+  });
+  const [checkedItems,setCheckedItems]=useState({});
+  const [budget,setBudget]=useState("");
+  const [selectedItems,setSelectedItems]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(GROCERY_KEY+"-sel-"+currentClient.id)||"null")||{};}catch{return {};}
+  });
+  const [customInputs,setCustomInputs]=useState({});
+  const [expandedSection,setExpandedSection]=useState("Proteins");
+
+  // Smart memory: scan nutrition logs to detect frequent foods + quantities
+  function buildSmartUsuals(){
+    const usuals={};
+    const clientNutr=nutrition[currentClient.id]||{};
+    const allEntries=Object.values(clientNutr).flat().filter(m=>m.meal!=="__water__"&&m.text);
+    const counts={};
+    allEntries.forEach(entry=>{
+      const words=entry.text.toLowerCase();
+      PYRAMID_FOODS.forEach(section=>{
+        section.items.forEach(food=>{
+          const key=food.name.toLowerCase();
+          if(words.includes(key)){
+            counts[food.name]=(counts[food.name]||0)+1;
+          }
+        });
+      });
+    });
+    // If logged 4+ times assume they eat it often → flag for quantity boost
+    Object.entries(counts).forEach(([name,count])=>{
+      if(count>=4) usuals[name]=count;
+    });
+    return usuals;
+  }
+
+  // Upside down pyramid food library
+  const PYRAMID_FOODS=[
+    {section:"Proteins 🥩",color:"#dc2626",tip:"Foundation of the pyramid — eat most",items:[
+      {name:"Chicken breast",unit:"lbs",defaultQty:3,perWeek:3},
+      {name:"Eggs",unit:"count",defaultQty:12,perWeek:12,smartMultiplier:true},
+      {name:"Ground beef (85/15)",unit:"lbs",defaultQty:2,perWeek:2},
+      {name:"Salmon",unit:"lbs",defaultQty:1.5,perWeek:1.5},
+      {name:"Tuna (canned)",unit:"cans",defaultQty:4,perWeek:4},
+      {name:"Turkey (ground)",unit:"lbs",defaultQty:1,perWeek:1},
+      {name:"Shrimp",unit:"lbs",defaultQty:1,perWeek:1},
+      {name:"Bacon",unit:"lbs",defaultQty:1,perWeek:1},
+      {name:"Greek yogurt (plain)",unit:"cups",defaultQty:7,perWeek:7},
+      {name:"Cottage cheese",unit:"oz",defaultQty:16,perWeek:16},
+    ]},
+    {section:"Produce 🥦",color:"#16a34a",tip:"Leafy greens, non-starchy vegetables",items:[
+      {name:"Spinach",unit:"oz",defaultQty:10,perWeek:10},
+      {name:"Broccoli",unit:"lbs",defaultQty:2,perWeek:2},
+      {name:"Avocado",unit:"count",defaultQty:4,perWeek:4},
+      {name:"Bell peppers",unit:"count",defaultQty:4,perWeek:4},
+      {name:"Zucchini",unit:"count",defaultQty:3,perWeek:3},
+      {name:"Cauliflower",unit:"head",defaultQty:1,perWeek:1},
+      {name:"Cucumber",unit:"count",defaultQty:2,perWeek:2},
+      {name:"Celery",unit:"bunch",defaultQty:1,perWeek:1},
+      {name:"Cabbage",unit:"head",defaultQty:1,perWeek:1},
+      {name:"Mushrooms",unit:"oz",defaultQty:8,perWeek:8},
+    ]},
+    {section:"Dairy & Fats 🥑",color:"#d97706",tip:"Healthy fats — satisfy and nourish",items:[
+      {name:"Butter (grass-fed)",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Olive oil",unit:"fl oz",defaultQty:16,perWeek:16},
+      {name:"Heavy cream",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Cheddar cheese",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Cream cheese",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Almonds",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Walnuts",unit:"oz",defaultQty:4,perWeek:4},
+      {name:"Mozzarella",unit:"oz",defaultQty:8,perWeek:8},
+    ]},
+    {section:"Pantry & Spices 🧂",color:"#7c3aed",tip:"Flavor without the carbs",items:[
+      {name:"Sea salt",unit:"oz",defaultQty:4,perWeek:4},
+      {name:"Black pepper",unit:"oz",defaultQty:2,perWeek:2},
+      {name:"Garlic (fresh)",unit:"head",defaultQty:2,perWeek:2},
+      {name:"Lemon",unit:"count",defaultQty:4,perWeek:4},
+      {name:"Apple cider vinegar",unit:"oz",defaultQty:16,perWeek:16},
+      {name:"Coconut oil",unit:"oz",defaultQty:8,perWeek:8},
+      {name:"Chicken broth",unit:"carton",defaultQty:2,perWeek:2},
+      {name:"Canned tomatoes",unit:"can",defaultQty:2,perWeek:2},
+    ]},
+    {section:"Berries (small amounts) 🍓",color:"#db2777",tip:"Low-sugar fruit — in moderation",items:[
+      {name:"Blueberries",unit:"pint",defaultQty:1,perWeek:1},
+      {name:"Strawberries",unit:"lbs",defaultQty:1,perWeek:1},
+      {name:"Raspberries",unit:"pint",defaultQty:1,perWeek:1},
+    ]},
+  ];
+
+  // Build smart quantities from nutrition logs
+  const smartUsuals=buildSmartUsuals();
+
+  function getSmartQty(item){
+    const logged=smartUsuals[item.name]||0;
+    if(!logged) return item.defaultQty;
+    // Eggs example: if logged 4/day → need 28/week
+    const dailyRate=logged/7; // logs are spread across days
+    const weeklyNeed=Math.ceil(dailyRate*7);
+    return Math.max(item.defaultQty, Math.ceil(weeklyNeed/5)*5||weeklyNeed);
+  }
+
+  function toggleItem(section,itemName,qty,unit){
+    const key=section+"::"+itemName;
+    setSelectedItems(prev=>{
+      const updated={...prev};
+      if(updated[key]){delete updated[key];}
+      else{updated[key]={name:itemName,qty,unit,section};}
+      localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function updateQty(section,itemName,qty){
+    const key=section+"::"+itemName;
+    setSelectedItems(prev=>{
+      if(!prev[key]) return prev;
+      const updated={...prev,[key]:{...prev[key],qty}};
+      localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function addCustomItem(section){
+    const val=(customInputs[section]||"").trim();
+    if(!val) return;
+    const key=section+"::"+val;
+    setSelectedItems(prev=>{
+      const updated={...prev,[key]:{name:val,qty:"1",unit:"item",section,custom:true}};
+      localStorage.setItem(GROCERY_KEY+"-sel-"+currentClient.id,JSON.stringify(updated));
+      return updated;
+    });
+    setCustomInputs(p=>({...p,[section]:""}));
+  }
+
+  const selectedCount=Object.keys(selectedItems).length;
+
   async function generateList(){
-    if(!budget){alert("Please enter a weekly budget first.");return;}
-    setLoading(true);setGroceryList(null);
+    if(selectedCount===0){alert("Please select at least a few items first.");return;}
+    setLoading(true);
     try{
-      const prompt=`You are a Christian health coach's grocery planning assistant following the Upside Down Food Pyramid philosophy.
-Client macro targets: ${macros.protein}g protein/day, under ${macros.carbs}g carbs/day, under ${macros.sugar}g sugar/day.
-Weekly grocery budget: $${budget}
-Food preferences: ${preferences||"none specified"}
-Foods to avoid: ${dislikes||"none specified"}
-Generate a weekly grocery shopping list that fits this budget and hits the macro targets across 7 days. Organize items by store section. Return ONLY a JSON object with no markdown, no explanation — just this shape:
-{"sections":[{"name":"Proteins","items":[{"item":"Chicken breast","quantity":"3 lbs"},{"item":"Eggs","quantity":"18 count"}]},{"name":"Produce","items":[]}],"totalEstimate":"$87","tip":"One sentence faith-based encouragement about nourishing the body God gave you."}
-Sections to include: Proteins, Produce, Dairy & Eggs, Pantry & Spices, Frozen, Snacks & Extras (only if budget allows).`;
+      const itemList=Object.values(selectedItems).map(i=>`${i.name} — ${i.qty} ${i.unit}`).join("\n");
+      const prompt=`You are a frugal Christian health coach helping a client grocery shop. The client follows the Upside Down Food Pyramid (high protein, healthy fats, low carbs/sugar).
+
+Client's macro targets: ${macros.protein}g protein/day, under ${macros.carbs}g carbs/day, under ${macros.sugar}g sugar/day.
+Weekly budget: $${budget||"100"}
+
+Client selected these items:
+${itemList}
+
+Your job:
+1. Use the selected items as the BASE of the list. Add quantities where smart (if they eat eggs daily, round up to a full carton or multi-pack).
+2. Suggest 2-3 ADDITIONAL budget-friendly items that would fill nutritional gaps or save money (e.g. canned tuna, frozen chicken, cabbage).
+3. DO NOT spend their entire budget. Show them that eating healthy can be CHEAPER than junk food. Aim to come in 15-25% UNDER budget.
+4. Give a savings message celebrating how much they saved vs a typical grocery trip.
+5. Organize by store section.
+
+Return ONLY valid JSON, no markdown:
+{
+  "sections": [
+    {"name":"Proteins","items":[{"item":"Chicken breast","quantity":"3 lbs","est":"$9.00"}]},
+    {"name":"Produce","items":[]}
+  ],
+  "totalEstimate": "$74",
+  "budgetGiven": "$${budget||100}",
+  "savings": "$26",
+  "savingsMessage": "You saved $26 vs your budget — proof that eating clean costs LESS than a week of fast food!",
+  "tip": "One sentence faith-based encouragement about nourishing the temple God gave you."
+}`;
+
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",
         headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1500,messages:[{role:"user",content:prompt}]})
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2000,messages:[{role:"user",content:prompt}]})
       });
       const data=await res.json();
       const raw=data.content?.[0]?.text||"{}";
       const clean=raw.replace(/```json|```/g,"").trim();
       const parsed=JSON.parse(clean);
       setGroceryList(parsed);
+      setCheckedItems({});
       localStorage.setItem(GROCERY_KEY+"-"+currentClient.id,JSON.stringify(parsed));
-      setSavedList(parsed);
+      setPhase("list");
     }catch(err){console.error(err);alert("Could not generate list. Please try again.");}
     setLoading(false);
   }
 
-  function clearList(){
-    setGroceryList(null);setSavedList(null);
-    localStorage.removeItem(GROCERY_KEY+"-"+currentClient.id);
-    setBudget("");setPreferences("");setDislikes("");
+  function toggleCheck(sectionName,itemName){
+    const key=sectionName+"::"+itemName;
+    setCheckedItems(p=>({...p,[key]:!p[key]}));
   }
 
-  const displayList=groceryList||savedList;
+  function clearAll(){
+    setGroceryList(null);setSelectedItems({});setCheckedItems({});setBudget("");setPhase("select");
+    localStorage.removeItem(GROCERY_KEY+"-"+currentClient.id);
+    localStorage.removeItem(GROCERY_KEY+"-sel-"+currentClient.id);
+  }
 
-  return(
+  // ── PHASE: SELECT ──
+  if(phase==="select") return(
     <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{...card,background:`linear-gradient(135deg,#7c3aed,#a78bfa)`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🛒 Weekly Grocery List</div>
-        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>AI-Powered Shopping List</div>
-        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>Enter your budget and preferences — AI builds a macro-friendly list organized by store section.</div>
+      <div style={{...card,background:"linear-gradient(135deg,#5b21b6,#7c3aed)",border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🛒 Grocery Planner</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>What do you need this week?</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>Tap items from each section of the Upside Down Pyramid. Smart quantities are pre-filled based on your eating habits.</div>
       </div>
 
-      <div style={{...card,background:"#F9F5FF",border:"1px solid #D8B4FE"}}>
-        <div style={lbl}>Weekly Budget ($)</div>
-        <input type="number" placeholder="e.g. 100" value={budget} onChange={e=>setBudget(e.target.value)} style={{...iStyle,marginBottom:12}}/>
-        <div style={lbl}>Foods I love / prefer</div>
-        <input type="text" placeholder="e.g. chicken, Greek yogurt, avocado" value={preferences} onChange={e=>setPreferences(e.target.value)} style={{...iStyle,marginBottom:12}}/>
-        <div style={lbl}>Foods to avoid</div>
-        <input type="text" placeholder="e.g. pork, shellfish, gluten" value={dislikes} onChange={e=>setDislikes(e.target.value)} style={{...iStyle,marginBottom:10}}/>
-        <div style={{textAlign:"center",fontSize:"0.64rem",color:"#7C3AED",marginBottom:12}}>
-          📊 Targets: {macros.protein}g protein · &lt;{macros.carbs}g carbs · &lt;{macros.sugar}g sugar/day
+      {selectedCount>0&&(
+        <div style={{position:"sticky",top:0,zIndex:20,background:"linear-gradient(135deg,#059669,#10b981)",borderRadius:12,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 4px 14px rgba(16,185,129,.3)"}}>
+          <div style={{fontSize:"0.78rem",fontWeight:700,color:"#fff"}}>✓ {selectedCount} item{selectedCount!==1?"s":""} selected</div>
+          <button onClick={()=>setPhase("budget")} style={{padding:"7px 14px",borderRadius:20,border:"none",background:"#fff",color:"#059669",fontSize:"0.74rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Next: Set Budget →</button>
         </div>
-        <button onClick={generateList} disabled={loading} style={{...btnGreen,background:loading?"#C4B5FD":"linear-gradient(135deg,#6d28d9,#7c3aed)",boxShadow:"0 4px 14px rgba(124,58,237,.3)",cursor:loading?"not-allowed":"pointer"}}>
-          {loading?"✨ Building your list...":"🛒 Generate My Grocery List"}
-        </button>
-      </div>
+      )}
 
-      {displayList&&(
-        <div>
-          {displayList.tip&&(
-            <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:10,padding:12,marginBottom:12,textAlign:"center",fontSize:"0.74rem",color:"#92400E",fontStyle:"italic",lineHeight:1.6}}>
-              ✝️ {displayList.tip}
-            </div>
-          )}
-          {displayList.totalEstimate&&(
-            <div style={{textAlign:"center",fontWeight:700,fontSize:"1.1rem",color:"#059669",marginBottom:12}}>
-              Estimated Total: {displayList.totalEstimate}
-            </div>
-          )}
-          {(displayList.sections||[]).map((section,i)=>(
-            <div key={i} style={{...card,marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:"0.82rem",color:"#6B46C1",borderBottom:"2px solid #E9D5FF",paddingBottom:6,marginBottom:8}}>{section.name}</div>
-              {(section.items||[]).map((item,j)=>(
-                <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"7px 4px",borderBottom:"1px solid #F3F4F6",fontSize:"0.78rem"}}>
-                  <span>{item.item}</span>
-                  <span style={{color:"#6B7280",fontSize:"0.68rem"}}>{item.quantity}</span>
+      {PYRAMID_FOODS.map((sec,si)=>{
+        const isOpen=expandedSection===sec.section;
+        const sectionSelected=Object.values(selectedItems).filter(i=>i.section===sec.section).length;
+        return(
+          <div key={si} style={{...card,overflow:"hidden",border:`1.5px solid ${isOpen?sec.color+"66":G.border}`}}>
+            <button onClick={()=>setExpandedSection(isOpen?null:sec.section)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"transparent",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:sec.color,flexShrink:0}}/>
+                <div style={{textAlign:"left"}}>
+                  <div style={{fontSize:"0.82rem",fontWeight:700,color:isOpen?sec.color:G.text}}>{sec.section}</div>
+                  <div style={{fontSize:"0.62rem",color:G.textSoft,fontStyle:"italic"}}>{sec.tip}</div>
                 </div>
-              ))}
-            </div>
-          ))}
-          <button onClick={clearList} style={{width:"100%",marginTop:4,padding:10,background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit"}}>
-            🔄 Start New List
-          </button>
-        </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                {sectionSelected>0&&<div style={{fontSize:"0.64rem",padding:"2px 8px",borderRadius:20,background:sec.color+"22",color:sec.color,fontWeight:700}}>{sectionSelected} selected</div>}
+                <div style={{fontSize:"0.75rem",color:isOpen?sec.color:G.textSoft,transition:"transform .2s",transform:isOpen?"rotate(180deg)":"rotate(0deg)"}}>▼</div>
+              </div>
+            </button>
+
+            {isOpen&&(
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${G.border}`}}>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {sec.items.map((item,ii)=>{
+                    const key=sec.section+"::"+item.name;
+                    const isSelected=!!selectedItems[key];
+                    const smartQty=getSmartQty(item);
+                    const isSmart=smartQty!==item.defaultQty;
+                    const displayQty=isSelected?selectedItems[key].qty:smartQty;
+                    return(
+                      <div key={ii} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:10,background:isSelected?sec.color+"11":G.creamDark,border:`1.5px solid ${isSelected?sec.color+"55":G.border}`,transition:"all .2s"}}>
+                        <button onClick={()=>toggleItem(sec.section,item.name,smartQty,item.unit)} style={{width:24,height:24,borderRadius:6,border:`2px solid ${isSelected?sec.color:G.border}`,background:isSelected?sec.color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.8rem",flexShrink:0}}>{isSelected?"✓":""}</button>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:"0.76rem",fontWeight:isSelected?700:400,color:isSelected?sec.color:G.text}}>{item.name}</div>
+                          {isSmart&&<div style={{fontSize:"0.58rem",color:"#059669",fontWeight:600}}>🧠 Smart qty based on your logs</div>}
+                        </div>
+                        {isSelected?(
+                          <div style={{display:"flex",alignItems:"center",gap:4}}>
+                            <input type="number" value={displayQty} onChange={e=>updateQty(sec.section,item.name,e.target.value)} style={{width:52,padding:"4px 6px",borderRadius:7,border:`1.5px solid ${sec.color}`,fontSize:"0.74rem",textAlign:"center",fontFamily:"inherit",background:"#fff"}}/>
+                            <span style={{fontSize:"0.62rem",color:G.textSoft}}>{item.unit}</span>
+                          </div>
+                        ):(
+                          <span style={{fontSize:"0.64rem",color:G.textSoft}}>{smartQty} {item.unit}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Custom item add */}
+                <div style={{display:"flex",gap:7,marginTop:10}}>
+                  <input value={customInputs[sec.section]||""} onChange={e=>setCustomInputs(p=>({...p,[sec.section]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addCustomItem(sec.section)} placeholder={`Add custom ${sec.section.split(" ")[0].toLowerCase()} item...`} style={{...iStyle,flex:1,fontSize:"0.72rem",padding:"7px 10px"}}/>
+                  <button onClick={()=>addCustomItem(sec.section)} style={{padding:"7px 12px",borderRadius:9,border:"none",background:sec.color,color:"#fff",fontSize:"0.72rem",fontWeight:700,cursor:"pointer"}}>+</button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {selectedCount>0&&(
+        <button onClick={()=>setPhase("budget")} style={{...btnGreen,background:"linear-gradient(135deg,#5b21b6,#7c3aed)",boxShadow:"0 4px 14px rgba(124,58,237,.3)"}}>
+          Next: Set Budget ({selectedCount} items selected) →
+        </button>
+      )}
+
+      {groceryList&&(
+        <button onClick={()=>setPhase("list")} style={{background:"transparent",border:`1px solid ${G.border}`,borderRadius:10,padding:"9px",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+          📋 View saved list
+        </button>
       )}
     </div>
   );
+
+  // ── PHASE: BUDGET ──
+  if(phase==="budget") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <button onClick={()=>setPhase("select")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"left",padding:0}}>← Back to selections</button>
+
+      <div style={{...card,background:"linear-gradient(135deg,#5b21b6,#7c3aed)",border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💰 Set Your Budget</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>How much do you want to spend?</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>AI will try to come in UNDER budget — saving you money while eating healthy.</div>
+      </div>
+
+      {/* Selected items summary */}
+      <div style={card}>
+        <div style={lbl}>Your selected items ({selectedCount})</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:4}}>
+          {Object.values(selectedItems).map((item,i)=>(
+            <div key={i} style={{fontSize:"0.68rem",padding:"3px 10px",borderRadius:20,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>
+              {item.name} — {item.qty} {item.unit}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>Weekly grocery budget ($)</div>
+        <input type="number" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="e.g. 100" autoFocus style={{...iStyle,fontSize:"1.1rem",fontWeight:700,textAlign:"center"}}/>
+        <div style={{marginTop:10,padding:"10px 12px",background:"#f0fdf4",borderRadius:10,border:"1px solid #bbf7d0"}}>
+          <div style={{fontSize:"0.72rem",color:"#15803d",lineHeight:1.7,fontStyle:"italic"}}>
+            💡 <strong>Fun fact:</strong> A week of fast food for one person averages $75–$100. A week of high-protein, low-carb groceries? Often under $80 — and your body will thank you. Healthy eating is not expensive. It just takes a plan.
+          </div>
+        </div>
+      </div>
+
+      <button onClick={generateList} disabled={loading||!budget} style={{...btnGreen,background:loading||!budget?"#C4B5FD":"linear-gradient(135deg,#5b21b6,#7c3aed)",boxShadow:"0 4px 14px rgba(124,58,237,.3)",cursor:loading||!budget?"not-allowed":"pointer",opacity:budget?1:0.6}}>
+        {loading?"✨ Building your list...":"🛒 Generate My Grocery List"}
+      </button>
+    </div>
+  );
+
+  // ── PHASE: LIST (view + edit) ──
+  if((phase==="list"||phase==="shop")&&groceryList) return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{display:"flex",gap:8,marginBottom:4}}>
+        <button onClick={()=>setPhase("select")} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.68rem",cursor:"pointer",fontFamily:"inherit"}}>✏️ Edit selections</button>
+        <button onClick={()=>setPhase(phase==="list"?"shop":"list")} style={{flex:1,padding:"6px 12px",borderRadius:20,border:"none",background:phase==="list"?"linear-gradient(135deg,#059669,#10b981)":"linear-gradient(135deg,#5b21b6,#7c3aed)",color:"#fff",fontSize:"0.68rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          {phase==="list"?"🛍️ Start Shopping Mode":"📋 Back to List View"}
+        </button>
+      </div>
+
+      {/* Faith tip */}
+      {groceryList.tip&&(
+        <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"10px 14px",textAlign:"center",fontSize:"0.74rem",color:"#92400E",fontStyle:"italic",lineHeight:1.6}}>
+          ✝️ {groceryList.tip}
+        </div>
+      )}
+
+      {/* Budget summary */}
+      <div style={{...card,background:"linear-gradient(135deg,#f0fdf4,#ecfdf5)",border:"1px solid #6ee7b7"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+          <div>
+            <div style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Estimated Total</div>
+            <div style={{fontSize:"1.6rem",fontWeight:900,color:"#059669"}}>{groceryList.totalEstimate}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Your Budget</div>
+            <div style={{fontSize:"1.1rem",fontWeight:700,color:G.textSoft}}>{groceryList.budgetGiven||`$${budget}`}</div>
+          </div>
+        </div>
+        {groceryList.savings&&(
+          <div style={{padding:"8px 12px",background:"#059669",borderRadius:10,textAlign:"center"}}>
+            <div style={{fontSize:"0.78rem",fontWeight:900,color:"#fff"}}>💚 You saved {groceryList.savings} vs your budget!</div>
+          </div>
+        )}
+        {groceryList.savingsMessage&&(
+          <div style={{marginTop:8,fontSize:"0.7rem",color:"#065f46",lineHeight:1.6,fontStyle:"italic",textAlign:"center"}}>{groceryList.savingsMessage}</div>
+        )}
+      </div>
+
+      {/* Shopping list by section */}
+      {(groceryList.sections||[]).map((section,i)=>{
+        const sectionChecked=section.items.filter(item=>checkedItems[section.name+"::"+item.item]).length;
+        const allDone=sectionChecked===section.items.length;
+        return(
+          <div key={i} style={{...card,opacity:allDone&&phase==="shop"?0.6:1,transition:"opacity .3s"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontWeight:700,fontSize:"0.82rem",color:allDone?"#059669":G.text}}>{allDone&&phase==="shop"?"✓ ":""}{section.name}</div>
+              {phase==="shop"&&<div style={{fontSize:"0.62rem",color:G.textSoft}}>{sectionChecked}/{section.items.length}</div>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:1}}>
+              {(section.items||[]).map((item,j)=>{
+                const checkKey=section.name+"::"+item.item;
+                const isChecked=!!checkedItems[checkKey];
+                return(
+                  <div key={j} onClick={()=>phase==="shop"&&toggleCheck(section.name,item.item)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 6px",borderBottom:j<section.items.length-1?"1px solid #F3F4F6":"none",cursor:phase==="shop"?"pointer":"default",opacity:isChecked?0.5:1,transition:"opacity .2s"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      {phase==="shop"&&(
+                        <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${isChecked?"#059669":G.border}`,background:isChecked?"#059669":"#fff",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.7rem",flexShrink:0}}>{isChecked?"✓":""}</div>
+                      )}
+                      <span style={{fontSize:"0.78rem",color:G.text,textDecoration:isChecked?"line-through":"none"}}>{item.item}</span>
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{color:G.textSoft,fontSize:"0.68rem"}}>{item.quantity}</span>
+                      {item.est&&<span style={{fontSize:"0.68rem",fontWeight:700,color:"#059669"}}>{item.est}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <button onClick={clearAll} style={{width:"100%",padding:10,background:"#F3F4F6",color:"#6B7280",border:"none",borderRadius:8,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",marginTop:4}}>
+        🔄 Start New List
+      </button>
+    </div>
+  );
+
+  return null;
 }
+
+function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
 
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
   // Audio ping function
@@ -4742,8 +5054,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
-     {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl}/>}
-      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+    {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl} nutrition={nutrition}/>}       {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
