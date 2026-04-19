@@ -1712,7 +1712,7 @@ Return ONLY valid JSON, no markdown:
 
       <div style={card}>
         <div style={lbl}>Weekly grocery budget ($)</div>
-        <input type="number" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="e.g. 100" autoFocus style={{...iStyle,fontSize:"1.1rem",fontWeight:700,textAlign:"center"}}/>
+       <input type="text" inputMode="decimal" value={budget} onChange={e=>setBudget(e.target.value.replace(/[^0-9.]/g,""))} placeholder="e.g. 100" style={{...iStyle,fontSize:"1.1rem",fontWeight:700,textAlign:"center"}}/>
         <div style={{marginTop:10,padding:"10px 12px",background:"#f0fdf4",borderRadius:10,border:"1px solid #bbf7d0"}}>
           <div style={{fontSize:"0.72rem",color:"#15803d",lineHeight:1.7,fontStyle:"italic"}}>
             💡 <strong>Fun fact:</strong> A week of fast food for one person averages $75–$100. A week of high-protein, low-carb groceries? Often under $80 — and your body will thank you. Healthy eating is not expensive. It just takes a plan.
