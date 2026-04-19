@@ -3747,7 +3747,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"12px 16px 9px",position:"sticky",top:0,zIndex:10,boxShadow:"0 3px 16px rgba(45,106,79,.25)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <div><div style={{fontSize:"0.64rem",color:"rgba(255,255,255,.8)"}}>Hi, {currentClient.name.split(" ")[0]}!</div><div style={{fontSize:"0.58rem",color:"rgba(255,255,255,.7)"}}>{new Date().toLocaleDateString("en-US",{weekday:"short",month:"2-digit",day:"2-digit",year:"2-digit"})}</div></div>
-            <img src="/marialogo.png" alt="All Things Possible" style={{width:52,height:52,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,.5)",boxShadow:"0 2px 8px rgba(0,0,0,.2)"}}/>
+            <img src="/marialogo.png" alt="All Things Possible" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover",border:"3px solid rgba(255,255,255,.6)",boxShadow:"0 3px 12px rgba(0,0,0,.25)",marginTop:4,marginBottom:4}}/>
             <div style={{textAlign:"right"}}><div style={{fontSize:"1rem",fontWeight:900,color:G.white}}>{currentClient.weight} lbs</div><button onClick={logout} style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:"0.58rem",cursor:"pointer",fontFamily:"inherit"}}>Sign out</button></div>
           </div>  <div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.max(0,currentClient.weight-currentClient.goalWeight)} lbs to go</span></div>
