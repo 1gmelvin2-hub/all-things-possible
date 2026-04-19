@@ -2328,7 +2328,7 @@ export default function AllThingsPossible(){
   const EQUIPMENT_OPTIONS=["Dumbbells","Resistance bands","Yoga mat","Treadmill","Pull-up bar","Gym membership","No equipment"];
   const DAYS_OF_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const WORKOUT_TIMES=["Morning","Afternoon","Evening","No preference"];
- const [selfReg,setSelfReg]       = useState({name:"",email:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:"",phone:"",textConsent:false,agreedToTerms:false,agreedAt:""});
+ const [selfReg,setSelfReg]       = useState({name:"",email:"",birthday:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",equipment:[],equipmentOther:"",workoutDays:[],workoutTime:"Morning",quickMoveDays:[],longRunDay:"",canUpdateSchedule:true,injury:"none",medical:"none",passcode:"",confirmPasscode:"",phone:"",textConsent:false,agreedToTerms:false,agreedAt:""});
   const [selfRegGroup,setSelfRegGroup] = useState(0);
   const [selfRegError,setSelfRegError] = useState("");
   const [tempPasscode,setTempPasscode] = useState({});
@@ -3233,8 +3233,7 @@ function submitSelfReg(){
     if(clients.find(c=>c.passcode===selfReg.passcode)){ setSelfRegError("That passcode is taken — choose a different one."); return; }
     const equipList=[...selfReg.equipment,...(selfReg.equipmentOther.trim()?[selfReg.equipmentOther.trim()]:[])].join(", ")||"None";
     const nc={
-      id:"c"+Date.now(), name:selfReg.name, email:selfReg.email||"", age:parseInt(selfReg.age)||0,
-      weight:parseFloat(selfReg.weight)||0, goalWeight:parseFloat(selfReg.goalWeight)||0,
+      id:"c"+Date.now(), name:selfReg.name, email:selfReg.email||"", age:parseInt(selfReg.age)||0, birthday:selfReg.birthday||"",      weight:parseFloat(selfReg.weight)||0, goalWeight:parseFloat(selfReg.goalWeight)||0,
       goal:selfReg.goal||"General wellness", level:selfReg.level,
       joined:todayStr(), avatar:selfReg.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),
       likes:selfReg.likes||"", equipment:equipList,
@@ -3554,7 +3553,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
         {title:"Personal Info",icon:"👤",fields:[
           {q:"What's your full name?",field:"name",placeholder:"e.g. Maria Santos",type:"text"},
           {q:"Your email address",field:"email",placeholder:"e.g. maria@email.com",type:"email"},
-         {q:"How old are you?",field:"age",placeholder:"e.g. 45",type:"number"},
+     {q:"What is your birthday?",field:"birthday",placeholder:"",type:"birthday"},   
           {q:"Current weight (lbs)?",field:"weight",placeholder:"e.g. 165",type:"number"},
           {q:"Goal weight (lbs)?",field:"goalWeight",placeholder:"e.g. 145",type:"number"},
           {q:"Phone number?",field:"phone",placeholder:"e.g. 407-555-1234",type:"tel"},
@@ -3723,7 +3722,18 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
                       </div>
                     </div>
                   )}
-                  {f.type!=="select"&&f.type!=="equipment"&&f.type!=="workoutDays"&&f.type!=="disclaimer"&&(
+             {f.type==="birthday"&&(
+                    <div>
+                      <input type="date" value={selfReg.birthday||""} max={new Date().toISOString().split("T")[0]} onChange={e=>{
+                        const bday=e.target.value;
+                        const age=bday?Math.floor((new Date()-new Date(bday))/(365.25*24*60*60*1000)):0;
+                        setSelfReg(p=>({...p,birthday:bday,age:String(age)}));
+                        setSelfRegError("");
+                      }} style={iStyle}/>
+                      {selfReg.birthday&&<div style={{marginTop:6,fontSize:"0.72rem",color:G.green,fontWeight:600}}>🎂 Age: {selfReg.age} years old</div>}
+                    </div>
+                  )}
+                  {f.type!=="select"&&f.type!=="equipment"&&f.type!=="workoutDays"&&f.type!=="disclaimer"&&f.type!=="birthday"&&(
                     <input type={f.type} value={selfReg[f.field]||""} onChange={e=>{setSelfReg(p=>({...p,[f.field]:e.target.value}));setSelfRegError("");}} placeholder={f.placeholder} style={iStyle} autoFocus={i===0}/>
                   )}
                 </div>
@@ -5192,9 +5202,24 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
              <button onClick={()=>{setSelectedClientCoach(null);if(fromHealthBoard){setCoachTab("healthboard");setFromHealthBoard(false);}}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"left",padding:0}}>{fromHealthBoard?"← Back to Health Board":"← Back"}</button> 
               <div style={{display:"flex",alignItems:"center",gap:11}}>
                 <div style={{width:50,height:50,borderRadius:"50%",background:`linear-gradient(135deg,${G.greenMid},${G.green})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.95rem",fontWeight:700,color:G.white}}>{selectedClientCoach.avatar}</div>
-                <div><div style={{fontSize:"0.95rem",fontWeight:700,color:G.text}}>{selectedClientCoach.name}</div><div style={{fontSize:"0.66rem",color:G.textSoft}}>Age {selectedClientCoach.age} · {selectedClientCoach.weight}lbs → {selectedClientCoach.goalWeight}lbs</div></div>
+                <div>
+                  <div style={{fontSize:"0.95rem",fontWeight:700,color:G.text}}>{selectedClientCoach.name}</div>
+                  <div style={{fontSize:"0.66rem",color:G.textSoft}}>Age {selectedClientCoach.age} · {selectedClientCoach.weight}lbs → {selectedClientCoach.goalWeight}lbs</div>
+                  {selectedClientCoach.birthday&&(()=>{
+                    const bday=new Date(selectedClientCoach.birthday+"T12:00:00");
+                    const today=new Date();
+                    const isBirthday=bday.getMonth()===today.getMonth()&&bday.getDate()===today.getDate();
+                    const next=new Date(today.getFullYear(),bday.getMonth(),bday.getDate());
+                    if(next<today) next.setFullYear(today.getFullYear()+1);
+                    const daysUntil=Math.ceil((next-today)/86400000);
+                    return(
+                      <div style={{marginTop:4,fontSize:"0.68rem",color:isBirthday?G.mangoDeep:G.textSoft,fontWeight:isBirthday?700:400}}>
+                        {isBirthday?"🎂 TODAY IS THEIR BIRTHDAY! Send a message!":daysUntil<=7?`🎂 Birthday in ${daysUntil} days — ${bday.toLocaleDateString("en-US",{month:"long",day:"numeric"})}`:`🎂 ${bday.toLocaleDateString("en-US",{month:"long",day:"numeric"})}`}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
-
   {(()=>{
                 const cid=selectedClientCoach.id;
                 const allDates=Object.keys(logs[cid]||{}).sort().reverse();
