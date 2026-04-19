@@ -3744,12 +3744,18 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
        {/* Header */}
-        <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"12px 16px 9px",position:"sticky",top:0,zIndex:10,boxShadow:"0 3px 16px rgba(45,106,79,.25)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <div><div style={{fontSize:"0.64rem",color:"rgba(255,255,255,.8)"}}>Hi, {currentClient.name.split(" ")[0]}!</div><div style={{fontSize:"0.58rem",color:"rgba(255,255,255,.7)"}}>{new Date().toLocaleDateString("en-US",{weekday:"short",month:"2-digit",day:"2-digit",year:"2-digit"})}</div></div>
-            <img src="/marialogo.png" alt="All Things Possible" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover",border:"3px solid rgba(255,255,255,.6)",boxShadow:"0 3px 12px rgba(0,0,0,.25)",marginTop:4,marginBottom:4}}/>
-            <div style={{textAlign:"right"}}><div style={{fontSize:"1rem",fontWeight:900,color:G.white}}>{currentClient.weight} lbs</div><button onClick={logout} style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:"0.58rem",cursor:"pointer",fontFamily:"inherit"}}>Sign out</button></div>
-          </div>  <div>
+        <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,position:"sticky",top:0,zIndex:10,boxShadow:"0 3px 16px rgba(45,106,79,.25)"}}>
+          <div style={{position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px",minHeight:90}}>
+            <div style={{zIndex:2}}>
+              <div style={{fontSize:"0.64rem",color:"rgba(255,255,255,.8)"}}>Hi, {currentClient.name.split(" ")[0]}!</div>
+              <div style={{fontSize:"0.58rem",color:"rgba(255,255,255,.7)"}}>{new Date().toLocaleDateString("en-US",{weekday:"short",month:"2-digit",day:"2-digit",year:"2-digit"})}</div>
+            </div>
+            <img src="/marialogo.png" alt="All Things Possible" style={{position:"absolute",left:"50%",transform:"translateX(-50%)",height:90,width:90,objectFit:"cover",borderRadius:"50%",border:"3px solid rgba(255,255,255,.6)",boxShadow:"0 3px 16px rgba(0,0,0,.3)",zIndex:1}}/>
+            <div style={{textAlign:"right",zIndex:2}}>
+              <div style={{fontSize:"1rem",fontWeight:900,color:G.white}}>{currentClient.weight} lbs</div>
+              <button onClick={logout} style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:"0.58rem",cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
+            </div>
+          </div> <div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.max(0,currentClient.weight-currentClient.goalWeight)} lbs to go</span></div>
             <div style={{height:4,background:"rgba(255,255,255,.2)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,Math.max(0,((220-currentClient.weight)/(220-(currentClient.goalWeight||150)))*100))}%`,background:G.mango,borderRadius:2}}/></div>
           </div>
