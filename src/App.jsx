@@ -1814,6 +1814,328 @@ Return ONLY valid JSON, no markdown:
   return null;
 }
 
+function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
+  const ABS_KEY="atp-abs";
+  const HARDCODED_ABS=[
+    {name:"Crunches",instructions:"Lie on back, knees bent. Curl shoulders toward knees, squeeze at top.",level:"Beginning",duration:30},
+    {name:"Plank Hold",instructions:"Hold a straight line from head to heels. Keep core tight, breathe.",level:"Beginning",duration:30},
+    {name:"Leg Raises",instructions:"Lie flat, legs straight. Raise to 90° slowly, lower without touching floor.",level:"Beginning",duration:30},
+    {name:"Bicycle Crunches",instructions:"Alternate elbow to opposite knee in a cycling motion. Slow and controlled.",level:"Intermediate",duration:30},
+    {name:"Russian Twists",instructions:"Sit at 45°, feet raised. Rotate torso side to side touching the floor.",level:"Intermediate",duration:30},
+    {name:"Mountain Climbers",instructions:"Plank position. Drive knees to chest alternately at a steady pace.",level:"Intermediate",duration:30},
+    {name:"Reverse Crunches",instructions:"Lie on back, lift hips off floor by pulling knees toward chest.",level:"Intermediate",duration:30},
+    {name:"Heel Touches",instructions:"Lie on back, knees bent. Crunch side to side touching each heel.",level:"Beginning",duration:30},
+    {name:"Dead Bug",instructions:"Lie on back, arms up. Extend opposite arm and leg, keep lower back flat.",level:"Intermediate",duration:30},
+    {name:"Flutter Kicks",instructions:"Lie flat, legs 6 inches off floor. Alternate small kicks rapidly.",level:"Intermediate",duration:30},
+    {name:"V-Ups",instructions:"Lie flat. Simultaneously raise legs and torso to form a V shape.",level:"Advanced",duration:30},
+    {name:"Plank to Downward Dog",instructions:"From plank, push hips up to downward dog, return to plank. Repeat.",level:"Intermediate",duration:30},
+    {name:"Side Plank Left",instructions:"Balance on left forearm and feet stacked. Keep hips high. Hold.",level:"Intermediate",duration:30},
+    {name:"Side Plank Right",instructions:"Balance on right forearm and feet stacked. Keep hips high. Hold.",level:"Intermediate",duration:30},
+    {name:"Toe Touches",instructions:"Lie on back, legs straight up. Reach hands toward toes, squeeze abs.",level:"Beginning",duration:30},
+    {name:"Scissor Kicks",instructions:"Lie flat, legs raised. Cross legs over each other in a scissor motion.",level:"Intermediate",duration:30},
+    {name:"Hollow Body Hold",instructions:"Lie on back, arms overhead, legs straight. Lift both off floor slightly. Hold.",level:"Advanced",duration:30},
+    {name:"Ab Wheel Rollout",instructions:"Kneel with ab wheel. Roll forward slowly, engage core, pull back.",level:"Advanced",duration:30},
+  ];
+
+  const [absPhase,setAbsPhase]=useState("setup");
+  const [absDuration,setAbsDuration]=useState("10 min");
+  const [absSession,setAbsSession]=useState(null);
+  const [generating,setGenerating]=useState(false);
+  const [currentExIdx,setCurrentExIdx]=useState(0);
+  const [isRest,setIsRest]=useState(false);
+  const [timerSec,setTimerSec]=useState(30);
+  const [timerActive,setTimerActive]=useState(false);
+  const [sessionComplete,setSessionComplete]=useState(false);
+  const [absRating,setAbsRating]=useState(null);
+  const [absHistory,setAbsHistory]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(ABS_KEY)||"[]");}catch{return [];}
+  });
+  const timerRef=useRef(null);
+
+  function playPing(type="tick"){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      if(type==="end"){
+        osc.frequency.setValueAtTime(880,ctx.currentTime);
+        osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);
+        gain.gain.setValueAtTime(0.3,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+        osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);
+      } else {
+        osc.frequency.setValueAtTime(440,ctx.currentTime);
+        gain.gain.setValueAtTime(0.2,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+        osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.1);
+      }
+    }catch(e){}
+  }
+
+  useEffect(()=>{
+    if(timerActive&&timerSec>0){
+      if(timerSec<=3&&!isRest) playPing("tick");
+      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    } else if(timerActive&&timerSec===0){
+      playPing("end");
+      advanceAbs();
+    }
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec,isRest]);
+
+  function advanceAbs(){
+    if(!absSession) return;
+    if(isRest){
+      const nextIdx=currentExIdx+1;
+      if(nextIdx>=absSession.exercises.length){
+        setSessionComplete(true);setTimerActive(false);return;
+      }
+      setCurrentExIdx(nextIdx);setIsRest(false);setTimerSec(30);
+    } else {
+      if(currentExIdx<absSession.exercises.length-1){
+        setIsRest(true);setTimerSec(15);
+      } else {
+        setSessionComplete(true);setTimerActive(false);
+      }
+    }
+  }
+
+  function getCurrentWeek(){
+    try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");return prog[currentClient.id]?.currentWeek||1;}catch{return 1;}
+  }
+
+  function getExerciseCount(duration){
+    if(duration==="5 min") return 6;
+    if(duration==="10 min") return 12;
+    return 18;
+  }
+
+  async function generateSession(){
+    setGenerating(true);
+    const weekNum=getCurrentWeek();
+    const count=getExerciseCount(absDuration);
+
+    let sheetAbs=[];
+    if(sheetData.workouts&&sheetData.workouts.length>0){
+      sheetAbs=sheetData.workouts.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("abs")||(row[1]||"").toLowerCase().includes("core")).map(row=>({
+        name:row[0]||"",instructions:row[5]||"",level:row[2]||"Beginning",duration:30
+      })).filter(e=>e.name);
+    } else {
+      try{
+        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const text=await res.text();
+        const json=JSON.parse(text.substring(47).slice(0,-2));
+        const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+        setSheetData(p=>({...p,workouts:rows}));
+        setSheetLoaded(true);
+        sheetAbs=rows.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("abs")||(row[1]||"").toLowerCase().includes("core")).map(row=>({
+          name:row[0]||"",instructions:row[5]||"",level:row[2]||"Beginning",duration:30
+        })).filter(e=>e.name);
+      }catch(e){console.error(e);}
+    }
+
+const pool=sheetAbs.length>=6?sheetAbs:HARDCODED_ABS;
+
+    // Progressive difficulty by week — week 1 all beginner, ramps up
+    const levelWeights=weekNum===1?{Beginning:1,Intermediate:0,Advanced:0}:
+      weekNum<=3?{Beginning:0.8,Intermediate:0.2,Advanced:0}:
+      weekNum<=4?{Beginning:0.6,Intermediate:0.4,Advanced:0}:
+      weekNum<=6?{Beginning:0.3,Intermediate:0.6,Advanced:0.1}:
+      weekNum<=8?{Beginning:0.1,Intermediate:0.6,Advanced:0.3}:
+      weekNum<=10?{Beginning:0,Intermediate:0.4,Advanced:0.6}:
+      {Beginning:0,Intermediate:0.2,Advanced:0.8};
+
+    // Also adjust based on last session rating
+    const lastRating=absHistory.length>0?absHistory[absHistory.length-1].rating:3;
+
+    const weighted=[];
+    pool.forEach(ex=>{
+      let w=levelWeights[ex.level]||0;
+      // If too easy last time, boost harder exercises
+      if(lastRating<=2&&ex.level==="Advanced") w=Math.min(1,w+0.4);
+      if(lastRating<=2&&ex.level==="Beginning") w=Math.max(0,w-0.3);
+      // If too hard last time, boost easier exercises
+      if(lastRating>=4&&ex.level==="Beginning") w=Math.min(1,w+0.4);
+      if(lastRating>=4&&ex.level==="Advanced") w=Math.max(0,w-0.3);
+      if(Math.random()<w+0.1) weighted.push(ex);
+    });
+
+    // Build 6 unique exercises then repeat for sets
+    const shuffled=[...weighted].sort(()=>Math.random()-0.5);
+    const base6=shuffled.slice(0,6);
+    while(base6.length<6){
+      const fallback=HARDCODED_ABS[base6.length%HARDCODED_ABS.length];
+      base6.push(fallback);
+    }
+
+    // Repeat sets based on duration
+    const sets=absDuration==="5 min"?1:absDuration==="10 min"?2:3;
+    const selected=[];
+    for(let s=0;s<sets;s++) selected.push(...base6.map(ex=>({...ex,set:s+1})));
+
+    setAbsSession({exercises:selected,base6,sets,duration:absDuration,weekNum,lastRating,generatedAt:todayStr()});
+    setCurrentExIdx(0);setIsRest(false);setSessionComplete(false);setAbsRating(null);
+    setAbsPhase("preview");
+    setGenerating(false);
+  }
+
+  function startSession(){
+    setAbsPhase("active");
+    setCurrentExIdx(0);setIsRest(false);
+    setTimerSec(30);setTimerActive(true);setSessionComplete(false);
+  }
+
+  async function saveSession(rating){
+    const entry={date:todayStr(),duration:absDuration,exercises:absSession.exercises.length,weekNum:absSession.weekNum,rating,clientId:currentClient.id,ts:new Date().toISOString()};
+    const newHistory=[...absHistory,entry];
+    setAbsHistory(newHistory);
+    try{localStorage.setItem(ABS_KEY,JSON.stringify(newHistory));}catch(e){}
+    setAbsRating(rating);
+  }
+
+  const activeEx=absSession?.exercises[currentExIdx];
+  const progressPct=absSession?Math.round((currentExIdx/absSession.exercises.length)*100):0;
+  const phase=getCurrentWeek()<=4?"Foundation":getCurrentWeek()<=8?"Build":"Peak";
+  const phaseColor=getCurrentWeek()<=4?"#60a5fa":getCurrentWeek()<=8?"#10b981":"#f97316";
+
+  // SETUP
+  if(absPhase==="setup") return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:"linear-gradient(135deg,#0f766e,#14b8a6)",border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🔥 Core & Abs</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Week {getCurrentWeek()} — {phase} Phase</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7}}>30 sec on · 15 sec rest · progressive difficulty by week</div>
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>⏱ How long do you have?</div>
+        <div style={{display:"flex",gap:8}}>
+          {["5 min","10 min","15 min"].map(t=>(
+            <button key={t} onClick={()=>setAbsDuration(t)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${absDuration===t?"#0f766e":G.border}`,background:absDuration===t?"#ccfbf1":G.cream,color:absDuration===t?"#0f766e":G.textSoft,fontSize:"0.78rem",fontWeight:absDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+              {t}
+              <div style={{fontSize:"0.58rem",color:absDuration===t?"#0f766e":G.textSoft,marginTop:2}}>{getExerciseCount(t)} exercises</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {absHistory.length>0&&(
+        <div style={{...card,background:"#f0fdfa",border:"1px solid #99f6e4"}}>
+          <div style={lbl}>📊 Last Session</div>
+          <div style={{fontSize:"0.74rem",color:G.text}}>{absHistory[absHistory.length-1].duration} · {fmtDate(absHistory[absHistory.length-1].date)}</div>
+          <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {absHistory[absHistory.length-1].weekNum} · Rated {absHistory[absHistory.length-1].rating}/5</div>
+        </div>
+      )}
+
+      <button onClick={generateSession} disabled={generating} style={{...btnGreen,background:generating?"#ccc":"linear-gradient(135deg,#0f766e,#14b8a6)",boxShadow:"0 4px 14px rgba(15,118,110,.3)",opacity:generating?0.7:1}}>
+        {generating?"🔥 Building your session...":"🔥 Generate Abs Session"}
+      </button>
+    </div>
+  );
+
+  // PREVIEW
+  if(absPhase==="preview"&&absSession) return(
+    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{...card,background:"linear-gradient(135deg,#0f766e,#14b8a6)",border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🔥 Your Session</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{absDuration} Core Blast — {absSession.sets} set{absSession.sets>1?"s":""} of {absSession.base6?.length||6}</div>
+        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>30 sec work · 15 sec rest · same 6 exercises repeated</div>
+      </div>
+      <div style={card}>
+        <div style={lbl}>Today's Exercises</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {absSession.exercises.map((ex,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:G.creamDark,borderRadius:10,borderLeft:`3px solid ${ex.level==="Beginning"?"#60a5fa":ex.level==="Advanced"?"#f97316":"#14b8a6"}`}}>
+              <div style={{width:22,height:22,borderRadius:"50%",background:ex.level==="Beginning"?"#60a5fa":ex.level==="Advanced"?"#f97316":"#14b8a6",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.6rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"0.76rem",fontWeight:700,color:G.text}}>{ex.name}</div>
+                <div style={{fontSize:"0.6rem",color:G.textSoft}}>{ex.level} · 30 sec</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button onClick={startSession} style={{...btnGreen,background:"linear-gradient(135deg,#0f766e,#14b8a6)",boxShadow:"0 4px 14px rgba(15,118,110,.3)"}}>▶ Start Session</button>
+      <button onClick={()=>setAbsPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
+    </div>
+  );
+
+  // ACTIVE
+  if(absPhase==="active"&&absSession) return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:isRest?"#f0fdfa":"#f0fdf4"}}>
+      <div style={{height:6,background:"#ccfbf1"}}>
+        <div style={{height:"100%",width:`${progressPct}%`,background:"linear-gradient(90deg,#0f766e,#14b8a6)",transition:"width .5s"}}/>
+      </div>
+
+      {sessionComplete?(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+          <div style={{fontSize:"3rem"}}>🏆</div>
+          <div style={{fontSize:"1.1rem",fontWeight:900,color:"#0f766e",textAlign:"center"}}>Core Blast Complete!</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Your core is getting stronger every session. All things are possible! 🙏</div>
+          {!absRating?(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your session?</div>
+              <div style={{display:"flex",gap:6}}>
+                {[1,2,3,4,5].map(r=>(
+                  <button key={r} onClick={()=>saveSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${absRating===r?"#0f766e":G.border}`,background:absRating===r?"#ccfbf1":G.cream,color:absRating===r?"#0f766e":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                ))}
+              </div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+            </div>
+          ):(
+            <button onClick={()=>{setAbsPhase("setup");setSessionComplete(false);setAbsSession(null);}} style={{...btnGreen,background:"linear-gradient(135deg,#0f766e,#14b8a6)"}}>🔥 New Session</button>
+          )}
+        </div>
+      ):(
+        <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+          <div style={{display:"flex",gap:3}}>
+            {absSession.exercises.map((_,i)=>(
+              <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<currentExIdx?"#14b8a6":i===currentExIdx?"#0f766e":G.border,transition:"background .3s"}}/>
+            ))}
+          </div>
+
+          <div style={{fontSize:"0.75rem",fontWeight:700,color:isRest?"#14b8a6":"#0f766e",textTransform:"uppercase",letterSpacing:1}}>
+            {isRest?"😮‍💨 REST":"🔥 GO"}
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:16}}>
+            <div style={{width:180,height:180,borderRadius:"50%",background:isRest?"#ccfbf1":"#f0fdfa",border:`6px solid ${isRest?"#14b8a6":"#0f766e"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 30px ${isRest?"#14b8a644":"#0f766e44"}`}}>
+              <div style={{fontSize:"0.7rem",color:isRest?"#14b8a6":"#0f766e",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{isRest?"REST":"BURN"}</div>
+              <div style={{fontSize:"4rem",fontWeight:900,color:timerSec<=3?"#f87171":isRest?"#14b8a6":"#0f766e",fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timerSec}</div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>seconds</div>
+            </div>
+
+            {!isRest&&activeEx&&(
+              <div style={{textAlign:"center",padding:"0 8px"}}>
+                <div style={{fontSize:"1.8rem",fontWeight:900,color:G.text,marginBottom:8,lineHeight:1.2}}>{activeEx.name}</div>
+                {absSession.sets>1&&<div style={{fontSize:"0.68rem",padding:"2px 12px",borderRadius:20,background:"#ccfbf1",color:"#0f766e",fontWeight:700,display:"inline-block",marginBottom:8}}>Set {activeEx.set} of {absSession.sets}</div>}
+                <div style={{fontSize:"0.76rem",color:G.textSoft,lineHeight:1.7,maxWidth:300,margin:"0 auto"}}>{activeEx.instructions}</div>
+                <div style={{marginTop:8,fontSize:"0.64rem",color:G.textSoft}}>{currentExIdx+1} of {absSession.exercises.length} total</div>
+              </div>
+            )}
+
+            {isRest&&(
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:"0.85rem",fontWeight:700,color:"#14b8a6",marginBottom:4}}>Breathe! 💚</div>
+                <div style={{fontSize:"0.74rem",color:G.textSoft}}>Next: {absSession.exercises[currentExIdx+1]?.name||"Done!"}</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setTimerActive(r=>!r)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:timerActive?"#0f766e":"#14b8a6",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{timerActive?"⏸ Pause":"▶ Resume"}</button>
+            <button onClick={()=>{setTimerActive(false);advanceAbs();setTimeout(()=>setTimerActive(true),100);}} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return null;
+}
+
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
   // Audio ping function
   function playPing(type="tick"){
@@ -3739,7 +4061,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
- const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["running","🏃","Run"]];
+ const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["abs","🔥","Abs"],["running","🏃","Run"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -5051,7 +5373,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         })()}
 
      {/* ── HIIT ── */}
-    {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl} nutrition={nutrition}/>}       {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
+    {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl} nutrition={nutrition}/>}
+      {tab==="abs"&&<AbsTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
 
