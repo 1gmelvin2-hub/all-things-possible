@@ -3703,15 +3703,23 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
                         <div style={{marginBottom:10}}>By checking the box below I confirm that I am 18 years of age or older, I have read and understood this entire agreement, I agree to participate voluntarily and take full responsibility for my health decisions, and I release All Things Possible Health Coaching and MJ Melvin from any liability.</div>
                         <div style={{fontStyle:"italic",textAlign:"center",color:G.green,fontWeight:600}}>"I can do all things through Christ who strengthens me." — Philippians 4:13</div>
                       </div>
-                      {/* Text consent */}
-                      <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
-                  <button onPointerDown={e=>{e.preventDefault();e.stopPropagation();setSelfReg(p=>({...p,textConsent:!p.textConsent}));}} style={{width:36,height:36,borderRadius:5,border:`2px solid ${selfReg.textConsent?G.greenMid:G.border}`,background:selfReg.textConsent?G.greenMid:G.cream,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.white,fontSize:"0.85rem",flexShrink:0,marginTop:1,touchAction:"manipulation"}}>{selfReg.textConsent?"✓":""}</button>
-                        <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6}}>I consent to receive text messages from All Things Possible Health Coaching. Message & data rates may apply. Reply STOP to opt out.</div>
+             {/* Text consent */}
+                      <div style={{padding:"12px 14px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
+                        <div style={{fontSize:"0.72rem",color:G.textSoft,lineHeight:1.6,marginBottom:10}}>I consent to receive text messages from All Things Possible Health Coaching. Message & data rates may apply. Reply STOP to opt out.</div>
+                        <div style={{display:"flex",gap:8}}>
+                          {[{label:"Yes",val:true},{label:"No",val:false}].map(opt=>(
+                            <button key={String(opt.val)} onPointerDown={e=>{e.preventDefault();setSelfReg(p=>({...p,textConsent:opt.val}));}} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${selfReg.textConsent===opt.val?G.greenMid:G.border}`,background:selfReg.textConsent===opt.val?"#d8f3dc":G.cream,color:selfReg.textConsent===opt.val?G.green:G.textSoft,fontSize:"0.82rem",fontWeight:selfReg.textConsent===opt.val?700:400,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>{opt.label}</button>
+                          ))}
+                        </div>
                       </div>
-                      {/* Agreement checkbox */}
-                      <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",background:selfReg.agreedToTerms?"#d8f3dc":G.redLight,borderRadius:10,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`}}>
-         <button onPointerDown={e=>{e.preventDefault();e.stopPropagation();setSelfReg(p=>({...p,agreedToTerms:!p.agreedToTerms,agreedAt:!p.agreedToTerms?new Date().toISOString():""}));}} style={{width:36,height:36,borderRadius:5,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`,background:selfReg.agreedToTerms?G.greenMid:G.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.white,fontSize:"0.85rem",flexShrink:0,marginTop:1,touchAction:"manipulation"}}>{selfReg.agreedToTerms?"✓":""}</button>
-                        <div style={{fontSize:"0.74rem",color:selfReg.agreedToTerms?G.green:G.red,fontWeight:600,lineHeight:1.6}}>I have read and agree to the All Things Possible Health Coaching terms and informed consent agreement.</div>
+                      {/* Agreement — Yes/No buttons */}
+                      <div style={{padding:"12px 14px",background:selfReg.agreedToTerms?"#d8f3dc":G.redLight,borderRadius:10,border:`2px solid ${selfReg.agreedToTerms?G.greenMid:G.red}`}}>
+                        <div style={{fontSize:"0.74rem",color:selfReg.agreedToTerms?G.green:G.red,fontWeight:600,lineHeight:1.6,marginBottom:10}}>I have read and agree to the All Things Possible Health Coaching terms and informed consent agreement.</div>
+                        <div style={{display:"flex",gap:8}}>
+                          {[{label:"✓ I Agree",val:true},{label:"✕ I Do Not Agree",val:false}].map(opt=>(
+                            <button key={String(opt.val)} onPointerDown={e=>{e.preventDefault();setSelfReg(p=>({...p,agreedToTerms:opt.val,agreedAt:opt.val?new Date().toISOString():""}));}} style={{flex:1,padding:"14px 0",borderRadius:10,border:`2px solid ${selfReg.agreedToTerms===opt.val?(opt.val?G.greenMid:G.red):G.border}`,background:selfReg.agreedToTerms===opt.val?(opt.val?"#d8f3dc":G.redLight):G.cream,color:selfReg.agreedToTerms===opt.val?(opt.val?G.green:G.red):G.textSoft,fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation"}}>{opt.label}</button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
