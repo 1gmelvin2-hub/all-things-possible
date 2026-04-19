@@ -1809,8 +1809,6 @@ Return ONLY valid JSON, no markdown:
 }
 
 function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
-
-function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr}){
   // Audio ping function
   function playPing(type="tick"){
     try{
