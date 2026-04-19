@@ -3552,10 +3552,11 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
       ];
       const group=GROUPS[selfRegGroup];
       const isLast=selfRegGroup===GROUPS.length-1;
-      const groupComplete=()=>{
+     const groupComplete=()=>{
         if(group.fields[0].type==="equipment") return true;
         if(group.fields[0].type==="workoutDays") return selfReg.workoutDays.length>0;
-        return group.fields.every(f=>f.type==="select"||selfReg[f.field]?.trim());
+        if(group.fields[0].type==="disclaimer") return selfReg.agreedToTerms===true;
+        return group.fields.every(f=>f.type==="select"||f.type==="birthday"||selfReg[f.field]?.trim());
       };
       return(
         <div style={{minHeight:"100vh",background:G.cream,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column"}}>
