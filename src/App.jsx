@@ -2555,6 +2555,22 @@ export default function AllThingsPossible(){
   const [ratings,setRatings]       = useState({});
   const [nutrition,setNutrition]   = useState({});
   const [moveProfile,setMoveProfile] = useState({});
+  const [blastWeights,setBlastWeights] = useState({});
+  const [blastSession,setBlastSession] = useState(null);
+  const [blastPhase,setBlastPhase] = useState("setup");
+  const [blastBlockIdx,setBlastBlockIdx] = useState(0);
+  const [blastRoundIdx,setBlastRoundIdx] = useState(0);
+  const [blastExIdx,setBlastExIdx] = useState(0);
+  const [blastIsRest,setBlastIsRest] = useState(false);
+  const [blastIsTransition,setBlastIsTransition] = useState(false);
+  const [blastTimerSec,setBlastTimerSec] = useState(30);
+  const [blastTimerActive,setBlastTimerActive] = useState(false);
+  const [blastComplete,setBlastComplete] = useState(false);
+  const [blastRating,setBlastRating] = useState(null);
+  const [blastHistory,setBlastHistory] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem("atp-blast")||"[]");}catch{return [];}
+  });
+  const blastTimerRef=useRef(null);
   const [showMoveSetup,setShowMoveSetup] = useState(false);
   const [moveSetupSit,setMoveSetupSit] = useState("");
   const [moveSetupEnjoys,setMoveSetupEnjoys] = useState("");
@@ -3408,6 +3424,244 @@ Non-tab days get specific home exercises with sets/reps.`:"";
       }catch(e){ setAdjustMsg("Plan noted — your coach will review your rating."); }
       setAdjustingPlan(false);
     } else { setAdjustMsg(RATING_INFO[rating].msg); }
+  }
+
+const BLAST_GROUPS={
+    "Chest":{ 
+      weightLabel:"Dumbbell press weight (lbs)", weightPlaceholder:"e.g. 40",
+      weights:["chest"],
+      blocks:[
+        {name:"Chest Superset 1",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Dumbbell Chest Press",instructions:"Lie on bench, dumbbells at chest. Press up explosively, lower slowly. Full range.",scaleKey:"chest",scale:1},
+          {name:"Dumbbell Chest Fly",instructions:"Arms wide, slight bend in elbows. Open chest fully, squeeze at top.",scaleKey:"chest",scale:0.7},
+        ]},
+        {name:"Chest Finisher 1",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Cable Crossover",instructions:"Cables at shoulder height. Pull down and across, squeeze chest hard at center.",scaleKey:"chest",scale:0.5},
+        ]},
+        {name:"Chest Superset 2",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Incline Dumbbell Press",instructions:"45° incline. Press up and slightly inward. Full stretch at bottom, squeeze at top.",scaleKey:"chest",scale:0.85},
+          {name:"Incline Dumbbell Fly",instructions:"Incline bench, arms wide. Feel deep stretch, squeeze chest together at top.",scaleKey:"chest",scale:0.6},
+        ]},
+        {name:"Chest Finisher 2",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Push-Ups to Failure",instructions:"Hands shoulder width. Lower chest to floor, explode up. Keep going until failure!",scaleKey:null,scale:0},
+        ]},
+      ]
+    },
+    "Back":{
+      weightLabel:"Bent-over row weight (lbs)", weightPlaceholder:"e.g. 95",
+      weights:["back"],
+      blocks:[
+        {name:"Back Superset 1",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Bent-Over Barbell Row",instructions:"Hinge at hips, back flat. Pull bar to lower chest. Squeeze shoulder blades together.",scaleKey:"back",scale:1},
+          {name:"Dumbbell Row",instructions:"One knee on bench. Pull dumbbell to hip, lead with elbow. Full stretch down.",scaleKey:"back",scale:0.55},
+        ]},
+        {name:"Back Finisher 1",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Lat Pulldown",instructions:"Wide grip, pull bar to upper chest. Lean back slightly. Feel the lats stretch fully.",scaleKey:"back",scale:0.85},
+        ]},
+        {name:"Back Superset 2",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Seated Cable Row",instructions:"Sit tall, pull handle to abdomen. Squeeze at end, slow controlled return.",scaleKey:"back",scale:0.9},
+          {name:"Face Pull",instructions:"Cable at face height. Pull to forehead, elbows high and wide. External rotation.",scaleKey:"back",scale:0.35},
+        ]},
+        {name:"Back Finisher 2",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Straight Arm Pulldown",instructions:"Arms straight, pull cable from overhead to hips. Lat isolation. Slow and controlled.",scaleKey:"back",scale:0.3},
+        ]},
+      ]
+    },
+    "Shoulders":{
+      weightLabel:"Dumbbell shoulder press weight (lbs)", weightPlaceholder:"e.g. 35",
+      weights:["shoulders"],
+      blocks:[
+        {name:"Shoulder Superset 1",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Dumbbell Shoulder Press",instructions:"Press dumbbells overhead, lock out at top. Lower to ear level. Control descent.",scaleKey:"shoulders",scale:1},
+          {name:"Lateral Raise",instructions:"Slight bend in elbows. Raise arms to shoulder height. Lead with elbows not hands.",scaleKey:"shoulders",scale:0.25},
+        ]},
+        {name:"Shoulder Finisher 1",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Arnold Press",instructions:"Start palms facing you, rotate outward as you press overhead. Full rotation each rep.",scaleKey:"shoulders",scale:0.85},
+        ]},
+        {name:"Shoulder Superset 2",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Front Raise",instructions:"Alternating arms. Raise to eye level, keep slight bend. Control the descent slowly.",scaleKey:"shoulders",scale:0.25},
+          {name:"Rear Delt Fly",instructions:"Bent over. Raise elbows out and up, squeeze rear delts hard. Slow and controlled.",scaleKey:"shoulders",scale:0.2},
+        ]},
+        {name:"Shoulder Finisher 2",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Upright Row",instructions:"Narrow grip, pull bar up to chin height. Elbows flare high and wide above hands.",scaleKey:"shoulders",scale:0.65},
+        ]},
+      ]
+    },
+    "Arms (Biceps/Triceps)":{
+      weightLabel:null,
+      weights:["bicep","tricep"],
+      weightLabels:{bicep:"Dumbbell curl weight (lbs)",tricep:"Tricep extension weight (lbs)"},
+      weightPlaceholders:{bicep:"e.g. 25",tricep:"e.g. 30"},
+      blocks:[
+        {name:"Bicep Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Straight Bar Curl",instructions:"Stand, curl bar from hips to shoulders. Squeeze hard at top. Elbows stay fixed.",scaleKey:"bicep",scale:1},
+          {name:"Hammer Curl",instructions:"Neutral grip, thumbs up. Curl dumbbells alternating. Control the descent fully.",scaleKey:"bicep",scale:0.9},
+        ]},
+        {name:"Bicep Finisher",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Behind the Back Cable Curl",instructions:"Cable behind you at lowest setting. Curl forward. Stretch is incredible — feel it!",scaleKey:"bicep",scale:0.7},
+        ]},
+        {name:"Tricep Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Cable Pushdown",instructions:"Push down, lock out at bottom. Keep elbows pinned tight to sides throughout.",scaleKey:"tricep",scale:1},
+          {name:"Overhead Tricep Extension",instructions:"Hold dumbbell overhead with both hands. Lower behind head slowly, extend fully.",scaleKey:"tricep",scale:0.9},
+        ]},
+        {name:"Tricep Finisher",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Skull Crushers",instructions:"Lie on bench, lower bar to forehead. Extend arms fully. Control the weight down.",scaleKey:"tricep",scale:0.85},
+        ]},
+      ]
+    },
+    "Legs":{
+      weightLabel:"Squat weight (lbs)", weightPlaceholder:"e.g. 135",
+      weights:["legs"],
+      blocks:[
+        {name:"Quad Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Barbell Squat",instructions:"Bar on traps. Sit back and down, chest up. Drive through heels to stand explosively.",scaleKey:"legs",scale:1},
+          {name:"Walking Lunges",instructions:"Step forward, lower back knee near floor. Drive front heel to stand. Alternate legs.",scaleKey:"legs",scale:0.25},
+        ]},
+        {name:"Leg Finisher 1",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Leg Press",instructions:"Feet shoulder width. Lower to 90°, press through heels. Do not lock out knees.",scaleKey:"legs",scale:1.8},
+        ]},
+        {name:"Posterior Chain Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Romanian Deadlift",instructions:"Slight knee bend. Hinge at hips, bar drags down legs. Feel hamstring stretch deeply.",scaleKey:"legs",scale:0.85},
+          {name:"Leg Curl",instructions:"Lie on machine. Curl heels to glutes, squeeze at top. Slow controlled descent.",scaleKey:"legs",scale:0.45},
+        ]},
+        {name:"Leg Finisher 2",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Calf Raises",instructions:"Stand on edge, full range. Rise to toes, hold 1 sec, lower fully. Feel the burn!",scaleKey:"legs",scale:1.2},
+        ]},
+      ]
+    },
+    "Core/Abs":{
+      weightLabel:null,
+      weights:[],
+      blocks:[
+        {name:"Core Superset 1",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Crunches",instructions:"Lie on back, knees bent. Curl shoulders toward knees, squeeze abs hard at top.",scaleKey:null,scale:0},
+          {name:"Leg Raises",instructions:"Lie flat, legs straight. Raise to 90° slowly, lower without touching the floor.",scaleKey:null,scale:0},
+        ]},
+        {name:"Core Finisher 1",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
+          {name:"Plank Hold",instructions:"Hold a straight line from head to heels. Core tight, breathe steadily. Don't quit!",scaleKey:null,scale:0},
+        ]},
+        {name:"Core Superset 2",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Russian Twists",instructions:"Sit at 45°, feet raised. Rotate torso side to side touching the floor each rep.",scaleKey:null,scale:0},
+          {name:"Bicycle Crunches",instructions:"Alternate elbow to opposite knee in cycling motion. Slow and fully controlled.",scaleKey:null,scale:0},
+        ]},
+        {name:"Core Finisher 2",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
+          {name:"Flutter Kicks",instructions:"Lie flat, legs 6 inches off floor. Alternate small rapid kicks. Core stays tight!",scaleKey:null,scale:0},
+        ]},
+      ]
+    },
+  };
+
+  function buildBlastSession(group, weightInputs){
+    const g=BLAST_GROUPS[group];
+    if(!g) return null;
+    const blocks=g.blocks.map(block=>({
+      ...block,
+      exercises:block.exercises.map(ex=>{
+        const w=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
+        const scaled=w>0?Math.round((w*ex.scale)/5)*5:0;
+        return{...ex,weight:scaled,weightLabel:scaled>0?`${scaled} lbs`:"Bodyweight"};
+      })
+    }));
+    return{group,blocks,weightInputs,totalMin:30,generatedAt:todayStr()};
+  }
+
+  useEffect(()=>{
+    if(blastTimerActive&&blastTimerSec>0){
+      if(blastTimerSec<=3){
+        try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(440,ctx.currentTime);gain.gain.setValueAtTime(0.2,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.1);}catch(e){}
+      }
+      blastTimerRef.current=setTimeout(()=>setBlastTimerSec(s=>s-1),1000);
+    } else if(blastTimerActive&&blastTimerSec===0){
+      try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);}catch(e){}
+      advanceBlast();
+    }
+    return()=>clearTimeout(blastTimerRef.current);
+  },[blastTimerActive,blastTimerSec,blastIsRest,blastIsTransition]);
+
+  function advanceBlast(){
+    if(!blastSession) return;
+    const block=blastSession.blocks[blastBlockIdx];
+    if(!block){setBlastComplete(true);setBlastTimerActive(false);return;}
+
+    if(blastIsTransition){
+      // Transition done — start next block
+      setBlastIsTransition(false);
+      setBlastIsRest(false);
+      setBlastExIdx(0);
+      setBlastRoundIdx(0);
+      const nextBlock=blastSession.blocks[blastBlockIdx];
+      setBlastTimerSec(nextBlock.type==="superset"?30:nextBlock.workSec||45);
+      return;
+    }
+
+    if(blastIsRest){
+      // Rest done
+      if(block.type==="superset"){
+        // After pair rest — start next round or next block
+        const nextRound=blastRoundIdx+1;
+        const blockDurationSec=block.duration*60;
+        const roundDuration=30+30+30; // ex1+ex2+rest
+        const roundsDone=(nextRound)*roundDuration;
+        if(roundsDone>=blockDurationSec){
+          // Block done — transition
+          const nextBlockIdx=blastBlockIdx+1;
+          if(nextBlockIdx>=blastSession.blocks.length){setBlastComplete(true);setBlastTimerActive(false);return;}
+          setBlastBlockIdx(nextBlockIdx);
+          setBlastIsRest(false);
+          setBlastIsTransition(true);
+          setBlastTimerSec(60);
+        } else {
+          setBlastRoundIdx(nextRound);
+          setBlastExIdx(0);
+          setBlastIsRest(false);
+          setBlastTimerSec(30);
+        }
+      } else {
+        // Finisher rest done — next set or next block
+        const nextRound=blastRoundIdx+1;
+        const blockDurationSec=block.duration*60;
+        const setDuration=(block.workSec||45)+(block.restSec||30);
+        const setsDone=nextRound*setDuration;
+        if(setsDone>=blockDurationSec){
+          const nextBlockIdx=blastBlockIdx+1;
+          if(nextBlockIdx>=blastSession.blocks.length){setBlastComplete(true);setBlastTimerActive(false);return;}
+          setBlastBlockIdx(nextBlockIdx);
+          setBlastIsRest(false);
+          setBlastIsTransition(true);
+          setBlastTimerSec(60);
+        } else {
+          setBlastRoundIdx(nextRound);
+          setBlastIsRest(false);
+          setBlastTimerSec(block.workSec||45);
+        }
+      }
+    } else {
+      // Exercise done
+      if(block.type==="superset"){
+        const nextEx=blastExIdx+1;
+        if(nextEx<block.exercises.length){
+          // Move to next exercise in superset — no rest
+          setBlastExIdx(nextEx);
+          setBlastTimerSec(30);
+        } else {
+          // Superset pair done — rest
+          setBlastIsRest(true);
+          setBlastTimerSec(30);
+        }
+      } else {
+        // Finisher — rest after each set
+        setBlastIsRest(true);
+        setBlastTimerSec(block.restSec||30);
+      }
+    }
+  }
+
+  async function saveBlastSession(rating){
+    const entry={date:todayStr(),group:blastSession.group,rating,weights:blastSession.weightInputs,clientId:currentClient.id,ts:new Date().toISOString()};
+    const newHistory=[...blastHistory,entry];
+    setBlastHistory(newHistory);
+    try{localStorage.setItem("atp-blast",JSON.stringify(newHistory));}catch(e){}
+    setBlastRating(rating);
   }
 
   async function generateDeskMoves(situation, enjoys){
@@ -4618,34 +4872,73 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               {/* Gym target dropdown */}
               {moveSetupSit==="gym"&&(
                 <div style={card}>
-                  <div style={lbl}>🎯 What do you want to work on today?</div>
+                  <div style={lbl}>💥 What do you want to blast today?</div>
                   <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                    {GYM_TARGETS.map(t=>(
-                      <button key={t} onClick={()=>setGymTarget(t)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:10,border:`2px solid ${gymTarget===t?G.green:G.border}`,background:gymTarget===t?"#d8f3dc":G.cream,cursor:"pointer",textAlign:"left",width:"100%",fontFamily:"inherit"}}>
-                        <span style={{fontSize:"0.8rem",fontWeight:gymTarget===t?700:400,color:gymTarget===t?G.green:G.text}}>{t}</span>
-                        {gymTarget===t&&<span style={{color:G.greenMid,fontSize:"1rem"}}>✓</span>}
-                      </button>
-                    ))}
+                    {Object.keys(BLAST_GROUPS).map(t=>{
+                      const lastBlast=blastHistory.filter(h=>h.group===t).slice(-1)[0];
+                      return(
+                        <button key={t} onClick={()=>setGymTarget(t)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:10,border:`2px solid ${gymTarget===t?"#dc2626":G.border}`,background:gymTarget===t?"#fef2f2":G.cream,cursor:"pointer",textAlign:"left",width:"100%",fontFamily:"inherit"}}>
+                          <div>
+                            <div style={{fontSize:"0.8rem",fontWeight:gymTarget===t?700:400,color:gymTarget===t?"#dc2626":G.text}}>{t}</div>
+                            {lastBlast&&<div style={{fontSize:"0.6rem",color:G.textSoft}}>Last: {fmtDate(lastBlast.date)} · rated {lastBlast.rating}/5</div>}
+                          </div>
+                          {gymTarget===t&&<span style={{color:"#dc2626",fontSize:"1rem"}}>✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Gym starting weights */}
-              {moveSetupSit==="gym"&&gymTarget&&(GYM_LIFT_WEIGHTS[gymTarget]||[]).length>0&&(
-                <div style={card}>
-                  <div style={lbl}>🏋️ How much can you comfortably lift?</div>
-                  <div style={{fontSize:"0.7rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>This helps us build progressive overload into your 12-week plan. Enter what feels comfortable for <strong>1 set of 10 reps</strong>.</div>
-                  {(GYM_LIFT_WEIGHTS[gymTarget]||[]).map(lift=>(
-                    <div key={lift} style={{marginBottom:10}}>
-                      <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:5}}>💪 {lift}</div>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <input type="number" value={gymLiftWeights[lift]||""} onChange={e=>setGymLiftWeights(p=>({...p,[lift]:e.target.value}))} placeholder="e.g. 45" style={{...iStyle,width:90,padding:"7px 10px"}}/>
-                        <span style={{fontSize:"0.76rem",color:G.textSoft}}>lbs</span>
+              {/* Blast weight inputs */}
+              {moveSetupSit==="gym"&&gymTarget&&(()=>{
+                const g=BLAST_GROUPS[gymTarget];
+                if(!g) return null;
+                const lastBlast=blastHistory.filter(h=>h.group===gymTarget).slice(-1)[0];
+                if(g.weights.length===0) return(
+                  <div style={{...card,background:"#f0fdf4",border:`1px solid ${G.greenLight}`}}>
+                    <div style={{fontSize:"0.72rem",color:G.green,lineHeight:1.7}}>💪 <strong>Bodyweight only</strong> — no weight needed for this blast!</div>
+                  </div>
+                );
+                return(
+                  <div style={card}>
+                    <div style={lbl}>⚖️ Your weights</div>
+                    {lastBlast&&(
+                      <div style={{marginBottom:10,padding:"7px 12px",background:"#fef2f2",borderRadius:8,fontSize:"0.68rem",color:"#dc2626",fontWeight:600}}>
+                        💡 Last session: {Object.entries(lastBlast.weights||{}).map(([k,v])=>`${k}: ${v}lbs`).join(" · ")} · rated {lastBlast.rating}/5
+                        {lastBlast.rating<=2?" — try adding 5 lbs!":lastBlast.rating>=4?" — consider dropping 5 lbs":""}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
+                    {g.weights.map(wKey=>(
+                      <div key={wKey} style={{marginBottom:12}}>
+                        <div style={{fontSize:"0.72rem",fontWeight:700,color:"#dc2626",marginBottom:6}}>{g.weightLabels?g.weightLabels[wKey]:g.weightLabel}</div>
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" value={blastWeights[gymTarget+"_"+wKey]||""} onChange={e=>setBlastWeights(p=>({...p,[gymTarget+"_"+wKey]:e.target.value.replace(/[^0-9]/g,"")}))} placeholder={g.weightPlaceholders?g.weightPlaceholders[wKey]:g.weightPlaceholder} style={{...iStyle,fontSize:"1rem",fontWeight:700,textAlign:"center"}}/>
+                      </div>
+                    ))}
+                    {/* Exercise preview */}
+                    {g.weights.every(wKey=>blastWeights[gymTarget+"_"+wKey])&&(
+                      <div style={{marginTop:4}}>
+                        <div style={{fontSize:"0.64rem",color:G.textSoft,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Your session preview:</div>
+                        {g.blocks.map((block,bi)=>(
+                          <div key={bi} style={{marginBottom:8}}>
+                            <div style={{fontSize:"0.68rem",fontWeight:700,color:"#dc2626",marginBottom:4}}>{block.name}</div>
+                            {block.exercises.map((ex,ei)=>{
+                              const w=ex.scaleKey?parseFloat(blastWeights[gymTarget+"_"+ex.scaleKey]||0):0;
+                              const scaled=w>0?Math.round((w*ex.scale)/5)*5:0;
+                              return(
+                                <div key={ei} style={{display:"flex",justifyContent:"space-between",fontSize:"0.7rem",padding:"3px 0",borderBottom:`1px solid ${G.border}`}}>
+                                  <span style={{color:G.text}}>{ex.name}</span>
+                                  <span style={{color:"#dc2626",fontWeight:700}}>{scaled>0?`${scaled} lbs`:"Bodyweight"}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Enjoys input */}
               {moveSetupSit!=="gym"&&(
@@ -4655,22 +4948,138 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   <input value={moveSetupEnjoys} onChange={e=>setMoveSetupEnjoys(e.target.value)} placeholder="Type what you enjoy..." style={iStyle}/>
                 </div>
               )}
-
-      <button onClick={()=>{
+<button onClick={()=>{
                 if(!moveSetupSit){alert("Please select your situation first!");return;}
-                if(moveSetupSit==="gym"&&!gymTarget){alert("Please select what you want to work on!");return;}
+                if(moveSetupSit==="gym"){
+                  if(!gymTarget){alert("Please select what you want to blast!");return;}
+                  const g=BLAST_GROUPS[gymTarget];
+                  const weightInputs={};
+                  if(g&&g.weights.length>0){
+                    const allFilled=g.weights.every(wKey=>blastWeights[gymTarget+"_"+wKey]);
+                    if(!allFilled){alert("Please enter your weights first!");return;}
+                    g.weights.forEach(wKey=>{ weightInputs[wKey]=blastWeights[gymTarget+"_"+wKey]; });
+                  }
+                  const session=buildBlastSession(gymTarget,weightInputs);
+                  setBlastSession(session);
+                  setBlastPhase("active");
+                  setBlastBlockIdx(0);setBlastRoundIdx(0);setBlastExIdx(0);
+                  setBlastIsRest(false);setBlastIsTransition(false);
+                  setBlastComplete(false);setBlastRating(null);
+                  setBlastTimerSec(30);setBlastTimerActive(true);
+                  setShowMoveSetup(false);
+                  return;
+                }
                 if(moveSetupSit==="desk"&&!deskTarget){alert("Please select how you are working!");return;}
                 setShowMoveSetup(false);
-               const liftInfo=moveSetupSit==="gym"&&Object.keys(gymLiftWeights).length>0?` Starting weights: ${Object.entries(gymLiftWeights).map(([k,v])=>`${k}: ${v}lbs`).join(", ")}. Build progressive overload into suggestions.`:"";
-                const enjoys=moveSetupSit==="gym"?gymTarget+liftInfo:moveSetupSit==="desk"?`${deskTarget} — enjoys: ${moveSetupEnjoys||c?.likes||"general fitness"}`:moveSetupEnjoys;
-                generateDeskMoves(moveSetupSit,enjoys); 
+                const enjoys=moveSetupSit==="desk"?`${deskTarget} — enjoys: ${moveSetupEnjoys||currentClient?.likes||"general fitness"}`:moveSetupEnjoys;
                 generateDeskMoves(moveSetupSit,enjoys);
-              }} disabled={generatingDesk||!moveSetupSit||(moveSetupSit==="gym"&&!gymTarget)||(moveSetupSit==="desk"&&!deskTarget)} style={{...btnGreen,opacity:(moveSetupSit&&(moveSetupSit!=="gym"||gymTarget)&&(moveSetupSit!=="desk"||deskTarget))?1:0.5}}>
-                {generatingDesk?"✨ Creating your moves...":"✨ Create My Quick Moves"}
-              </button>  
+              }} disabled={generatingDesk||!moveSetupSit||(moveSetupSit==="desk"&&!deskTarget)} style={{...btnGreen,opacity:moveSetupSit?1:0.5}}>
+                {generatingDesk?"✨ Creating your moves...":moveSetupSit==="gym"?"💥 Start Blast Session":"✨ Create My Quick Moves"}
+              </button>
+   
               {profile&&<button onClick={()=>setShowMoveSetup(false)} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Cancel</button>}
             </div>
           );
+
+          // Blast session active
+          if(profile.situation==="gym"&&blastSession&&blastPhase==="active"){
+            const block=blastSession.blocks[blastBlockIdx];
+            const activeEx=block?.exercises[blastExIdx];
+            const totalBlocks=blastSession.blocks.length;
+            const progressPct=Math.round((blastBlockIdx/totalBlocks)*100);
+            return(
+              <div style={{flex:1,display:"flex",flexDirection:"column",background:blastIsTransition?"#1a1a2e":blastIsRest?"#fef2f2":"#fff5f5"}}>
+                <div style={{height:6,background:"#fecaca"}}>
+                  <div style={{height:"100%",width:`${progressPct}%`,background:"linear-gradient(90deg,#7f1d1d,#dc2626)",transition:"width .5s"}}/>
+                </div>
+
+                {blastComplete?(
+                  <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+                    <div style={{fontSize:"3rem"}}>💥</div>
+                    <div style={{fontSize:"1.1rem",fontWeight:900,color:"#dc2626",textAlign:"center"}}>BLAST COMPLETE!</div>
+                    <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Feel those {gymTarget}? That's growth happening. All things are possible! 🙏</div>
+                    {!blastRating?(
+                      <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+                        <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was the intensity?</div>
+                        <div style={{display:"flex",gap:6}}>
+                          {[1,2,3,4,5].map(r=>(
+                            <button key={r} onClick={()=>saveBlastSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${blastRating===r?"#dc2626":G.border}`,background:blastRating===r?"#fef2f2":G.cream,color:blastRating===r?"#dc2626":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                          ))}
+                        </div>
+                        <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
+                      </div>
+                    ):(
+                      <div style={{textAlign:"center",display:"flex",flexDirection:"column",gap:12}}>
+                        <div style={{fontSize:"0.82rem",fontWeight:700,color:"#dc2626"}}>{blastRating<=2?"Adding weight next time 💪":blastRating===3?"Perfect intensity! 🔥":"Easing weight next time 🙏"}</div>
+                        <button onClick={()=>{setBlastPhase("setup");setBlastComplete(false);setBlastSession(null);setBlastTimerActive(false);setShowMoveSetup(true);setMoveSetupSit("gym");}} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#dc2626)"}}>💥 New Blast</button>
+                      </div>
+                    )}
+                  </div>
+                ):(
+                  <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:10}}>
+                    {/* Block indicators */}
+                    <div style={{display:"flex",gap:4}}>
+                      {blastSession.blocks.map((b,i)=>(
+                        <div key={i} style={{flex:1,padding:"4px 0",borderRadius:6,background:i<blastBlockIdx?"#dc2626":i===blastBlockIdx?"#fef2f2":"#f3f4f6",border:`1.5px solid ${i<=blastBlockIdx?"#dc2626":G.border}`,textAlign:"center"}}>
+                          <div style={{fontSize:"0.52rem",fontWeight:700,color:i<blastBlockIdx?"#fff":i===blastBlockIdx?"#dc2626":G.textSoft}}>{i<blastBlockIdx?"✓":b.type==="superset"?"SS":"FIN"}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Current block name */}
+                    <div style={{fontSize:"0.72rem",fontWeight:700,color:blastIsTransition?"#fff":blastIsRest?"#fca5a5":"#dc2626",textTransform:"uppercase",letterSpacing:1}}>
+                      {blastIsTransition?"🔄 GET READY":blastIsRest?"😮‍💨 REST":block?.name}
+                    </div>
+
+                    {/* Big timer */}
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12}}>
+                      <div style={{width:180,height:180,borderRadius:"50%",background:blastIsTransition?"#16213e":blastIsRest?"#fef2f2":"#fff5f5",border:`6px solid ${blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 40px ${blastIsTransition?"#60a5fa44":blastIsRest?"#fca5a544":"#dc262644"}`}}>
+                        <div style={{fontSize:"0.7rem",color:blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>
+                          {blastIsTransition?"NEXT UP":blastIsRest?"REST":"BLAST"}
+                        </div>
+                        <div style={{fontSize:"4rem",fontWeight:900,color:blastTimerSec<=3?"#f87171":blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626",fontVariantNumeric:"tabular-nums",lineHeight:1}}>{blastTimerSec}</div>
+                        <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>seconds</div>
+                      </div>
+
+                      {blastIsTransition&&(
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:"1.1rem",fontWeight:900,color:"#60a5fa",marginBottom:4}}>Next: {blastSession.blocks[blastBlockIdx]?.name}</div>
+                          <div style={{fontSize:"0.72rem",color:G.textSoft}}>{blastSession.blocks[blastBlockIdx]?.type==="superset"?"Back to back, no rest between exercises!":"Straight sets — push every rep!"}</div>
+                        </div>
+                      )}
+
+                      {!blastIsRest&&!blastIsTransition&&activeEx&&(
+                        <div style={{textAlign:"center",padding:"0 8px"}}>
+                          <div style={{fontSize:"1.8rem",fontWeight:900,color:G.text,marginBottom:6,lineHeight:1.2}}>{activeEx.name}</div>
+                          <div style={{fontSize:"0.9rem",fontWeight:700,color:"#dc2626",marginBottom:8}}>{activeEx.weightLabel}</div>
+                          <div style={{fontSize:"0.74rem",color:G.textSoft,lineHeight:1.6,maxWidth:300,margin:"0 auto"}}>{activeEx.instructions}</div>
+                          {block?.type==="superset"&&blastExIdx===0&&block.exercises.length>1&&(
+                            <div style={{marginTop:8,fontSize:"0.66rem",padding:"4px 12px",borderRadius:20,background:"#fef2f2",color:"#dc2626",fontWeight:700,display:"inline-block"}}>
+                              ⚡ No rest — {block.exercises[1]?.name} is next!
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {blastIsRest&&!blastIsTransition&&(
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:"0.85rem",fontWeight:700,color:"#dc2626",marginBottom:4}}>Breathe! 💪</div>
+                          <div style={{fontSize:"0.72rem",color:G.textSoft}}>
+                            {block?.type==="superset"?`Round ${blastRoundIdx+2} coming up — same pair!`:`Set ${blastRoundIdx+2} coming — push it!`}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setBlastTimerActive(r=>!r)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:blastTimerActive?"#dc2626":"#10b981",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{blastTimerActive?"⏸ Pause":"▶ Resume"}</button>
+                      <button onClick={()=>{setBlastTimerActive(false);advanceBlast();setTimeout(()=>setBlastTimerActive(true),100);}} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           // Moves display
           const sit=SITUATIONS.find(s=>s.id===profile.situation);
