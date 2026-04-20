@@ -6384,13 +6384,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               {(()=>{
                 const cid=selectedClientCoach.id;
 
-                const PRESET_QUESTIONS=[
-                  {id:"overall",label:"📊 Overall Progress",q:`Analyze ${selectedClientCoach.name}'s overall health and fitness progress.`},
-                  {id:"weight",label:"⚖️ Weight Not Moving",q:`${selectedClientCoach.name}'s weight isn't changing. What should I adjust?`},
-                  {id:"intensity",label:"💪 Workout Intensity",q:`Is ${selectedClientCoach.name}'s workout intensity appropriate for their goals?`},
-                  {id:"focus",label:"🎯 This Week's Focus",q:`What should I focus on with ${selectedClientCoach.name} this week?`},
-                  {id:"nutrition",label:"🥗 Nutrition Review",q:`Review ${selectedClientCoach.name}'s nutrition habits and suggest improvements.`},
-                ];
+            
 
                 async function runCoachAnalysis(question){
                   setCoachAiLoading(true);setCoachAiAnalysis("");setCoachAiDraft("");
