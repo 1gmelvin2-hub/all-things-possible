@@ -2959,6 +2959,10 @@ export default function AllThingsPossible(){
   // coach
   const [msgDraft,setMsgDraft]     = useState({});
   const [selectedClientCoach,setSelectedClientCoach] = useState(null);
+  const [coachAiLoading,setCoachAiLoading] = useState(false);
+  const [coachAiAnalysis,setCoachAiAnalysis] = useState("");
+  const [coachAiDraft,setCoachAiDraft] = useState("");
+  const [coachAiQuestion,setCoachAiQuestion] = useState("");
   const [onboard,setOnboard]       = useState({name:"",age:"",weight:"",goalWeight:"",goal:"",level:"Beginner",likes:"",passcode:""});
   const [editPasscode,setEditPasscode] = useState({});
   const [aiLoading,setAiLoading]   = useState(false);
@@ -6376,12 +6380,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 {Object.keys(logs[selectedClientCoach.id]||{}).length===0&&<div style={{fontSize:"0.72rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No check-ins yet</div>}
               </div>
 
-    {/* AI Coach Analysis */}
+   {/* AI Coach Analysis */}
               {(()=>{
-                const [coachAiLoading,setCoachAiLoading]=React.useState(false);
-                const [coachAiAnalysis,setCoachAiAnalysis]=React.useState("");
-                const [coachAiDraft,setCoachAiDraft]=React.useState("");
-                const [selectedQuestion,setSelectedQuestion]=React.useState("");
                 const cid=selectedClientCoach.id;
 
                 const PRESET_QUESTIONS=[
@@ -6449,19 +6449,75 @@ MESSAGE: [the client message]`;
                   setCoachAiLoading(false);
                 }
 
+      const PRESET_QUESTIONS=[
+                  {id:"overall",label:"📊 Overall Progress",q:`Analyze ${selectedClientCoach.name}'s overall health and fitness progress.`},
+                  {id:"weight",label:"⚖️ Weight Not Moving",q:`${selectedClientCoach.name}'s weight isn't changing. What should I adjust?`},
+                  {id:"intensity",label:"💪 Workout Intensity",q:`Is ${selectedClientCoach.name}'s workout intensity appropriate for their goals?`},
+                  {id:"focus",label:"🎯 This Week's Focus",q:`What should I focus on with ${selectedClientCoach.name} this week?`},
+                  {id:"nutrition",label:"🥗 Nutrition Review",q:`Review ${selectedClientCoach.name}'s nutrition habits and suggest improvements.`},
+                ];
+
+                async function runCoachAnalysis(question){
+                  setCoachAiLoading(true);setCoachAiAnalysis("");setCoachAiDraft("");
+                  const clientR=ratings[cid]||[];
+                  const lastRatings=clientR.slice(-5);
+                  const avgRating=lastRatings.length>0?(lastRatings.reduce((a,r)=>a+r.rating,0)/lastRatings.length).toFixed(1):"no data";
+                  const weightLogs=Object.values(logs[cid]||{}).filter(l=>l.weight).sort((a,b)=>a.date>b.date?1:-1).slice(-6);
+                  const weightTrend=weightLogs.length>=2?`${weightLogs[0].weight}lbs → ${weightLogs[weightLogs.length-1].weight}lbs over ${weightLogs.length} weigh-ins`:"not enough weigh-ins";
+                  const nutriDays=Object.keys(nutrition[cid]||{}).filter(d=>((nutrition[cid]||{})[d]||[]).some(m=>m.meal!=="__water__")).sort().slice(-7);
+                  const nutriScore=nutriDays.length>0?Math.round(nutriDays.reduce((acc,date)=>{const meals=((nutrition[cid]||{})[date]||[]).filter(m=>m.meal!=="__water__");const t=getDayTotals(meals);const tgt=getTargets(selectedClientCoach.weight);return acc+(t.protein>=tgt.protein*0.8?40:20)+(t.carbs<=tgt.carbs?30:0)+(t.sugar<=tgt.sugar?30:0);},0)/nutriDays.length):0;
+                  let hiitHistory=[];
+                  try{hiitHistory=JSON.parse(localStorage.getItem("atp-hiit")||"[]").filter(e=>e.clientId===cid).slice(-5);}catch{}
+                  const bpmTrend=hiitHistory.filter(e=>e.bpm).map(e=>`${e.bpm}bpm (${e.date})`).join(", ")||"no BPM data";
+                  const checkInStreak=Object.keys(logs[cid]||{}).sort().reverse().length;
+                  const clientProgram=program[cid];
+                  const prompt=`You are a professional health coach assistant helping Coach MJ analyze a client. Be specific, data-driven, and actionable.
+
+CLIENT PROFILE:
+Name: ${selectedClientCoach.name}, Age: ${selectedClientCoach.age}, Current weight: ${selectedClientCoach.weight}lbs, Goal weight: ${selectedClientCoach.goalWeight}lbs
+Goal: ${selectedClientCoach.goal}, Level: ${selectedClientCoach.level}
+Injuries: ${selectedClientCoach.injury||"none"}, Medical: ${selectedClientCoach.medical||"none"}
+
+DATA (last 7-30 days):
+- Weight trend: ${weightTrend}
+- Nutrition compliance score: ${nutriScore}/100 (${nutriDays.length} days logged)
+- Workout ratings: avg ${avgRating}/5 (last 5 sessions)
+- HIIT BPM history: ${bpmTrend}
+- Check-in streak: ${checkInStreak} days total
+- Program: Week ${clientProgram?.currentWeek||"not started"} of 12
+
+COACH'S QUESTION: ${question}
+
+Respond with TWO sections:
+1. ANALYSIS: 3-4 sentences of specific, data-driven coaching insight
+2. CLIENT MESSAGE: A warm, faith-based message MJ can send directly to ${selectedClientCoach.name.split(" ")[0]} (2-3 sentences, encouraging, specific to their data, end with a scripture or faith reference)
+
+Format exactly as:
+ANALYSIS: [your analysis]
+MESSAGE: [the client message]`;
+                  try{
+                    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":import.meta.env.VITE_API_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+                    const data=await res.json();
+                    const text=data.content?.[0]?.text||"";
+                    const analysisMatch=text.match(/ANALYSIS:([\s\S]*?)MESSAGE:/);
+                    const messageMatch=text.match(/MESSAGE:([\s\S]*?)$/);
+                    setCoachAiAnalysis(analysisMatch?analysisMatch[1].trim():"Unable to generate analysis.");
+                    setCoachAiDraft(messageMatch?messageMatch[1].trim():"");
+                  }catch(e){setCoachAiAnalysis("Error generating analysis. Please try again.");}
+                  setCoachAiLoading(false);
+                }
+
                 return(
                   <div style={{...card,border:`1.5px solid ${G.mango}44`,background:"#fff9f0"}}>
                     <div style={{fontSize:"0.72rem",fontWeight:700,color:G.mangoDeep,marginBottom:8}}>🤖 AI Coach Analysis</div>
                     <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
                       {PRESET_QUESTIONS.map(q=>(
-                        <button key={q.id} onClick={()=>{setSelectedQuestion(q.id);runCoachAnalysis(q.q);}} style={{padding:"10px 12px",borderRadius:10,border:`2px solid ${selectedQuestion===q.id?G.mangoDeep:G.border}`,background:selectedQuestion===q.id?"#fff3e0":G.cream,color:selectedQuestion===q.id?G.mangoDeep:G.text,fontSize:"0.74rem",fontWeight:selectedQuestion===q.id?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                        <button key={q.id} onClick={()=>{setCoachAiQuestion(q.id);runCoachAnalysis(q.q);}} style={{padding:"10px 12px",borderRadius:10,border:`2px solid ${coachAiQuestion===q.id?G.mangoDeep:G.border}`,background:coachAiQuestion===q.id?"#fff3e0":G.cream,color:coachAiQuestion===q.id?G.mangoDeep:G.text,fontSize:"0.74rem",fontWeight:coachAiQuestion===q.id?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
                           {q.label}
                         </button>
                       ))}
                     </div>
-                    {coachAiLoading&&(
-                      <div style={{textAlign:"center",padding:"14px 0",fontSize:"0.76rem",color:G.mangoDeep}}>✨ Analyzing {selectedClientCoach.name.split(" ")[0]}'s data...</div>
-                    )}
+                    {coachAiLoading&&<div style={{textAlign:"center",padding:"14px 0",fontSize:"0.76rem",color:G.mangoDeep}}>✨ Analyzing {selectedClientCoach.name.split(" ")[0]}'s data...</div>}
                     {coachAiAnalysis&&!coachAiLoading&&(
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
                         <div style={{padding:"12px 14px",background:"#fff",borderRadius:10,border:`1px solid ${G.mango}44`}}>
@@ -6472,15 +6528,7 @@ MESSAGE: [the client message]`;
                           <div style={{padding:"12px 14px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
                             <div style={{fontSize:"0.64rem",fontWeight:700,color:G.green,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Suggested Message to {selectedClientCoach.name.split(" ")[0]}</div>
                             <div style={{fontSize:"0.76rem",color:G.text,lineHeight:1.7,marginBottom:10,fontStyle:"italic"}}>{coachAiDraft}</div>
-                            <button onClick={()=>{
-                              setMsgDraft(p=>({...p,[cid]:coachAiDraft}));
-                              sendCoachMessage(cid,coachAiDraft);
-                              setCoachAiDraft("");
-                              setCoachAiAnalysis("");
-                              setSelectedQuestion("");
-                            }} style={{...btnGreen,padding:"9px",fontSize:"0.76rem"}}>
-                              ✉️ Send This Message
-                            </button>
+                            <button onClick={()=>{sendCoachMessage(cid,coachAiDraft);setCoachAiDraft("");setCoachAiAnalysis("");setCoachAiQuestion("");}} style={{...btnGreen,padding:"9px",fontSize:"0.76rem"}}>✉️ Send This Message</button>
                           </div>
                         )}
                       </div>
