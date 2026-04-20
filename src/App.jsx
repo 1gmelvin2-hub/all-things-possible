@@ -2180,11 +2180,48 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
   const [isRest,setIsRest]=useState(false);
   const [sessionComplete,setSessionComplete]=useState(false);
   const [isGloveTime,setIsGloveTime]=useState(false);
-  const [hiitRating,setHiitRating]=useState(null);
+ const [hiitRating,setHiitRating]=useState(null);
+  const [hiitBpm,setHiitBpm]=useState("");
+  const [hiitPhoto,setHiitPhoto]=useState(null);
+  const [analyzingHiitPhoto,setAnalyzingHiitPhoto]=useState(false);
+  const [hiitPhotoData,setHiitPhotoData]=useState(null);
+  const hiitPhotoRef=useRef(null);
   const [hiitHistory,setHiitHistory]=useState(()=>{
     try{ return JSON.parse(localStorage.getItem("atp-hiit")||"[]"); }catch(e){ return []; }
   });
   const hiitTimerRef=useRef(null);
+
+async function analyzeHiitPhoto(file){
+    setAnalyzingHiitPhoto(true);
+    try{
+      const reader=new FileReader();
+      reader.onload=async(e)=>{
+        const base64=e.target.result.split(",")[1];
+        const mediaType=file.type||"image/jpeg";
+        const res=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+          body:JSON.stringify({
+            model:"claude-haiku-4-5-20251001",
+            max_tokens:800,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+              {type:"text",text:`This is a workout heart rate screenshot. Extract all data you can see. Return ONLY valid JSON, no markdown:
+{"peakBpm":180,"avgBpm":155,"calories":652,"durationMin":40,"zones":{"zone1":{"bpm":"0-118","minutes":7,"pct":20},"zone2":{"bpm":"119-147","minutes":2,"pct":6},"zone3":{"bpm":"148-160","minutes":10,"pct":27},"zone4":{"bpm":"161-174","minutes":14,"pct":36},"zone5":{"bpm":"175+","minutes":4,"pct":11}},"summary":"One sentence about the workout intensity"}
+If any field is not visible set it to null.`}
+            ]}]
+          })
+        });
+        const data=await res.json();
+        const raw=data.content?.[0]?.text||"{}";
+        const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+        setHiitPhotoData(parsed);
+        if(parsed.peakBpm) setHiitBpm(String(parsed.peakBpm));
+        setAnalyzingHiitPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }catch(e){console.error(e);setAnalyzingHiitPhoto(false);}
+  }
 
   async function saveHiitSession(rating){
     const entry={
@@ -2193,6 +2230,10 @@ function HIITTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoade
       duration:hiitSession?.duration||"45 min",
       blocks:hiitSession?.blocks?.length||0,
       rating,
+      bpm:hiitBpm?parseInt(hiitBpm):null,
+      calories:hiitPhotoData?.calories||null,
+      zones:hiitPhotoData?.zones||null,
+      durationMin:hiitPhotoData?.durationMin||null,
       clientId:currentClient.id,
       ts:new Date().toISOString(),
     };
@@ -2475,8 +2516,85 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
           <div style={{fontSize:"3rem"}}>🏆</div>
           <div style={{fontSize:"1.1rem",fontWeight:900,color:G.green,textAlign:"center"}}>Session Complete!</div>
           <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! You completed a full boxing HIIT session. All things are possible! 🙏</div>
-      {!hiitRating?(
-                <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+  {!hiitRating?(
+                <div style={{width:"100%",display:"flex",flexDirection:"column",gap:10}}>
+           {/* Workout photo upload */}
+                  <div style={{...card,background:"#fff3e0",border:`1px solid ${G.mango}44`,padding:"12px 14px"}}>
+                    <div style={{fontSize:"0.72rem",fontWeight:700,color:G.mangoDeep,marginBottom:4}}>❤️ Log Heart Rate Data (optional)</div>
+                    <div style={{fontSize:"0.66rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>Upload your watch screenshot — AI reads your zones, BPM and calories automatically!</div>
+
+                    {/* Photo upload button */}
+                    {!hiitPhotoData&&(
+                      <button onClick={()=>hiitPhotoRef.current?.click()} style={{width:"100%",padding:"12px",borderRadius:12,border:`2px dashed ${G.mango}`,background:"#fff9f0",color:G.mangoDeep,fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:4,marginBottom:10}}>
+                        <span style={{fontSize:"1.4rem"}}>📸</span>
+                        <span>{analyzingHiitPhoto?"✨ Reading your workout data...":"Upload Watch Screenshot"}</span>
+                        <span style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:400}}>AI extracts zones, BPM & calories</span>
+                      </button>
+                    )}
+                    <input ref={hiitPhotoRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){setHiitPhoto(URL.createObjectURL(f));analyzeHiitPhoto(f);}}}/>
+
+                    {/* Photo data results */}
+                    {hiitPhotoData&&(
+                      <div style={{marginBottom:10}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <div style={{fontSize:"0.7rem",fontWeight:700,color:G.mangoDeep}}>✅ Data extracted!</div>
+                          <button onClick={()=>{setHiitPhotoData(null);setHiitPhoto(null);setHiitBpm("");}} style={{fontSize:"0.62rem",color:G.textSoft,background:"none",border:"none",cursor:"pointer"}}>✕ Remove</button>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+                          {[
+                            {l:"Peak BPM",v:hiitPhotoData.peakBpm,c:"#dc2626"},
+                            {l:"Calories",v:hiitPhotoData.calories,c:G.mangoDeep},
+                            {l:"Duration",v:hiitPhotoData.durationMin?`${hiitPhotoData.durationMin}m`:null,c:"#7c3aed"},
+                          ].filter(x=>x.v).map((x,i)=>(
+                            <div key={i} style={{textAlign:"center",padding:"8px 4px",background:"#fff9f0",borderRadius:8,border:`1px solid ${G.mango}44`}}>
+                              <div style={{fontSize:"1rem",fontWeight:900,color:x.c}}>{x.v}</div>
+                              <div style={{fontSize:"0.56rem",color:G.textSoft}}>{x.l}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Zone bars */}
+                        {hiitPhotoData.zones&&(
+                          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                            {Object.entries(hiitPhotoData.zones).filter(([,z])=>z?.pct>0).map(([key,z],i)=>{
+                              const colors=["#6b7280","#60a5fa","#10b981","#f59e0b","#dc2626"];
+                              const labels=["Zone 1","Zone 2","Zone 3","Zone 4","Zone 5"];
+                              return(
+                                <div key={key} style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <div style={{fontSize:"0.58rem",color:colors[i],fontWeight:700,width:40,flexShrink:0}}>{labels[i]}</div>
+                                  <div style={{flex:1,height:6,background:"#f3f4f6",borderRadius:3,overflow:"hidden"}}>
+                                    <div style={{height:"100%",width:`${z.pct}%`,background:colors[i],borderRadius:3}}/>
+                                  </div>
+                                  <div style={{fontSize:"0.58rem",color:G.textSoft,width:28,textAlign:"right"}}>{z.pct}%</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Manual BPM fallback */}
+                    {!hiitPhotoData&&(
+                      <div>
+                        <div style={{fontSize:"0.64rem",color:G.textSoft,marginBottom:6,textAlign:"center"}}>— or enter manually —</div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={hiitBpm||""} onChange={e=>setHiitBpm(e.target.value.replace(/[^0-9]/g,""))} placeholder="e.g. 165" style={{...iStyle,flex:1,fontSize:"1rem",fontWeight:700,textAlign:"center"}}/>
+                          <span style={{fontSize:"0.72rem",color:G.textSoft,flexShrink:0}}>BPM</span>
+                        </div>
+                        {hiitBpm&&currentClient.age&&(()=>{
+                          const maxHR=220-parseInt(currentClient.age);
+                          const pct=Math.round((parseInt(hiitBpm)/maxHR)*100);
+                          const zone=pct>=90?"Zone 5 — Max Effort 🔥":pct>=80?"Zone 4 — Threshold 💪":pct>=70?"Zone 3 — Aerobic ✅":pct>=60?"Zone 2 — Fat Burn 🟡":"Zone 1 — Easy 🟢";
+                          const zoneColor=pct>=90?"#dc2626":pct>=80?G.mangoDeep:pct>=70?"#10b981":pct>=60?"#f59e0b":"#6b7280";
+                          return(
+                            <div style={{marginTop:8,textAlign:"center",fontSize:"0.7rem",fontWeight:700,color:zoneColor}}>
+                              {pct}% max HR — {zone}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                   <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
                   <div style={{display:"flex",gap:6}}>
                     {[1,2,3,4,5].map(r=>(
@@ -5714,8 +5832,11 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
             {id:"sugar",   label:"🩸 Blood Sugar",      data:getHealthData("bloodSugar"),  unit:" mg/dL", color:"#f87171"},
             {id:"steps",   label:"👟 Steps",            data:getHealthData("steps"),       unit:" steps", color:"#4ade80"},
             {id:"sleep",   label:"😴 Sleep",            data:getHealthData("sleep"),       unit:" hrs",   color:"#818cf8"},
-            {id:"nutrition",label:"🥗 Nutrition Score", data:complianceData, unit:"%",  color:G.greenMid},
-          ];
+        {id:"nutrition",label:"🥗 Nutrition Score", data:complianceData, unit:"%",  color:G.greenMid},
+    {id:"hiitbpm",label:"❤️ HIIT Peak BPM", data:(()=>{
+      try{const h=JSON.parse(localStorage.getItem("atp-hiit")||"[]");return h.filter(e=>e.bpm&&e.clientId===cid).map(e=>({date:e.date,value:e.bpm}));}catch{return [];}
+    })(), unit:" bpm", color:"#dc2626"},
+  ];
 
           function MiniLineChart({data,color,unit}){
             if(!data||data.length<2) return <div style={{fontSize:"0.7rem",color:G.textSoft,textAlign:"center",padding:"10px 0"}}>Need at least 2 data points to show chart</div>;
@@ -5751,6 +5872,86 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
             <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>📈 Progress Charts</div>
             <div style={{fontSize:"0.7rem",color:G.textSoft,marginTop:-6}}>Tap a metric to see your trend over time.</div>
+
+            {/* Health Score Card */}
+            {(()=>{
+              const cid=currentClient.id;
+              // Nutrition score
+              const nutriDays=Object.keys(nutrition[cid]||{}).filter(d=>((nutrition[cid]||{})[d]||[]).some(m=>m.meal!=="__water__")).sort().slice(-7);
+              const nutriScore=nutriDays.length>0?Math.round(nutriDays.reduce((acc,date)=>{
+                const meals=((nutrition[cid]||{})[date]||[]).filter(m=>m.meal!=="__water__");
+                const t=getDayTotals(meals);const tgt=getTargets(currentClient.weight);
+                return acc+(t.protein>=tgt.protein*0.8?40:t.protein>=tgt.protein*0.6?20:0)+(t.carbs<=tgt.carbs?30:t.carbs<=tgt.carbs*1.2?15:0)+(t.sugar<=tgt.sugar?30:t.sugar<=tgt.sugar*1.3?15:0);
+              },0)/nutriDays.length):0;
+
+              // Workout consistency (last 7 days)
+              let hiitDays=[];
+              try{hiitDays=JSON.parse(localStorage.getItem("atp-hiit")||"[]").filter(e=>e.clientId===cid);}catch{}
+              const recentWorkouts=[...hiitDays].filter(e=>{const d=new Date(e.date+"T12:00:00");return(new Date()-d)/86400000<=7;});
+              const workoutScore=Math.min(100,recentWorkouts.length*25);
+
+              // BPM zone score — more time in zones 3-4 = better
+              const lastHiitWithZones=hiitDays.filter(e=>e.zones).slice(-1)[0];
+              const zoneScore=lastHiitWithZones?(
+                (lastHiitWithZones.zones.zone3?.pct||0)*0.8+
+                (lastHiitWithZones.zones.zone4?.pct||0)*1.0+
+                (lastHiitWithZones.zones.zone5?.pct||0)*0.6
+              ):null;
+
+              // Weight trend
+              const weightLogs=Object.values(logs[cid]||{}).filter(l=>l.weight).sort((a,b)=>a.date>b.date?1:-1).slice(-4);
+              let weightScore=50;
+              if(weightLogs.length>=2){
+                const diff=parseFloat(weightLogs[weightLogs.length-1].weight)-parseFloat(weightLogs[0].weight);
+                weightScore=diff<=0?Math.min(100,50+Math.abs(diff)*10):Math.max(0,50-diff*10);
+              }
+
+              // Overall score
+              const overall=Math.round((nutriScore*0.35)+(workoutScore*0.35)+(weightScore*0.2)+(zoneScore!==null?Math.min(100,zoneScore):50)*0.1);
+              const color=overall>=70?"#10b981":overall>=50?"#f59e0b":"#dc2626";
+              const label=overall>=70?"🟢 Thriving":overall>=50?"🟡 Making Progress":"🔴 Needs Attention";
+              const bgColor=overall>=70?"#f0fdf4":overall>=50?"#fffbeb":"#fef2f2";
+              const borderColor=overall>=70?"#6ee7b7":overall>=50?"#fcd34d":"#fca5a5";
+
+              const breakdown=[
+                {l:"🥗 Nutrition",v:nutriScore,color:nutriScore>=70?"#10b981":nutriScore>=50?"#f59e0b":"#dc2626"},
+                {l:"💪 Workouts",v:workoutScore,color:workoutScore>=75?"#10b981":workoutScore>=50?"#f59e0b":"#dc2626"},
+                {l:"⚖️ Weight Trend",v:weightScore,color:weightScore>=70?"#10b981":weightScore>=50?"#f59e0b":"#dc2626"},
+                ...(zoneScore!==null?[{l:"❤️ Heart Zones",v:Math.min(100,Math.round(zoneScore)),color:zoneScore>=60?"#10b981":zoneScore>=40?"#f59e0b":"#dc2626"}]:[]),
+              ];
+
+              return(
+                <div style={{...card,background:bgColor,border:`2px solid ${borderColor}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div>
+                      <div style={{fontSize:"0.62rem",color:G.textSoft,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Overall Health Score</div>
+                      <div style={{fontSize:"0.78rem",fontWeight:700,color}}>{label}</div>
+                    </div>
+                    <div style={{width:64,height:64,borderRadius:"50%",background:color+"22",border:`4px solid ${color}`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+                      <div style={{fontSize:"1.3rem",fontWeight:900,color,lineHeight:1}}>{overall}</div>
+                      <div style={{fontSize:"0.5rem",color,fontWeight:600}}>/100</div>
+                    </div>
+                  </div>
+                  <div style={{height:8,background:"#e5e7eb",borderRadius:4,overflow:"hidden",marginBottom:12}}>
+                    <div style={{height:"100%",width:`${overall}%`,background:color,borderRadius:4,transition:"width .8s"}}/>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {breakdown.map((b,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{fontSize:"0.68rem",color:G.textSoft,width:100,flexShrink:0}}>{b.l}</div>
+                        <div style={{flex:1,height:6,background:"#e5e7eb",borderRadius:3,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${b.v}%`,background:b.color,borderRadius:3,transition:"width .6s"}}/>
+                        </div>
+                        <div style={{fontSize:"0.64rem",fontWeight:700,color:b.color,width:28,textAlign:"right"}}>{b.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:10,fontSize:"0.62rem",color:G.textSoft,fontStyle:"italic",textAlign:"center"}}>
+                    Updated based on last 7 days · Upload HIIT screenshot for heart zone score
+                  </div>
+                </div>
+              );
+            })()}
 
             {CHARTS.map(chart=>{
               const hasData=chart.data.length>=2;
