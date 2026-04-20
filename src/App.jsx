@@ -262,7 +262,43 @@ function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,
   const [runRating,setRunRating]=useState(null);
   const [warmupDone,setWarmupDone]=useState(false);
   const [cooldownActive,setCooldownActive]=useState(false);
+  const [runPhoto,setRunPhoto]=useState(null);
+  const [analyzingRunPhoto,setAnalyzingRunPhoto]=useState(false);
+  const [runPhotoData,setRunPhotoData]=useState(null);
+  const runPhotoRef=useRef(null);
   const timerRef=useRef(null);
+  const API_KEY=import.meta.env.VITE_API_KEY||"";
+
+  async function analyzeRunPhoto(file){
+    setAnalyzingRunPhoto(true);
+    try{
+      const reader=new FileReader();
+      reader.onload=async(e)=>{
+        const base64=e.target.result.split(",")[1];
+        const mediaType=file.type||"image/jpeg";
+        const res=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+          body:JSON.stringify({
+            model:"claude-haiku-4-5-20251001",
+            max_tokens:800,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+              {type:"text",text:`This is a running workout screenshot from a fitness tracker or GPS watch. Extract all visible data. Return ONLY valid JSON, no markdown:
+{"distanceMiles":3.1,"distanceKm":5.0,"durationMin":32,"avgPaceMinPerMile":"10:20","bestPaceMinPerMile":"9:45","peakBpm":172,"avgBpm":155,"calories":380,"elevationFt":120,"zones":{"zone1":{"pct":5},"zone2":{"pct":15},"zone3":{"pct":35},"zone4":{"pct":35},"zone5":{"pct":10}},"splits":[{"mile":1,"pace":"10:30"},{"mile":2,"pace":"10:15"},{"mile":3,"pace":"10:05"}]}
+Set any field not visible to null. For splits include as many as visible.`}
+            ]}]
+          })
+        });
+        const data=await res.json();
+        const raw=data.content?.[0]?.text||"{}";
+        const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+        setRunPhotoData(parsed);
+        setAnalyzingRunPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }catch(e){console.error(e);setAnalyzingRunPhoto(false);}
+  }
 
   function getCurrentWeek(){
     try{
@@ -402,7 +438,7 @@ function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,
     setTimerSec(next.duration);
   }
 
-  async function saveRun(rating){
+  async function saveRun(rating,photoData=null){
     const entry={
       date:todayStr(),
       plan:currentSession.plan,
@@ -410,6 +446,12 @@ function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,
       weekNum:currentSession.weekNum,
       totalMin:currentSession.totalMin,
       rating,
+      distanceMiles:photoData?.distanceMiles||null,
+      avgPace:photoData?.avgPaceMinPerMile||null,
+      peakBpm:photoData?.peakBpm||null,
+      calories:photoData?.calories||null,
+      zones:photoData?.zones||null,
+      splits:photoData?.splits||null,
       clientId:currentClient.id,
       ts:new Date().toISOString(),
     };
@@ -522,12 +564,72 @@ function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,
           <div style={{fontSize:"3rem"}}>🏆</div>
           <div style={{fontSize:"1.1rem",fontWeight:900,color:"#10b981",textAlign:"center"}}>Run Complete!</div>
           <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Week {currentSession.weekNum} done. You are getting closer to your {currentSession.goal} goal! All things are possible! 🙏</div>
-          {!runRating?(
-            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+         {!runRating?(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:10}}>
+              {/* Running photo upload */}
+              <div style={{background:"#f0fdf4",border:"1px solid #6ee7b7",borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:"0.72rem",fontWeight:700,color:"#059669",marginBottom:4}}>🏃 Log Run Data (optional)</div>
+                <div style={{fontSize:"0.66rem",color:G.textSoft,marginBottom:8,lineHeight:1.6}}>Upload your watch screenshot — AI reads distance, pace, BPM and splits!</div>
+                {!runPhotoData&&(
+                  <button onClick={()=>runPhotoRef.current?.click()} style={{width:"100%",padding:"10px",borderRadius:10,border:"2px dashed #6ee7b7",background:"#ecfdf5",color:"#059669",fontSize:"0.76rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",marginBottom:8}}>
+                    {analyzingRunPhoto?"✨ Reading your run data...":"📸 Upload Watch Screenshot"}
+                  </button>
+                )}
+                <input ref={runPhotoRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){setRunPhoto(URL.createObjectURL(f));analyzeRunPhoto(f);}}}/>
+                {runPhotoData&&(
+                  <div>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <div style={{fontSize:"0.7rem",fontWeight:700,color:"#059669"}}>✅ Run data extracted!</div>
+                      <button onClick={()=>{setRunPhotoData(null);setRunPhoto(null);}} style={{fontSize:"0.62rem",color:G.textSoft,background:"none",border:"none",cursor:"pointer"}}>✕</button>
+                    </div>
+                    {/* Key stats grid */}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+                      {[
+                        {l:"Distance",v:runPhotoData.distanceMiles?`${runPhotoData.distanceMiles} mi`:runPhotoData.distanceKm?`${runPhotoData.distanceKm} km`:null,c:"#059669"},
+                        {l:"Avg Pace",v:runPhotoData.avgPaceMinPerMile?`${runPhotoData.avgPaceMinPerMile}/mi`:null,c:"#10b981"},
+                        {l:"Duration",v:runPhotoData.durationMin?`${runPhotoData.durationMin}m`:null,c:"#7c3aed"},
+                        {l:"Peak BPM",v:runPhotoData.peakBpm,c:"#dc2626"},
+                        {l:"Calories",v:runPhotoData.calories,c:G.mangoDeep},
+                        {l:"Elevation",v:runPhotoData.elevationFt?`${runPhotoData.elevationFt}ft`:null,c:"#6b7280"},
+                      ].filter(x=>x.v).map((x,i)=>(
+                        <div key={i} style={{textAlign:"center",padding:"7px 4px",background:"#ecfdf5",borderRadius:8,border:"1px solid #6ee7b7"}}>
+                          <div style={{fontSize:"0.88rem",fontWeight:900,color:x.c}}>{x.v}</div>
+                          <div style={{fontSize:"0.54rem",color:G.textSoft}}>{x.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Zone bar */}
+                    {runPhotoData.zones&&(
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:4}}>Heart Rate Zones</div>
+                        <div style={{display:"flex",gap:2,height:8,borderRadius:4,overflow:"hidden"}}>
+                          {Object.entries(runPhotoData.zones).map(([k,z],i)=>{
+                            const colors=["#6b7280","#60a5fa","#10b981","#f59e0b","#dc2626"];
+                            return z?.pct>0?(<div key={k} style={{flex:z.pct,background:colors[i]}}/>):null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {/* Splits */}
+                    {runPhotoData.splits&&runPhotoData.splits.length>0&&(
+                      <div>
+                        <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:4}}>Mile Splits</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {runPhotoData.splits.map((s,i)=>(
+                            <div key={i} style={{padding:"4px 8px",borderRadius:6,background:"#d1fae5",fontSize:"0.64rem",fontWeight:700,color:"#059669"}}>
+                              Mi {s.mile}: {s.pace}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your run?</div>
               <div style={{display:"flex",gap:6}}>
                 {[1,2,3,4,5].map(r=>(
-                  <button key={r} onClick={()=>saveRun(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${runRating===r?"#10b981":G.border}`,background:runRating===r?"#d1fae5":G.cream,color:runRating===r?"#10b981":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                  <button key={r} onClick={()=>saveRun(r,runPhotoData)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${runRating===r?"#10b981":G.border}`,background:runRating===r?"#d1fae5":G.cream,color:runRating===r?"#10b981":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
                 ))}
               </div>
               <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
@@ -623,7 +725,45 @@ function CalisthenicsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSh
   const [calsHistory,setCalsHistory]=useState(()=>{
     try{ return JSON.parse(localStorage.getItem(CALS_KEY)||"[]"); }catch(e){ return []; }
   });
+  const [calsPhoto,setCalsPhoto]=useState(null);
+  const [analyzingCalsPhoto,setAnalyzingCalsPhoto]=useState(false);
+  const [calsPhotoData,setCalsPhotoData]=useState(null);
+  const [calsBpm,setCalsBpm]=useState("");
+  const calsPhotoRef=useRef(null);
   const timerRef=useRef(null);
+  const API_KEY=import.meta.env.VITE_API_KEY||"";
+
+  async function analyzeCalsPhoto(file){
+    setAnalyzingCalsPhoto(true);
+    try{
+      const reader=new FileReader();
+      reader.onload=async(e)=>{
+        const base64=e.target.result.split(",")[1];
+        const mediaType=file.type||"image/jpeg";
+        const res=await fetch("https://api.anthropic.com/v1/messages",{
+          method:"POST",
+          headers:{"content-type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+          body:JSON.stringify({
+            model:"claude-haiku-4-5-20251001",
+            max_tokens:600,
+            messages:[{role:"user",content:[
+              {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+              {type:"text",text:`This is a workout/fitness tracker screenshot from a calisthenics or bodyweight workout. Extract all visible data. Return ONLY valid JSON, no markdown:
+{"peakBpm":165,"avgBpm":140,"calories":320,"durationMin":30,"zones":{"zone1":{"pct":10},"zone2":{"pct":20},"zone3":{"pct":40},"zone4":{"pct":25},"zone5":{"pct":5}}}
+Set any field not visible to null.`}
+            ]}]
+          })
+        });
+        const data=await res.json();
+        const raw=data.content?.[0]?.text||"{}";
+        const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+        setCalsPhotoData(parsed);
+        if(parsed.peakBpm) setCalsBpm(String(parsed.peakBpm));
+        setAnalyzingCalsPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    }catch(e){console.error(e);setAnalyzingCalsPhoto(false);}
+  }
 
   useEffect(()=>{
     if(timerActive&&timerSec>0){
@@ -912,12 +1052,56 @@ function CalisthenicsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSh
           <div style={{fontSize:"3rem"}}>🏆</div>
           <div style={{fontSize:"1.1rem",fontWeight:900,color:"#7c3aed",textAlign:"center"}}>Session Complete!</div>
           <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! All things are possible! 🙏</div>
-          {!sessionRating&&(
-            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
+         {!sessionRating&&(
+            <div style={{width:"100%",display:"flex",flexDirection:"column",gap:10}}>
+              {/* Photo upload */}
+              <div style={{background:"#f5f3ff",border:"1px solid #c4b5fd",borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:"0.72rem",fontWeight:700,color:"#7c3aed",marginBottom:4}}>❤️ Log Heart Rate Data (optional)</div>
+                <div style={{fontSize:"0.66rem",color:G.textSoft,marginBottom:8,lineHeight:1.6}}>Upload your watch screenshot — AI reads BPM, calories and zones!</div>
+                {!calsPhotoData&&(
+                  <button onClick={()=>calsPhotoRef.current?.click()} style={{width:"100%",padding:"10px",borderRadius:10,border:"2px dashed #a78bfa",background:"#faf5ff",color:"#7c3aed",fontSize:"0.76rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",marginBottom:8}}>
+                    {analyzingCalsPhoto?"✨ Reading your data...":"📸 Upload Watch Screenshot"}
+                  </button>
+                )}
+                <input ref={calsPhotoRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){setCalsPhoto(URL.createObjectURL(f));analyzeCalsPhoto(f);}}}/>
+                {calsPhotoData&&(
+                  <div style={{marginBottom:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <div style={{fontSize:"0.7rem",fontWeight:700,color:"#7c3aed"}}>✅ Data extracted!</div>
+                      <button onClick={()=>{setCalsPhotoData(null);setCalsPhoto(null);setCalsBpm("");}} style={{fontSize:"0.62rem",color:G.textSoft,background:"none",border:"none",cursor:"pointer"}}>✕</button>
+                    </div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
+                      {calsPhotoData.peakBpm&&<span style={{fontSize:"0.7rem",fontWeight:700,color:"#dc2626"}}>❤️ {calsPhotoData.peakBpm} BPM peak</span>}
+                      {calsPhotoData.calories&&<span style={{fontSize:"0.7rem",fontWeight:700,color:G.mangoDeep}}>🔥 {calsPhotoData.calories} cal</span>}
+                      {calsPhotoData.durationMin&&<span style={{fontSize:"0.7rem",fontWeight:700,color:"#7c3aed"}}>⏱ {calsPhotoData.durationMin} min</span>}
+                    </div>
+                    {calsPhotoData.zones&&(
+                      <div style={{display:"flex",gap:3}}>
+                        {Object.entries(calsPhotoData.zones).map(([k,z],i)=>{
+                          const colors=["#6b7280","#60a5fa","#10b981","#f59e0b","#dc2626"];
+                          return z?.pct>0?(<div key={k} style={{flex:z.pct,height:6,background:colors[i],borderRadius:2}}/>):null;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!calsPhotoData&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={calsBpm||""} onChange={e=>setCalsBpm(e.target.value.replace(/[^0-9]/g,""))} placeholder="or enter BPM manually" style={{...iStyle,flex:1,textAlign:"center"}}/>
+                    <span style={{fontSize:"0.68rem",color:G.textSoft}}>BPM</span>
+                  </div>
+                )}
+              </div>
               <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
               <div style={{display:"flex",gap:6}}>
                 {[1,2,3,4,5].map(r=>(
-                  <button key={r} onClick={()=>saveCalsSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${sessionRating===r?"#7c3aed":G.border}`,background:sessionRating===r?"#f5f3ff":G.cream,color:sessionRating===r?"#7c3aed":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
+                  <button key={r} onClick={()=>{
+                    const entry={date:todayStr(),duration:calsSession.duration,weekNum:calsSession.weekNum,exercises:calsSession.uniqueCount,rounds:calsSession.rounds,rating:r,bpm:calsBpm?parseInt(calsBpm):null,calories:calsPhotoData?.calories||null,zones:calsPhotoData?.zones||null,mix:calsSession.mix,ts:new Date().toISOString()};
+                    const newHistory=[...calsHistory,entry];
+                    setCalsHistory(newHistory);
+                    try{localStorage.setItem(CALS_KEY,JSON.stringify(newHistory));}catch(e){}
+                    setSessionRating(r);
+                  }} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${sessionRating===r?"#7c3aed":G.border}`,background:sessionRating===r?"#f5f3ff":G.cream,color:sessionRating===r?"#7c3aed":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
                 ))}
               </div>
               <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
@@ -6192,7 +6376,120 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 {Object.keys(logs[selectedClientCoach.id]||{}).length===0&&<div style={{fontSize:"0.72rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No check-ins yet</div>}
               </div>
 
-    <div style={card}><div style={lbl}>Send Encouragement</div>
+    {/* AI Coach Analysis */}
+              {(()=>{
+                const [coachAiLoading,setCoachAiLoading]=React.useState(false);
+                const [coachAiAnalysis,setCoachAiAnalysis]=React.useState("");
+                const [coachAiDraft,setCoachAiDraft]=React.useState("");
+                const [selectedQuestion,setSelectedQuestion]=React.useState("");
+                const cid=selectedClientCoach.id;
+
+                const PRESET_QUESTIONS=[
+                  {id:"overall",label:"📊 Overall Progress",q:`Analyze ${selectedClientCoach.name}'s overall health and fitness progress.`},
+                  {id:"weight",label:"⚖️ Weight Not Moving",q:`${selectedClientCoach.name}'s weight isn't changing. What should I adjust?`},
+                  {id:"intensity",label:"💪 Workout Intensity",q:`Is ${selectedClientCoach.name}'s workout intensity appropriate for their goals?`},
+                  {id:"focus",label:"🎯 This Week's Focus",q:`What should I focus on with ${selectedClientCoach.name} this week?`},
+                  {id:"nutrition",label:"🥗 Nutrition Review",q:`Review ${selectedClientCoach.name}'s nutrition habits and suggest improvements.`},
+                ];
+
+                async function runCoachAnalysis(question){
+                  setCoachAiLoading(true);setCoachAiAnalysis("");setCoachAiDraft("");
+                  // Gather all client data
+                  const clientR=ratings[cid]||[];
+                  const lastRatings=clientR.slice(-5);
+                  const avgRating=lastRatings.length>0?(lastRatings.reduce((a,r)=>a+r.rating,0)/lastRatings.length).toFixed(1):"no data";
+                  const weightLogs=Object.values(logs[cid]||{}).filter(l=>l.weight).sort((a,b)=>a.date>b.date?1:-1).slice(-6);
+                  const weightTrend=weightLogs.length>=2?`${weightLogs[0].weight}lbs → ${weightLogs[weightLogs.length-1].weight}lbs over ${weightLogs.length} weigh-ins`:"not enough weigh-ins";
+                  const nutriDays=Object.keys(nutrition[cid]||{}).filter(d=>((nutrition[cid]||{})[d]||[]).some(m=>m.meal!=="__water__")).sort().slice(-7);
+                  const nutriScore=nutriDays.length>0?Math.round(nutriDays.reduce((acc,date)=>{const meals=((nutrition[cid]||{})[date]||[]).filter(m=>m.meal!=="__water__");const t=getDayTotals(meals);const tgt=getTargets(selectedClientCoach.weight);return acc+(t.protein>=tgt.protein*0.8?40:20)+(t.carbs<=tgt.carbs?30:0)+(t.sugar<=tgt.sugar?30:0);},0)/nutriDays.length):0;
+                  let hiitHistory=[];
+                  try{hiitHistory=JSON.parse(localStorage.getItem("atp-hiit")||"[]").filter(e=>e.clientId===cid).slice(-5);}catch{}
+                  const bpmTrend=hiitHistory.filter(e=>e.bpm).map(e=>`${e.bpm}bpm (${e.date})`).join(", ")||"no BPM data";
+                  const checkInStreak=Object.keys(logs[cid]||{}).sort().reverse().length;
+                  const clientProgram=program[cid];
+
+                  const prompt=`You are a professional health coach assistant helping Coach MJ analyze a client. Be specific, data-driven, and actionable.
+
+CLIENT PROFILE:
+Name: ${selectedClientCoach.name}, Age: ${selectedClientCoach.age}, Current weight: ${selectedClientCoach.weight}lbs, Goal weight: ${selectedClientCoach.goalWeight}lbs
+Goal: ${selectedClientCoach.goal}, Level: ${selectedClientCoach.level}
+Injuries: ${selectedClientCoach.injury||"none"}, Medical: ${selectedClientCoach.medical||"none"}
+
+DATA (last 7-30 days):
+- Weight trend: ${weightTrend}
+- Nutrition compliance score: ${nutriScore}/100 (${nutriDays.length} days logged)
+- Workout ratings: avg ${avgRating}/5 (last 5 sessions)
+- HIIT BPM history: ${bpmTrend}
+- Check-in streak: ${checkInStreak} days total
+- Program: Week ${clientProgram?.currentWeek||"not started"} of 12
+
+COACH'S QUESTION: ${question}
+
+Respond with TWO sections:
+1. ANALYSIS: 3-4 sentences of specific, data-driven coaching insight
+2. CLIENT MESSAGE: A warm, faith-based message MJ can send directly to ${selectedClientCoach.name.split(" ")[0]} (2-3 sentences, encouraging, specific to their data, end with a scripture or faith reference)
+
+Format exactly as:
+ANALYSIS: [your analysis]
+MESSAGE: [the client message]`;
+
+                  try{
+                    const res=await fetch("https://api.anthropic.com/v1/messages",{
+                      method:"POST",
+                      headers:{"content-type":"application/json","x-api-key":import.meta.env.VITE_API_KEY||"","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+                      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:600,messages:[{role:"user",content:prompt}]})
+                    });
+                    const data=await res.json();
+                    const text=data.content?.[0]?.text||"";
+                    const analysisMatch=text.match(/ANALYSIS:([\s\S]*?)MESSAGE:/);
+                    const messageMatch=text.match(/MESSAGE:([\s\S]*?)$/);
+                    setCoachAiAnalysis(analysisMatch?analysisMatch[1].trim():"Unable to generate analysis.");
+                    setCoachAiDraft(messageMatch?messageMatch[1].trim():"");
+                  }catch(e){setCoachAiAnalysis("Error generating analysis. Please try again.");}
+                  setCoachAiLoading(false);
+                }
+
+                return(
+                  <div style={{...card,border:`1.5px solid ${G.mango}44`,background:"#fff9f0"}}>
+                    <div style={{fontSize:"0.72rem",fontWeight:700,color:G.mangoDeep,marginBottom:8}}>🤖 AI Coach Analysis</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+                      {PRESET_QUESTIONS.map(q=>(
+                        <button key={q.id} onClick={()=>{setSelectedQuestion(q.id);runCoachAnalysis(q.q);}} style={{padding:"10px 12px",borderRadius:10,border:`2px solid ${selectedQuestion===q.id?G.mangoDeep:G.border}`,background:selectedQuestion===q.id?"#fff3e0":G.cream,color:selectedQuestion===q.id?G.mangoDeep:G.text,fontSize:"0.74rem",fontWeight:selectedQuestion===q.id?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
+                    {coachAiLoading&&(
+                      <div style={{textAlign:"center",padding:"14px 0",fontSize:"0.76rem",color:G.mangoDeep}}>✨ Analyzing {selectedClientCoach.name.split(" ")[0]}'s data...</div>
+                    )}
+                    {coachAiAnalysis&&!coachAiLoading&&(
+                      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                        <div style={{padding:"12px 14px",background:"#fff",borderRadius:10,border:`1px solid ${G.mango}44`}}>
+                          <div style={{fontSize:"0.64rem",fontWeight:700,color:G.mangoDeep,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Analysis</div>
+                          <div style={{fontSize:"0.76rem",color:G.text,lineHeight:1.7}}>{coachAiAnalysis}</div>
+                        </div>
+                        {coachAiDraft&&(
+                          <div style={{padding:"12px 14px",background:"#f0faf4",borderRadius:10,border:`1px solid ${G.greenLight}`}}>
+                            <div style={{fontSize:"0.64rem",fontWeight:700,color:G.green,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Suggested Message to {selectedClientCoach.name.split(" ")[0]}</div>
+                            <div style={{fontSize:"0.76rem",color:G.text,lineHeight:1.7,marginBottom:10,fontStyle:"italic"}}>{coachAiDraft}</div>
+                            <button onClick={()=>{
+                              setMsgDraft(p=>({...p,[cid]:coachAiDraft}));
+                              sendCoachMessage(cid,coachAiDraft);
+                              setCoachAiDraft("");
+                              setCoachAiAnalysis("");
+                              setSelectedQuestion("");
+                            }} style={{...btnGreen,padding:"9px",fontSize:"0.76rem"}}>
+                              ✉️ Send This Message
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div style={card}><div style={lbl}>Send Encouragement</div>
                 <textarea value={msgDraft[selectedClientCoach.id]||""} onChange={e=>setMsgDraft(p=>({...p,[selectedClientCoach.id]:e.target.value}))} placeholder={`Write to ${selectedClientCoach.name.split(" ")[0]}...`} rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
                 <button onClick={()=>sendCoachMessage(selectedClientCoach.id,msgDraft[selectedClientCoach.id]||"")} style={btnMango}>✉️ Send Message</button>
               </div>
