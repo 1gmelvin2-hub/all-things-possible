@@ -6227,35 +6227,15 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 </div>
               )}
               <textarea value={clientMsgDraft} onChange={e=>setClientMsgDraft(e.target.value)} placeholder="Write a message to your coach..." rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
-             <button onClick={async()=>{
+      <button onClick={()=>{
                 if(!clientMsgDraft.trim()) return;
                 const cid=currentClient.id;
                 const newMsg={from:"client",text:clientMsgDraft.trim(),ts:new Date().toISOString()};
                 persist(null,null,{...messages,[cid]:[...(messages[cid]||[]),newMsg]},null,null,null,null,null);
-                // Log to Supabase message log
-                try{
-                  await fetch(`${SUPABASE_URL}/rest/v1/atp_data`,{
-                    method:"POST",
-                    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
-                    body:JSON.stringify({
-                      client_id:"__msglog__",
-                      data_key:`msg_${cid}_${Date.now()}`,
-                      data_value:{
-                        clientId:cid,
-                        clientName:currentClient.name,
-                        message:clientMsgDraft.trim(),
-                        date:new Date().toISOString().split("T")[0],
-                        time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),
-                        ts:new Date().toISOString()
-                      },
-                      updated_at:new Date().toISOString()
-                    })
-                  });
-                }catch(e){console.error("Message log error:",e);}
-               setClientMsgDraft("");
+                setClientMsgDraft("");
               }} disabled={!clientMsgDraft.trim()} style={{...btnMango,opacity:clientMsgDraft.trim()?1:0.5,padding:"10px",fontSize:"0.78rem"}}>
                 ✉️ Send to Coach
-              </button>
+              </button>      
             </div>
           </div>
         );
