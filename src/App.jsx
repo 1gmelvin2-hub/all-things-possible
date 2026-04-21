@@ -6253,7 +6253,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   });
                 }catch(e){console.error("Message log error:",e);}
                 setClientMsgDraft("");
-                 }} disabled={!clientMsgDraft.trim()} style={{...btnMango,opacity:clientMsgDraft.trim()?1:0.5,padding:"10px",fontSize:"0.78rem"}}>
+               }} disabled={!clientMsgDraft.trim()} style={{...btnMango,opacity:clientMsgDraft.trim()?1:0.5,padding:"10px",fontSize:"0.78rem"}}>
                 ✉️ Send to Coach
               </button>
             </div>
