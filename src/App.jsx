@@ -6190,13 +6190,28 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:8}}>✦ From Your Coach</div>
               {coachMsgsForClient.length===0
                 ?<div style={{fontSize:"0.74rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No messages yet — your coach will reach out soon! 🙏</div>
-                :coachMsgsForClient.map((m,i)=>(<div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65}}>{m.text}</div></div>))}
-            </div>
-            <div style={card}>
-              <div style={{fontSize:"0.72rem",fontWeight:700,color:G.brown,marginBottom:8}}>✉️ Message Your Coach</div>
-              {myMsgsToCoach.length>0&&(
-                <div style={{marginBottom:10}}>
-                  {myMsgsToCoach.slice(-3).map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"8px 12px",marginBottom:6,borderLeft:`3px solid ${G.mango}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:"0.64rem",fontWeight:700,color:G.brown}}>You</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.74rem",color:G.text}}>{m.text}</div></div>))}
+:coachMsgsForClient.map((m,i)=>(
+                  <div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                      <span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span>
+                      <span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65,marginBottom:6}}>{m.text}</div>
+                    <div style={{display:"flex",justifyContent:"flex-end"}}>
+                      {m.seenAt?(
+                        <span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen {new Date(m.seenAt).toLocaleDateString()}</span>
+                      ):(
+                        <button onClick={()=>{
+                          const cid=currentClient.id;
+                          const updated=(messages[cid]||[]).map(msg=>msg===m?{...msg,seenAt:new Date().toISOString()}:msg);
+                          persist(null,null,{...messages,[cid]:updated},null,null,null,null,null);
+                        }} style={{fontSize:"0.6rem",padding:"3px 8px",borderRadius:20,border:`1px solid ${G.greenLight}`,background:"#fff",cursor:"pointer",color:G.textSoft,fontFamily:"inherit"}}>
+                          ☑ Mark as read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
                 </div>
               )}
               <textarea value={clientMsgDraft} onChange={e=>setClientMsgDraft(e.target.value)} placeholder="Write a message to your coach..." rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
@@ -6794,6 +6809,15 @@ MESSAGE: [the client message]`;
                     </div>))}
                   </div>
                 )}
+{(messages[client.id]||[]).filter(m=>m.from==="coach").slice(-3).map((m,i)=>(
+                  <div key={i} style={{marginBottom:6,padding:"7px 10px",background:"#f0faf4",borderRadius:8,border:`1px solid ${G.greenLight}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
+                      {m.seenAt?<span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen</span>:<span style={{fontSize:"0.6rem",color:G.textSoft}}>Not seen yet</span>}
+                    </div>
+                    <div style={{fontSize:"0.7rem",color:G.text}}>{m.text}</div>
+                  </div>
+                ))}
                 <textarea value={msgDraft[client.id]||""} onChange={e=>setMsgDraft(p=>({...p,[client.id]:e.target.value}))} placeholder={hasUnread?`Reply to ${client.name.split(" ")[0]}...`:`Message ${client.name.split(" ")[0]}...`} rows={2} style={{...iStyle,resize:"none",marginBottom:7}}/>
                 <button onClick={()=>sendCoachMessage(client.id,msgDraft[client.id]||"")} style={{...btnMango,padding:"9px",fontSize:"0.76rem"}}>✉️ Send</button>
               </div>);
