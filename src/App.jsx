@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+ import { useState, useEffect, useRef } from "react";
 
 const CLIENTS_KEY   = "atp-clients";
 const LOGS_KEY      = "atp-logs";
@@ -6188,37 +6188,10 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
             <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>💌 Messages</div>
             <div style={card}>
               <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:8}}>✦ From Your Coach</div>
-     {coachMsgsForClient.length===0
+              {coachMsgsForClient.length===0
                 ?<div style={{fontSize:"0.74rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No messages yet — your coach will reach out soon! 🙏</div>
-                :coachMsgsForClient.map((m,i)=>(
-                  <div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`,position:"relative"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span>
-                      <span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
-                    </div>
-                    <div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65,marginBottom:6}}>{m.text}</div>
-                    {/* Read receipt */}
-                    <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:6}}>
-                      {m.seenAt?(
-                        <div style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen {new Date(m.seenAt).toLocaleDateString()}</div>
-                      ):(
-                        <button onClick={()=>{
-                          const cid=currentClient.id;
-                          const updated=(messages[cid]||[]).map((msg,idx)=>{
-                            const coachOnly=messages[cid].filter(x=>x.from==="coach");
-                            const coachIdx=coachOnly.indexOf(m);
-                            if(msg===m) return{...msg,seenAt:new Date().toISOString()};
-                            return msg;
-                          });
-                          persist(null,null,{...messages,[cid]:updated},null,null,null,null,null);
-                        }} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:20,border:`1px solid ${G.greenLight}`,background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>
-                          <div style={{width:14,height:14,borderRadius:3,border:`1.5px solid ${G.greenMid}`,background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.6rem"}}/>
-                          <span style={{fontSize:"0.6rem",color:G.textSoft}}>Mark as read</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                :coachMsgsForClient.map((m,i)=>(<div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65}}>{m.text}</div></div>))}
+            </div>
             <div style={card}>
               <div style={{fontSize:"0.72rem",fontWeight:700,color:G.brown,marginBottom:8}}>✉️ Message Your Coach</div>
               {myMsgsToCoach.length>0&&(
@@ -6227,7 +6200,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 </div>
               )}
               <textarea value={clientMsgDraft} onChange={e=>setClientMsgDraft(e.target.value)} placeholder="Write a message to your coach..." rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
-      <button onClick={()=>{
+              <button onClick={()=>{
                 if(!clientMsgDraft.trim()) return;
                 const cid=currentClient.id;
                 const newMsg={from:"client",text:clientMsgDraft.trim(),ts:new Date().toISOString()};
@@ -6235,10 +6208,10 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                 setClientMsgDraft("");
               }} disabled={!clientMsgDraft.trim()} style={{...btnMango,opacity:clientMsgDraft.trim()?1:0.5,padding:"10px",fontSize:"0.78rem"}}>
                 ✉️ Send to Coach
-              </button>      
+              </button>
             </div>
           </div>
-        );
+          );
         })()}
       </div>
     );
@@ -6815,26 +6788,12 @@ MESSAGE: [the client message]`;
                 {clientMsgsIn.length>0&&(
                   <div style={{marginBottom:10,background:"#fff9f0",borderRadius:10,padding:"8px 10px",border:`1px solid ${G.mango}44`}}>
                     <div style={{fontSize:"0.64rem",fontWeight:700,color:G.mangoDeep,marginBottom:6}}>From {client.name.split(" ")[0]}:</div>
-             {clientMsgsIn.slice(-2).map((m,i)=>(<div key={i} style={{marginBottom:i<clientMsgsIn.slice(-2).length-1?6:0,paddingBottom:i<clientMsgsIn.slice(-2).length-1?6:0,borderBottom:i<clientMsgsIn.slice(-2).length-1?`1px solid ${G.border}`:"none"}}>
+                    {clientMsgsIn.slice(-2).map((m,i)=>(<div key={i} style={{marginBottom:i<clientMsgsIn.slice(-2).length-1?6:0,paddingBottom:i<clientMsgsIn.slice(-2).length-1?6:0,borderBottom:i<clientMsgsIn.slice(-2).length-1?`1px solid ${G.border}`:"none"}}>
                       <div style={{fontSize:"0.6rem",color:G.textSoft,marginBottom:2}}>{new Date(m.ts).toLocaleDateString()} {new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
                       <div style={{fontSize:"0.74rem",color:G.text}}>{m.text}</div>
                     </div>))}
                   </div>
                 )}
-{/* Show read receipts on sent coach messages */}
-                {(messages[client.id]||[]).filter(m=>m.from==="coach").slice(-3).map((m,i)=>(
-                  <div key={i} style={{marginBottom:6,padding:"7px 10px",background:"#f0faf4",borderRadius:8,border:`1px solid ${G.greenLight}`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-                      <span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
-                      {m.seenAt?(
-                        <span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen {new Date(m.seenAt).toLocaleDateString()}</span>
-                      ):(
-                        <span style={{fontSize:"0.6rem",color:G.textSoft}}>Not seen yet</span>
-                      )}
-                    </div>
-                    <div style={{fontSize:"0.7rem",color:G.text}}>{m.text}</div>
-                  </div>
-                ))}
                 <textarea value={msgDraft[client.id]||""} onChange={e=>setMsgDraft(p=>({...p,[client.id]:e.target.value}))} placeholder={hasUnread?`Reply to ${client.name.split(" ")[0]}...`:`Message ${client.name.split(" ")[0]}...`} rows={2} style={{...iStyle,resize:"none",marginBottom:7}}/>
                 <button onClick={()=>sendCoachMessage(client.id,msgDraft[client.id]||"")} style={{...btnMango,padding:"9px",fontSize:"0.76rem"}}>✉️ Send</button>
               </div>);
@@ -6930,3 +6889,5 @@ MESSAGE: [the client message]`;
   }
   return null;
 }
+
+      
