@@ -1148,15 +1148,11 @@ Set any field not visible to null.`}
               </div>
             )}
 
-         {isRest&&(
+            {isRest&&(
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:"1.1rem",fontWeight:900,color:G.greenMid,marginBottom:8}}>Rest up! 💚</div>
-                <div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:6}}>Next exercise:</div>
-                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.text,lineHeight:1.2}}>
-                  {calsSession.exercises[currentExIdx+1]?.name||"🏆 Last one!"}
-                </div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:6}}>
-                  {calsSession.exercises[currentExIdx+1]?.level||""}
+                <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
+                <div style={{fontSize:"0.7rem",color:G.textSoft}}>
+                  Next: {calsSession.exercises[currentExIdx+1]?.name||"Done!"}
                 </div>
               </div>
             )}
@@ -5596,7 +5592,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
             </div>
 
             {/* Today's meal log */}
-            {todayMeals.length>0&&(<div style={card}><div style={lbl}>Today's Meals</div><div style={{display:"flex",flexDirection:"column",gap:10}}>{todayMeals.map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"10px 12px",borderLeft:`3px solid ${G.greenMid}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:"0.78rem",fontWeight:700,color:G.green}}>{m.meal}</span><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span><button onPointerDown={()=>{const ts=m.ts;const cid=currentClient.id;const today=todayStr();const filtered=((nutrition[cid]||{})[today]||[]).filter(x=>x.ts!==ts);persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:filtered}});}} style={{width:24,height:24,borderRadius:6,border:`1px solid ${G.red}`,background:G.redLight,cursor:"pointer",fontSize:"0.7rem",color:G.red}}>🗑</button></div></div><div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:5}}>{m.text}</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[{l:"P",v:m.protein,c:"#4ade80"},{l:"F",v:m.fat,c:"#fbbf24"},{l:"C",v:m.carbs,c:"#fb923c"},{l:"S",v:m.sugar,c:"#f87171"}].map((x,j)=>(<span key={j} style={{fontSize:"0.65rem"}}><span style={{fontWeight:700,color:x.c}}>{x.v}g</span><span style={{color:G.textSoft}}> {x.l}</span></span>))}<span style={{fontSize:"0.65rem",color:G.brown,fontWeight:600}}>{m.calories} kcal</span></div>{m.feedback&&<div style={{fontSize:"0.63rem",color:G.green,fontStyle:"italic",marginTop:4}}>💡 {m.feedback}</div>}</div>))}</div></div>)}
+            {todayMeals.length>0&&(<div style={card}><div style={lbl}>Today's Meals</div><div style={{display:"flex",flexDirection:"column",gap:10}}>{todayMeals.map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"10px 12px",borderLeft:`3px solid ${G.greenMid}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:"0.78rem",fontWeight:700,color:G.green}}>{m.meal}</span><span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span></div><div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:5}}>{m.text}</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[{l:"P",v:m.protein,c:"#4ade80"},{l:"F",v:m.fat,c:"#fbbf24"},{l:"C",v:m.carbs,c:"#fb923c"},{l:"S",v:m.sugar,c:"#f87171"}].map((x,j)=>(<span key={j} style={{fontSize:"0.65rem"}}><span style={{fontWeight:700,color:x.c}}>{x.v}g</span><span style={{color:G.textSoft}}> {x.l}</span></span>))}<span style={{fontSize:"0.65rem",color:G.brown,fontWeight:600}}>{m.calories} kcal</span></div>{m.feedback&&<div style={{fontSize:"0.63rem",color:G.green,fontStyle:"italic",marginTop:4}}>💡 {m.feedback}</div>}</div>))}</div></div>)}
 
       {/* Weekly averages */}
             {(()=>{const weekly=getWeeklyNutrition(currentClient.id);if(!weekly) return null;return(<div style={card}><div style={lbl}>7-Day Averages ({weekly.days} days)</div><div style={{display:"flex",flexDirection:"column",gap:6}}><MacroBar label="🥩 Protein avg" value={weekly.protein} target={targets.protein} isLow={true}/><MacroBar label="🌾 Carbs avg" value={weekly.carbs} target={targets.carbs} isLow={false}/><MacroBar label="🍬 Sugar avg" value={weekly.sugar} target={targets.sugar} isLow={false}/></div><div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:"0.65rem",color:G.textSoft}}><span>Avg calories</span><span style={{fontWeight:700,color:G.brown}}>{weekly.calories} kcal/day</span></div></div>);})()}
@@ -6194,28 +6190,13 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:8}}>✦ From Your Coach</div>
               {coachMsgsForClient.length===0
                 ?<div style={{fontSize:"0.74rem",color:G.textSoft,textAlign:"center",padding:"8px 0"}}>No messages yet — your coach will reach out soon! 🙏</div>
-:coachMsgsForClient.map((m,i)=>(
-                  <div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span>
-                      <span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
-                    </div>
-                    <div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65,marginBottom:6}}>{m.text}</div>
-                    <div style={{display:"flex",justifyContent:"flex-end"}}>
-                      {m.seenAt?(
-                        <span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen {new Date(m.seenAt).toLocaleDateString()}</span>
-                      ):(
-                        <button onClick={()=>{
-                          const cid=currentClient.id;
-                          const updated=(messages[cid]||[]).map(msg=>msg===m?{...msg,seenAt:new Date().toISOString()}:msg);
-                          persist(null,null,{...messages,[cid]:updated},null,null,null,null,null);
-                        }} style={{fontSize:"0.6rem",padding:"3px 8px",borderRadius:20,border:`1px solid ${G.greenLight}`,background:"#fff",cursor:"pointer",color:G.textSoft,fontFamily:"inherit"}}>
-                          ☑ Mark as read
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                :coachMsgsForClient.map((m,i)=>(<div key={i} style={{background:"#f0faf4",borderRadius:10,padding:"10px 12px",marginBottom:6,border:`1px solid ${G.greenLight}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:"0.66rem",fontWeight:700,color:G.green}}>✦ Coach MJ</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.79rem",color:G.text,lineHeight:1.65}}>{m.text}</div></div>))}
+            </div>
+            <div style={card}>
+              <div style={{fontSize:"0.72rem",fontWeight:700,color:G.brown,marginBottom:8}}>✉️ Message Your Coach</div>
+              {myMsgsToCoach.length>0&&(
+                <div style={{marginBottom:10}}>
+                  {myMsgsToCoach.slice(-3).map((m,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"8px 12px",marginBottom:6,borderLeft:`3px solid ${G.mango}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:"0.64rem",fontWeight:700,color:G.brown}}>You</span><span style={{fontSize:"0.6rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span></div><div style={{fontSize:"0.74rem",color:G.text}}>{m.text}</div></div>))}
                 </div>
               )}
               <textarea value={clientMsgDraft} onChange={e=>setClientMsgDraft(e.target.value)} placeholder="Write a message to your coach..." rows={3} style={{...iStyle,resize:"none",marginBottom:8}}/>
@@ -6813,15 +6794,6 @@ MESSAGE: [the client message]`;
                     </div>))}
                   </div>
                 )}
-{(messages[client.id]||[]).filter(m=>m.from==="coach").slice(-3).map((m,i)=>(
-                  <div key={i} style={{marginBottom:6,padding:"7px 10px",background:"#f0faf4",borderRadius:8,border:`1px solid ${G.greenLight}`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                      <span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleDateString()}</span>
-                      {m.seenAt?<span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>✓ Seen</span>:<span style={{fontSize:"0.6rem",color:G.textSoft}}>Not seen yet</span>}
-                    </div>
-                    <div style={{fontSize:"0.7rem",color:G.text}}>{m.text}</div>
-                  </div>
-                ))}
                 <textarea value={msgDraft[client.id]||""} onChange={e=>setMsgDraft(p=>({...p,[client.id]:e.target.value}))} placeholder={hasUnread?`Reply to ${client.name.split(" ")[0]}...`:`Message ${client.name.split(" ")[0]}...`} rows={2} style={{...iStyle,resize:"none",marginBottom:7}}/>
                 <button onClick={()=>sendCoachMessage(client.id,msgDraft[client.id]||"")} style={{...btnMango,padding:"9px",fontSize:"0.76rem"}}>✉️ Send</button>
               </div>);
