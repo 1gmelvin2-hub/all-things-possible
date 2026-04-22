@@ -5628,15 +5628,14 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                       <span style={{fontSize:"0.78rem",fontWeight:700,color:G.green}}>{m.meal}</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
-                        <button onPointerDown={()=>{
+                        <span style={{fontSize:"0.62rem",color:G.textSoft}}>{new Date(m.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>  <button onPointerDown={()=>{
                           const today=todayStr();
                           const cid=currentClient.id;
-                          const updated=(nutrition[cid]||{})[today]||[];
-                          const filtered=updated.filter((_,idx)=>idx!==i);
+                          const allMeals=(nutrition[cid]||{})[today]||[];
+                          const ts=m.ts;
+                          const filtered=allMeals.filter(x=>x.ts!==ts);
                           persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:filtered}});
-                        }} style={{width:24,height:24,borderRadius:6,border:`1px solid ${G.red}`,background:G.redLight,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.7rem",color:G.red,flexShrink:0}}>🗑</button>
-                      </div>
+                        }} style={{width:24,height:24,borderRadius:6,border:`1px solid ${G.red}`,background:G.redLight,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.7rem",color:G.red,flexShrink:0}}>🗑</button>                    </div>
                     </div>
                     <div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:5}}>{m.text}</div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
