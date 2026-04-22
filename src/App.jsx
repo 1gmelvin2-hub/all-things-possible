@@ -5635,7 +5635,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                           const ts=m.ts;
                           const filtered=allMeals.filter(x=>x.ts!==ts);
                           persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:filtered}});
-                        }} style={{width:24,height:24,borderRadius:6,border:`1px solid ${G.red}`,background:G.redLight,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.7rem",color:G.red,flexShrink:0}}>🗑</button>                    </div>
+                        }} style={{width:24,height:24,borderRadius:6,border:`1px solid ${G.red}`,background:G.redLight,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.7rem",color:G.red,flexShrink:0}}>🗑</button>
+                      </div>                   </div>
                     </div>
                     <div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:5}}>{m.text}</div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
