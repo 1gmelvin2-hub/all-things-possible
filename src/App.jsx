@@ -4688,7 +4688,12 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
        {showMoreMenu&&<div onClick={()=>setShowMoreMenu(false)} style={{position:"fixed",inset:0,zIndex:99}}/>}
 
-        {lockedMsg&&(
+       {toast&&(
+          <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:20,fontSize:"0.78rem",fontWeight:700,zIndex:999,boxShadow:"0 4px 20px rgba(0,0,0,.3)",whiteSpace:"nowrap"}}>
+            ✓ {toast}
+          </div>
+        )}
+        {lockedMsg&&( 
           <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:"1.2rem"}}>🙏</span>
             <div style={{flex:1}}>
