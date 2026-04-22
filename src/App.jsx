@@ -2994,8 +2994,6 @@ export default function AllThingsPossible(){
   const [showPasscodeReveal,setShowPasscodeReveal] = useState({});
   const photoInputRef = useRef(null);
   const [fromHealthBoard,setFromHealthBoard] = useState(false);
-  const [toast,setToast] = useState("");
-  function showToast(msg){setToast(msg);setTimeout(()=>setToast(""),2500);}
 
   useEffect(()=>{
     async function loadData(){
@@ -3277,7 +3275,6 @@ function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
     if(form.weight){ nc=clients.map(c=>c.id===cid?{...c,weight:parseFloat(form.weight)}:c); setCurrentClient(nc.find(c=>c.id===cid)); }
     persist(nc,newLogs,null,null,null,null,null,null);
     setSaved(true); setTimeout(()=>setSaved(false),3000);
-    showToast("Check-in saved!");
     setForm({mood:"",energy:"",weight:"",prayerDone:false});
   }
 
@@ -3442,9 +3439,9 @@ Write a SHORT, warm 3-4 sentence summary of how they did this week. Be encouragi
       const newEntry={meal:mealType,text:mealText,protein:macros.protein||0,fat:macros.fat||0,carbs:macros.carbs||0,sugar:macros.sugar||0,calories:macros.calories||0,feedback:macros.feedback||"",ts:new Date().toISOString()};
       persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:[...todayMeals,newEntry]}});
       setMealText(""); setMealType("Breakfast");
-      showToast("Meal logged!");
     }catch(e){ console.error(e); }
     setAnalyzingMeal(false);
+  }
 
   // Log water in nutrition tab
   function logWater(glasses){
@@ -4038,7 +4035,6 @@ Return ONLY valid JSON array (no markdown):
     if(!text.trim())return;
     persist(null,null,{...messages,[cid]:[...(messages[cid]||[]),{from:"coach",text,ts:new Date().toISOString()}]},null,null,null,null,null);
     setMsgDraft(p=>({...p,[cid]:""}));
-    showToast("Message sent!");
   }
 
  async function getAIEncouragement(){
@@ -4690,11 +4686,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         )}   
 
        {showMoreMenu&&<div onClick={()=>setShowMoreMenu(false)} style={{position:"fixed",inset:0,zIndex:99}}/>}
-{toast&&(
-          <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:20,fontSize:"0.78rem",fontWeight:700,zIndex:999,boxShadow:"0 4px 20px rgba(0,0,0,.3)",whiteSpace:"nowrap"}}>
-            ✓ {toast}
-          </div>
-        )}
+
         {lockedMsg&&(
           <div style={{background:`linear-gradient(135deg,${G.green},${G.greenMid})`,padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:"1.2rem"}}>🙏</span>
