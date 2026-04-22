@@ -3441,6 +3441,7 @@ Write a SHORT, warm 3-4 sentence summary of how they did this week. Be encouragi
       const newEntry={meal:mealType,text:mealText,protein:macros.protein||0,fat:macros.fat||0,carbs:macros.carbs||0,sugar:macros.sugar||0,calories:macros.calories||0,feedback:macros.feedback||"",ts:new Date().toISOString()};
       persist(null,null,null,null,null,null,null,{...nutrition,[cid]:{...(nutrition[cid]||{}),[today]:[...todayMeals,newEntry]}});
       setMealText(""); setMealType("Breakfast");
+      showToast("Meal logged!");
     }catch(e){ console.error(e); }
     setAnalyzingMeal(false);
   }
