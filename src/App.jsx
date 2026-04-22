@@ -1148,11 +1148,11 @@ Set any field not visible to null.`}
               </div>
             )}
 
-            {isRest&&(
+    {isRest&&(
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:8}}>Breathe! 💚</div>
                 <div style={{fontSize:"0.7rem",color:G.textSoft,marginBottom:4}}>Next exercise:</div>
-                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.text,lineHeight:1.2}}>{absSession.exercises[currentExIdx+1]?.name||"🏆 Last one!"}</div>
+                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.text,lineHeight:1.2}}>{calsSession.exercises[currentExIdx+1]?.name||"🏆 Last one!"}</div>
               </div>
             )}
           </div>
