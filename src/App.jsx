@@ -66,16 +66,15 @@ async function sbSetGlobal(key, value) {
       "Prefer": "resolution=merge-duplicates,return=minimal"
     };
     // Use PUT-style upsert which Safari handles better than PATCH
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
+   const res = await fetch(`${SUPABASE_URL}/rest/v1/atp_data`, {
       method: "POST",
       headers,
       body
     });
     if(!res.ok){
-      // Fallback — try PATCH directly
       await fetch(`${SUPABASE_URL}/rest/v1/atp_data?client_id=eq.__global__&data_key=eq.${encodeURIComponent(key)}`, {
         method: "PATCH",
-        headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json"},
+        headers: {"apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "return=minimal"},
         body: JSON.stringify({data_value: value, updated_at: new Date().toISOString()})
       });
     }
