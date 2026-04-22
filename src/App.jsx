@@ -1150,10 +1150,9 @@ Set any field not visible to null.`}
 
             {isRest&&(
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>Rest up! 💚</div>
-                <div style={{fontSize:"0.7rem",color:G.textSoft}}>
-                  Next: {calsSession.exercises[currentExIdx+1]?.name||"Done!"}
-                </div>
+                <div style={{fontSize:"0.85rem",fontWeight:700,color:G.greenMid,marginBottom:8}}>Breathe! 💚</div>
+                <div style={{fontSize:"0.7rem",color:G.textSoft,marginBottom:4}}>Next exercise:</div>
+                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.text,lineHeight:1.2}}>{absSession.exercises[currentExIdx+1]?.name||"🏆 Last one!"}</div>
               </div>
             )}
           </div>
@@ -1206,10 +1205,17 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const restRef=useRef(null);
 
   useEffect(()=>{
-    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
-    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
-    return()=>clearTimeout(restRef.current);
-  },[restRunning,restTimerSec]);
+    if(timerActive&&timerSec>0){
+      if(timerSec<=3&&!isRest){
+        try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(timerSec===1?880:440,ctx.currentTime);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.15);}catch(e){}
+      }
+      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    } else if(timerActive&&timerSec===0){
+      try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);gain.gain.setValueAtTime(0.4,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);}catch(e){}
+      advanceCals();
+    }
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec,isRest]);
 
   // Get current week number from program
   function getCurrentWeek(){
