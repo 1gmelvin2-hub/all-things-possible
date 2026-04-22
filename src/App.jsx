@@ -2993,6 +2993,8 @@ export default function AllThingsPossible(){
   const [showPasscodeReveal,setShowPasscodeReveal] = useState({});
   const photoInputRef = useRef(null);
   const [fromHealthBoard,setFromHealthBoard] = useState(false);
+  const [toast,setToast] = useState("");
+  function showToast(msg){setToast(msg);setTimeout(()=>setToast(""),2500);}
 
   useEffect(()=>{
     async function loadData(){
