@@ -3276,6 +3276,7 @@ function persist(nc,nl,nm,np,ndk,ndm,nr,nn){
     if(form.weight){ nc=clients.map(c=>c.id===cid?{...c,weight:parseFloat(form.weight)}:c); setCurrentClient(nc.find(c=>c.id===cid)); }
     persist(nc,newLogs,null,null,null,null,null,null);
     setSaved(true); setTimeout(()=>setSaved(false),3000);
+    showToast("Check-in saved!");
     setForm({mood:"",energy:"",weight:"",prayerDone:false});
   }
 
@@ -4035,9 +4036,9 @@ Return ONLY valid JSON array (no markdown):
   function sendCoachMessage(cid,text){
     if(!text.trim())return;
     persist(null,null,{...messages,[cid]:[...(messages[cid]||[]),{from:"coach",text,ts:new Date().toISOString()}]},null,null,null,null,null);
-    setMsgDraft(p=>({...p,[cid]:""}));
+ setMsgDraft(p=>({...p,[cid]:""}));
+    showToast("Message sent!");
   }
-
  async function getAIEncouragement(){
     setAiLoading(true); setAiReply("");
     const c=currentClient;
