@@ -2849,7 +2849,298 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
 
   return null;
 }
+function MorningTenTab({currentClient,G,card,iStyle,btnGreen,lbl,todayStr,fmtDate,sheetData,sheetLoaded,fetchSheets,SHEETS_ID,setSheetData,setSheetLoaded}){
+  const MORNING_KEY="atp-morning10";
+  const STRETCH_STREAK_KEY="atp-stretchstreak";
+  const BODY_PARTS=["Leg","Hip","Back","Shoulder/Arm"];
+  const COLORS=["#10b981","#3b82f6","#ef4444","#f59e0b","#f97316","#8b5cf6"];
+  const [phase,setPhase]=useState("choose");
+  const [activityType,setActivityType]=useState(null);
+  const [selectedParts,setSelectedParts]=useState([]);
+  const [exercises,setExercises]=useState([]);
+  const [timerSec,setTimerSec]=useState(600);
+  const [timerActive,setTimerActive]=useState(false);
+  const [timerDone,setTimerDone]=useState(false);
+  const [currentMinute,setCurrentMinute]=useState(0);
+  const [sessionComplete,setSessionComplete]=useState(false);
+  const timerRef=useRef(null);
+  const [stretchHistory,setStretchHistory]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(STRETCH_STREAK_KEY)||"[]");}catch{return[];}
+  });
 
+  function getStretchStreak(){
+    let streak=0;
+    let d=new Date();d.setHours(0,0,0,0);
+    for(let i=0;i<60;i++){
+      const ds=d.toISOString().split("T")[0];
+      if(stretchHistory.some(e=>e.date===ds)){streak++;}
+      else if(i>0){break;}
+      d.setDate(d.getDate()-1);
+    }
+    return streak;
+  }
+
+  function getWeekNum(){
+    const streak=getStretchStreak();
+    return Math.floor(streak/7)+1;
+  }
+
+  function getMix(weekNum){
+    if(weekNum<=2) return{beginning:7,intermediate:3,hard:0};
+    if(weekNum<=4) return{beginning:5,intermediate:5,hard:0};
+    if(weekNum<=6) return{beginning:3,intermediate:5,hard:2};
+    return{beginning:1,intermediate:4,hard:5};
+  }
+
+  function getPhaseName(weekNum){
+    if(weekNum<=2) return"🌱 Foundation";
+    if(weekNum<=4) return"💪 Building";
+    if(weekNum<=6) return"🔥 Progressing";
+    return"⭐ Advanced";
+  }
+
+  function buildExercises(parts){
+    const weekNum=getWeekNum();
+    const mix=getMix(weekNum);
+    let pool=[];
+    if(sheetData.workouts&&sheetData.workouts.length>0){
+      pool=sheetData.workouts.slice(1).filter(row=>{
+        const cat=(row[1]||"").toLowerCase();
+        const muscles=(row[6]||"").toLowerCase();
+        const matchesPart=parts.some(p=>muscles.includes(p.toLowerCase())||muscles.includes(p.split("/")[0].toLowerCase()));
+        const isStretch=cat.includes("stretch");
+        return isStretch&&matchesPart;
+      }).map(row=>({
+        name:row[0]||"",
+        level:row[2]||"Beginning Stretch",
+        instructions:row[5]||"",
+        muscles:row[6]||"",
+      }));
+    }
+    const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+    const beginners=shuffle(pool.filter(e=>e.level.toLowerCase().includes("beginning")));
+    const intermediates=shuffle(pool.filter(e=>e.level.toLowerCase().includes("intermediate")));
+    const hards=shuffle(pool.filter(e=>e.level.toLowerCase().includes("hard")));
+    const selected=[
+      ...beginners.slice(0,mix.beginning),
+      ...intermediates.slice(0,mix.intermediate),
+      ...hards.slice(0,mix.hard),
+    ];
+    // Pad with fallbacks if not enough
+    const FALLBACKS=[
+      {name:"Neck Side Stretch",instructions:"Tilt ear to shoulder, hold",level:"Beginning Stretch",muscles:"Shoulder/Arm"},
+      {name:"Shoulder Rolls",instructions:"Roll shoulders slowly backward 10 times",level:"Beginning Stretch",muscles:"Shoulder/Arm"},
+      {name:"Standing Side Bend",instructions:"Reach arm overhead and lean sideways",level:"Beginning Stretch",muscles:"Back"},
+      {name:"Seated Forward Fold",instructions:"Reach toward toes with long spine",level:"Beginning Stretch",muscles:"Leg"},
+      {name:"Hip Flexor Lunge Stretch",instructions:"Shift weight forward to open hip",level:"Beginning Stretch",muscles:"Hip"},
+      {name:"Cat Stretch",instructions:"Round spine upward gently",level:"Beginning Stretch",muscles:"Back"},
+      {name:"Cobra Stretch",instructions:"Press chest upward",level:"Beginning Stretch",muscles:"Back"},
+      {name:"Butterfly Stretch",instructions:"Press knees gently downward",level:"Beginning Stretch",muscles:"Hip"},
+      {name:"Wrist Flexor Stretch",instructions:"Pull fingers back gently",level:"Beginning Stretch",muscles:"Shoulder/Arm"},
+      {name:"Ankle Circles",instructions:"Rotate ankle slowly each direction",level:"Beginning Stretch",muscles:"Leg"},
+    ];
+    while(selected.length<10){
+      selected.push(FALLBACKS[selected.length%FALLBACKS.length]);
+    }
+    return selected.slice(0,10);
+  }
+
+  const minuteIndex=9-Math.floor(timerSec/60);
+  const currentColor=COLORS[minuteIndex%COLORS.length];
+  const currentExercise=exercises[minuteIndex]||null;
+
+  function playBeep(type="tick"){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      if(type==="end"){
+        osc.frequency.setValueAtTime(880,ctx.currentTime);
+        osc.frequency.setValueAtTime(660,ctx.currentTime+0.2);
+        gain.gain.setValueAtTime(0.4,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6);
+        osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.6);
+      } else {
+        osc.frequency.setValueAtTime(type==="switch"?660:440,ctx.currentTime);
+        gain.gain.setValueAtTime(0.3,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15);
+        osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.15);
+      }
+    }catch(e){}
+  }
+
+  useEffect(()=>{
+    if(!timerActive) return;
+    if(timerSec<=0){
+      playBeep("end");
+      setTimerActive(false);
+      setSessionComplete(true);
+      // Save to streak
+      const entry={date:todayStr(),type:activityType,parts:selectedParts};
+      const newHistory=[...stretchHistory.filter(e=>e.date!==todayStr()),entry];
+      setStretchHistory(newHistory);
+      try{localStorage.setItem(STRETCH_STREAK_KEY,JSON.stringify(newHistory));}catch(e){}
+      return;
+    }
+    // Beep at 3,2,1 before minute switch
+    const secsIntoMinute=timerSec%60;
+    if(secsIntoMinute===3||secsIntoMinute===2||secsIntoMinute===1){
+      playBeep("tick");
+    }
+    // Beep on minute switch
+    if(secsIntoMinute===0&&timerSec<600){
+      playBeep("switch");
+    }
+    timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec]);
+
+  async function startActivity(type){
+    setActivityType(type);
+    if(type==="stretching"){
+      if(!sheetLoaded) await fetchSheets();
+      setPhase("pickparts");
+    } else {
+      setTimerSec(600);setTimerDone(false);setSessionComplete(false);
+      setPhase("active");
+      setTimeout(()=>setTimerActive(true),300);
+    }
+  }
+
+  function startStretching(){
+    if(selectedParts.length===0) return;
+    const exs=buildExercises(selectedParts);
+    setExercises(exs);
+    setTimerSec(600);setTimerDone(false);setSessionComplete(false);
+    setPhase("active");
+    setTimeout(()=>setTimerActive(true),300);
+  }
+
+  function togglePart(part){
+    setSelectedParts(p=>p.includes(part)?p.filter(x=>x!==part):p.length<2?[...p,part]:p);
+  }
+
+  const weekNum=getWeekNum();
+  const streak=getStretchStreak();
+  const todayDone=stretchHistory.some(e=>e.date===todayStr());
+
+  if(phase==="choose") return(
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+      <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>☀️ Morning 10</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>How do you want to spend your 10 minutes?</div>
+        <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,.85)"}}>Start every morning with intention. 🙏</div>
+        {streak>0&&<div style={{marginTop:8,fontSize:"0.68rem",color:"rgba(255,255,255,.9)",fontWeight:700}}>🔥 {streak} day streak!</div>}
+        {todayDone&&<div style={{marginTop:4,fontSize:"0.66rem",color:"rgba(255,255,255,.8)"}}>✓ Morning 10 complete today!</div>}
+      </div>
+      {[
+        {id:"walk",icon:"🚶",label:"Walk",desc:"10 minutes of movement and fresh air"},
+        {id:"quiet",icon:"🤫",label:"Quiet Time",desc:"10 minutes of stillness and peace"},
+        {id:"stretching",icon:"🧘",label:"Stretching",desc:`${getPhaseName(weekNum)} — Week ${weekNum} · personalized for you`},
+      ].map(a=>(
+        <button key={a.id} onClick={()=>startActivity(a.id)} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",display:"flex",alignItems:"center",gap:14,border:`2px solid ${G.greenLight}`,padding:"14px 16px"}}>
+          <span style={{fontSize:"2rem"}}>{a.icon}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:"0.88rem",fontWeight:700,color:G.green}}>{a.label}</div>
+            <div style={{fontSize:"0.7rem",color:G.textSoft,marginTop:2}}>{a.desc}</div>
+          </div>
+          <span style={{fontSize:"1.2rem",color:G.greenMid}}>→</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  if(phase==="pickparts") return(
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+      <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🧘 Stretching</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Which body part do you want to focus on?</div>
+        <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,.85)"}}>Pick up to 2 areas · {getPhaseName(weekNum)} · Week {weekNum}</div>
+      </div>
+      <div style={card}>
+        <div style={lbl}>Focus Area (pick 1 or 2)</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {BODY_PARTS.map(part=>{
+            const selected=selectedParts.includes(part);
+            const icon=part==="Leg"?"🦵":part==="Hip"?"🍑":part==="Back"?"🔙":"💪";
+            return(
+              <button key={part} onClick={()=>togglePart(part)} style={{padding:"14px 10px",borderRadius:12,border:`2px solid ${selected?G.green:G.border}`,background:selected?"#d8f3dc":G.cream,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                <span style={{fontSize:"1.6rem"}}>{icon}</span>
+                <span style={{fontSize:"0.78rem",fontWeight:selected?700:400,color:selected?G.green:G.text}}>{part}</span>
+                {selected&&<span style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:700}}>✓ Selected</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <button onClick={startStretching} disabled={selectedParts.length===0} style={{...btnGreen,opacity:selectedParts.length>0?1:0.5}}>
+        🧘 Start My Stretches →
+      </button>
+      <button onClick={()=>setPhase("choose")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
+    </div>
+  );
+
+  if(phase==="active") return(
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+      {sessionComplete?(
+        <div style={{...card,textAlign:"center",padding:"28px 20px",border:`2px solid ${G.greenMid}`}}>
+          <div style={{fontSize:"3rem",marginBottom:8}}>🌟</div>
+          <div style={{fontSize:"1.1rem",fontWeight:900,color:G.green,marginBottom:6}}>Morning 10 Complete!</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7,marginBottom:12}}>
+            {activityType==="stretching"?"Amazing stretch session! Your body will thank you. 🙏":activityType==="walk"?"Great walk! Movement is medicine. 🙏":"Beautiful quiet time. God is with you. 🙏"}
+          </div>
+          {streak>0&&<div style={{fontSize:"0.82rem",fontWeight:700,color:G.mango,marginBottom:12}}>🔥 {streak} day streak!</div>}
+          <button onClick={()=>{setPhase("choose");setActivityType(null);setSelectedParts([]);setExercises([]);setTimerSec(600);setSessionComplete(false);}} style={{...btnGreen,padding:"10px"}}>← Back to Morning 10</button>
+        </div>
+      ):(
+        <>
+          <div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}>
+            <div style={{height:"100%",width:`${((600-timerSec)/600)*100}%`,background:currentColor,transition:"width 1s,background 0.5s",borderRadius:3}}/>
+          </div>
+          <div style={{...card,background:currentColor+"22",border:`3px solid ${currentColor}`,textAlign:"center",padding:"24px 16px",transition:"border-color 0.5s,background 0.5s"}}>
+            <div style={{fontSize:"0.68rem",fontWeight:700,color:currentColor,textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>
+              {activityType==="stretching"?`Exercise ${minuteIndex+1} of 10`:activityType==="walk"?"Keep Walking!":"Be Still"}
+            </div>
+            <div style={{fontSize:"4.5rem",fontWeight:900,color:currentColor,fontVariantNumeric:"tabular-nums",lineHeight:1,marginBottom:8,transition:"color 0.5s"}}>
+              {Math.floor(timerSec/60).toString().padStart(2,"0")}:{(timerSec%60).toString().padStart(2,"0")}
+            </div>
+            {activityType==="stretching"&&currentExercise&&(
+              <>
+                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.text,marginBottom:6,lineHeight:1.2}}>{currentExercise.name}</div>
+                <div style={{fontSize:"0.76rem",color:G.textSoft,lineHeight:1.6,maxWidth:280,margin:"0 auto"}}>{currentExercise.instructions}</div>
+                <div style={{marginTop:8,fontSize:"0.62rem",padding:"3px 10px",borderRadius:20,background:currentColor+"33",color:currentColor,fontWeight:700,display:"inline-block"}}>{currentExercise.muscles}</div>
+              </>
+            )}
+            {activityType==="walk"&&(
+              <div style={{fontSize:"0.9rem",color:G.textSoft,fontStyle:"italic",marginTop:4}}>
+                {["Keep moving! 🚶","You're doing great! 💪","Fresh air, fresh mind 🌿","Almost halfway there! 🙏","God walks beside you ✝️","Keep the pace! 🌟","You've got this! 🔥","Final stretch! 💚","One more minute! 🌈","Done! Amazing work! 🏆"][minuteIndex]||"Keep going!"}
+              </div>
+            )}
+            {activityType==="quiet"&&(
+              <div style={{fontSize:"0.9rem",color:G.textSoft,fontStyle:"italic",marginTop:4}}>
+                {["Be still and know... 🙏","Breathe in His peace ✝️","Listen for His voice 🕊️","You are not alone 💚","Rest in His presence 🌿","Let go of worry 🌟","He hears your heart ❤️","Peace that surpasses all 🌈","Trust in His plan 🙏","Amen. 🕊️"][minuteIndex]||"Be still..."}
+              </div>
+            )}
+          </div>
+          {activityType==="stretching"&&exercises.length>0&&(
+            <div style={{display:"flex",gap:3}}>
+              {exercises.map((_,i)=>(
+                <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<minuteIndex?G.greenMid:i===minuteIndex?currentColor:G.border,transition:"background 0.5s"}}/>
+              ))}
+            </div>
+          )}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setTimerActive(r=>!r)} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:timerActive?G.mangoDeep:G.green,color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>{timerActive?"⏸ Pause":"▶ Resume"}</button>
+            <button onClick={()=>{setTimerActive(false);setPhase("choose");setActivityType(null);setSelectedParts([]);setExercises([]);setTimerSec(600);}} style={{padding:"13px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>✕ Stop</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return null;
+}
 export default function AllThingsPossible(){
   const [screen,setScreen]         = useState("splash");
   const [currentClient,setCurrentClient] = useState(null);
@@ -5618,14 +5909,10 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
         {/* ── PRAYER ── */}
         {tab==="prayer"&&(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+            <MorningTenTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sheetData={sheetData} sheetLoaded={sheetLoaded} fetchSheets={fetchSheets} SHEETS_ID={SHEETS_ID} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded}/>
             <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}><div style={{fontSize:"0.58rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>Today's Scripture</div><div style={{fontSize:"0.88rem",color:G.white,fontStyle:"italic",lineHeight:1.7,marginBottom:6}}>"{SCRIPTURES[scriptureIdx].verse}"</div><div style={{fontSize:"0.68rem",color:"rgba(255,255,255,.8)",fontWeight:700}}>— {SCRIPTURES[scriptureIdx].ref}</div></div>
             <div style={card}><div style={{fontSize:"0.7rem",color:G.green,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🙏 Today's Prayer</div><div style={{fontSize:"0.8rem",color:G.text,lineHeight:1.75,fontStyle:"italic"}}>{PRAYERS[prayerIdx]}</div></div>
-            <div style={{...card,background:"linear-gradient(135deg,#f0faf4,#fffbf0)",border:`1px solid ${G.greenLight}`}}>
-              <div style={{fontSize:"0.7rem",color:G.green,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>✝️ 10 Minutes of Peace</div>
-              <div style={{fontSize:"0.72rem",color:G.textSoft,marginBottom:12}}>Set aside this time to be still. Breathe. Listen.</div>
-              <div style={{textAlign:"center",marginBottom:12}}><div style={{fontSize:"2.8rem",fontWeight:900,color:timerDone?G.greenMid:G.green,fontVariantNumeric:"tabular-nums"}}>{Math.floor(timerSec/60).toString().padStart(2,"0")}:{(timerSec%60).toString().padStart(2,"0")}</div>{timerDone&&<div style={{fontSize:"0.78rem",color:G.greenMid,fontWeight:700,marginTop:3}}>🌟 Peace time complete. God is with you.</div>}</div>
-              <div style={{display:"flex",gap:8}}><button onClick={()=>{setTimerRunning(r=>!r);setTimerDone(false);}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:timerRunning?G.mangoDeep:G.green,color:G.white,fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>{timerRunning?"⏸ Pause":"▶ Start"}</button><button onClick={()=>{setTimerSec(600);setTimerRunning(false);setTimerDone(false);}} style={{padding:"10px 14px",borderRadius:10,border:`1.5px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>Reset</button></div>
-            </div>
+      
             <div style={card}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><div style={{fontSize:"0.7rem",color:G.brown,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>🧘 Today's Stretches</div><div style={{fontSize:"0.6rem",padding:"3px 8px",borderRadius:20,background:"#fff3e0",color:G.brown,fontWeight:700}}>{todayStretch.theme}</div></div>
               <div style={{display:"flex",flexDirection:"column",gap:9}}>{todayStretch.stretches.map((s,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"9px 11px",borderLeft:`3px solid ${G.greenMid}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><div style={{fontSize:"0.77rem",fontWeight:700,color:G.text}}>{s.name}</div><div style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>⏱ {s.duration}</div></div><div style={{fontSize:"0.69rem",color:G.textSoft,lineHeight:1.6}}>{s.desc}</div></div>))}</div>
