@@ -5287,6 +5287,8 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   setBlastComplete(false);setBlastRating(null);
                   setBlastTimerSec(30);setBlastTimerActive(true);
                   setShowMoveSetup(false);
+                  const blastProfile={...profile,situation:"gym"};
+                  setMoveProfile(p=>({...p,[currentClient.id]:blastProfile}));
                   return;
                 }
                 if(moveSetupSit==="desk"&&!deskTarget){alert("Please select how you are working!");return;}
