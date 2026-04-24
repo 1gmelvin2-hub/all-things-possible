@@ -2580,7 +2580,7 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
-      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
@@ -2589,7 +2589,7 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
-      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:mins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
@@ -2600,7 +2600,7 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:[...cals1,...cals2].slice(0,2)},
       {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
-      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
@@ -2613,7 +2613,7 @@ const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8)
       {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
-      {name:"🧘 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
     ]; 
 
     setHiitSession({type:hiitType,duration:hiitDuration,blocks,generatedAt:todayStr()});
@@ -3037,7 +3037,7 @@ function MorningTenTab({currentClient,G,card,iStyle,btnGreen,lbl,todayStr,fmtDat
       {[
         {id:"walk",icon:"🚶",label:"Walk",desc:"10 minutes of movement and fresh air"},
         {id:"quiet",icon:"🤫",label:"Quiet Time",desc:"10 minutes of stillness and peace"},
-        {id:"stretching",icon:"🧘",label:"Stretching",desc:`${getPhaseName(weekNum)} — Week ${weekNum} · personalized for you`},
+        {id:"stretching",icon:"🤸",label:"Stretching",desc:`${getPhaseName(weekNum)} — Week ${weekNum} · personalized for you`},
       ].map(a=>(
         <button key={a.id} onClick={()=>startActivity(a.id)} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",display:"flex",alignItems:"center",gap:14,border:`2px solid ${G.greenLight}`,padding:"14px 16px"}}>
           <span style={{fontSize:"2rem"}}>{a.icon}</span>
@@ -3054,7 +3054,7 @@ function MorningTenTab({currentClient,G,card,iStyle,btnGreen,lbl,todayStr,fmtDat
   if(phase==="pickparts") return(
     <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
       <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🧘 Stretching</div>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🤸 Stretching</div>
         <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Which body part do you want to focus on?</div>
         <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,.85)"}}>Pick up to 2 areas · {getPhaseName(weekNum)} · Week {weekNum}</div>
       </div>
@@ -3075,7 +3075,7 @@ function MorningTenTab({currentClient,G,card,iStyle,btnGreen,lbl,todayStr,fmtDat
         </div>
       </div>
       <button onClick={startStretching} disabled={selectedParts.length===0} style={{...btnGreen,opacity:selectedParts.length>0?1:0.5}}>
-        🧘 Start My Stretches →
+        🤸 Start My Stretches →
       </button>
       <button onClick={()=>setPhase("choose")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
     </div>
@@ -5913,11 +5913,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
             <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none"}}><div style={{fontSize:"0.58rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>Today's Scripture</div><div style={{fontSize:"0.88rem",color:G.white,fontStyle:"italic",lineHeight:1.7,marginBottom:6}}>"{SCRIPTURES[scriptureIdx].verse}"</div><div style={{fontSize:"0.68rem",color:"rgba(255,255,255,.8)",fontWeight:700}}>— {SCRIPTURES[scriptureIdx].ref}</div></div>
             <div style={card}><div style={{fontSize:"0.7rem",color:G.green,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🙏 Today's Prayer</div><div style={{fontSize:"0.8rem",color:G.text,lineHeight:1.75,fontStyle:"italic"}}>{PRAYERS[prayerIdx]}</div></div>
       
-            <div style={card}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><div style={{fontSize:"0.7rem",color:G.brown,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>🧘 Today's Stretches</div><div style={{fontSize:"0.6rem",padding:"3px 8px",borderRadius:20,background:"#fff3e0",color:G.brown,fontWeight:700}}>{todayStretch.theme}</div></div>
-              <div style={{display:"flex",flexDirection:"column",gap:9}}>{todayStretch.stretches.map((s,i)=>(<div key={i} style={{background:G.creamDark,borderRadius:10,padding:"9px 11px",borderLeft:`3px solid ${G.greenMid}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}><div style={{fontSize:"0.77rem",fontWeight:700,color:G.text}}>{s.name}</div><div style={{fontSize:"0.6rem",color:G.greenMid,fontWeight:600}}>⏱ {s.duration}</div></div><div style={{fontSize:"0.69rem",color:G.textSoft,lineHeight:1.6}}>{s.desc}</div></div>))}</div>
-            </div>
-            <div style={{...card,display:"flex",alignItems:"center",gap:12}}><button onClick={()=>{
+                      <div style={{...card,display:"flex",alignItems:"center",gap:12}}><button onClick={()=>{
   const newVal=!form.prayerDone;
   setForm(p=>({...p,prayerDone:newVal,prayerDate:todayStr()}));
   if(newVal){
