@@ -2799,8 +2799,7 @@ function advanceHiit(){
                 <div style={{fontSize:"0.82rem",color:G.textSoft}}>{hiitSession.blocks[currentBlock+1]?.name||"Next up"}...</div>
               </div>
             )}
-            /div>
-            )}
+           
             {!isRest&&!isGloveTime&&activeExercise&&(
               <div style={{textAlign:"center",paddingHorizontal:8}}>
                 <div style={{fontSize:"1.8rem",fontWeight:900,color:G.text,marginBottom:6,lineHeight:1.2,textAlign:"center"}}>{activeExercise.name}</div>
