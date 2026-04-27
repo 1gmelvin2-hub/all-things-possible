@@ -2500,10 +2500,10 @@ function advanceHiit(){
           if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
           const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
           const currentBlockName=block.name.toLowerCase();
-          if(currentBlockName.includes("heavy")&&nextBlockName.includes("calist")){
-          setIsRest(true);
-          setIsGloveTime(true);
-          setTimeLeft(15);
+          if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
+            setIsRest(true);
+            setIsGloveTime(true);
+            setTimeLeft(30);
           } else {
             setIsGloveTime(false);
             setCurrentBlock(nextBlock);
@@ -2539,7 +2539,7 @@ function advanceHiit(){
     }
 
   function getExercises(cats,count){
-      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase())||(row[2]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[2]||row[1]}));
+      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[1]}));
       // Shuffle and pick random exercises so every session is different
       const shuffled=[...matches].sort(()=>Math.random()-0.5);
       return shuffled.slice(0,count);
@@ -2548,18 +2548,21 @@ function advanceHiit(){
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-    
-const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
+    const shadowExs=hiitType==="kickboxing"?getExercises(["kickboxing"],6):hiitType==="mixed"?getExercises(["kickboxing","heavy bag"],6):getExercises(["heavy bag","boxing only","power punching"],6);
     if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
 
-    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):getExercises(["boxing only"],4);
+    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing"],4):getExercises(["heavy bag","boxing only","power punching"],4);
     if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross Combo","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:60});
 
-    const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
+  const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing"],8).slice(2,6):getExercises(["heavy bag"],8).slice(2,6);  
     if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:60});
 
-    const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):getExercises(["boxing only","heavy bag combo"],12).slice(4,8);
+  
+const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing"],12).slice(4,8):getExercises(["heavy bag","power punching"],12).slice(4,8);
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
+    const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
+    const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
+
     const warmdownExs=getExercises(["beginning stretch","intermediate stretch"],5);
     const abExs=[
       {name:"Plank",instructions:"Hold strong — core tight",duration:60},
@@ -2574,17 +2577,9 @@ const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
     const blocks=mins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[
-        {...bagExs1[0],name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},
-        {...bagExs1[1],name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},
-        {...bagExs1[0],name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},
-      ]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[
-        {...bagExs2[0],name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},
-        {...bagExs2[1],name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},
-        {...bagExs2[0],name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},
-      ]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
@@ -2593,11 +2588,8 @@ const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[
-        {...bagExs3[0],name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},
-        {...bagExs3[1],name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},
-        {...bagExs3[0],name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},
-      ]},      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:mins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
@@ -2607,11 +2599,8 @@ const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:[...cals1,...cals2].slice(0,2)},
-      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:20,exercises:[
-        {...bagExs1[0],name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},
-        {...bagExs1[1],name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},
-        {...bagExs1[0],name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},
-      ]},      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs1.slice(0,4)},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
@@ -2623,11 +2612,7 @@ const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:20,exercises:[
-        {...bagExs3[0],name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},
-        {...bagExs3[1],name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},
-        {...bagExs3[0],name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},
-      ]},
+      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:30,exercises:bagExs3.slice(0,4)},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
     ]; 
 
