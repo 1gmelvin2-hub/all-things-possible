@@ -2450,42 +2450,28 @@ If any field is not visible set it to null.`}
 function advanceHiit(){
     if(!hiitSession) return;
     const block=hiitSession.blocks[currentBlock];
-    if(!block){ setSessionComplete(true); setTimerActive(false); return; }
+    if(!block){setSessionComplete(true);setTimerActive(false);return;}
 
     if(isGloveTime){
-      // Glove time done — advance to next heavy bag block
-      const nextBlock=currentBlock+1;
       setIsGloveTime(false);
       setIsRest(false);
+      const nextBlock=currentBlock+1;
+      if(nextBlock>=hiitSession.blocks.length){setSessionComplete(true);setTimerActive(false);return;}
       setCurrentBlock(nextBlock);
       setCurrentExercise(0);
-      setTimeLeft(hiitSession.blocks[nextBlock]?.exercises[0]?.duration||60);
+      setTimeLeft(hiitSession.blocks[nextBlock]?.exercises[0]?.duration||20);
       playPing("start");
       return;
     }
+
     if(isRest){
       const nextEx=currentExercise+1;
       if(nextEx>=block.exercises.length){
         const nextBlock=currentBlock+1;
-        if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
-        const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
-        const currentBlockName=block.name.toLowerCase();
-        if(currentBlockName.includes("heavy")&&nextBlockName.includes("calist")){
-          setIsRest(true);
-          setIsGloveTime(true);
-          setTimeLeft(15);
-        } else if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
-          setIsRest(true);
-          setIsGloveTime(true);
-          setTimeLeft(15);
-        } else {
-          setIsGloveTime(false);
-          setCurrentBlock(nextBlock);
-          setCurrentExercise(0);
-          setIsRest(false);
-          setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
-          playPing("start");
-        }
+        if(nextBlock>=hiitSession.blocks.length){setSessionComplete(true);setTimerActive(false);return;}
+        setIsRest(true);
+        setIsGloveTime(true);
+        setTimeLeft(15);
       } else {
         setCurrentExercise(nextEx);
         setIsRest(false);
@@ -2501,25 +2487,10 @@ function advanceHiit(){
         const nextEx=currentExercise+1;
         if(nextEx>=block.exercises.length){
           const nextBlock=currentBlock+1;
-          if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
-          const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
-          const currentBlockName=block.name.toLowerCase();
-          if(currentBlockName.includes("heavy")&&nextBlockName.includes("calist")){
-            setIsRest(true);
-            setIsGloveTime(true);
-            setTimeLeft(15);
-          } else if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
-            setIsRest(true);
-            setIsGloveTime(true);
-            setTimeLeft(15);
-          } else {
-            setIsGloveTime(false);
-            setCurrentBlock(nextBlock);
-            setCurrentExercise(0);
-            setIsRest(false);
-            setTimeLeft(hiitSession.blocks[nextBlock].exercises[0].duration);
-            playPing("start");
-          }
+          if(nextBlock>=hiitSession.blocks.length){setSessionComplete(true);setTimerActive(false);return;}
+          setIsRest(true);
+          setIsGloveTime(true);
+          setTimeLeft(15);
         } else {
           setCurrentExercise(nextEx);
           setIsRest(false);
