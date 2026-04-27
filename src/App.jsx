@@ -2547,7 +2547,7 @@ function advanceHiit(){
     }
 
   function getExercises(cats,count){
-      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[1]}));
+      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[2]||row[1]}));
       // Shuffle and pick random exercises so every session is different
       const shuffled=[...matches].sort(()=>Math.random()-0.5);
       return shuffled.slice(0,count);
@@ -2556,16 +2556,16 @@ function advanceHiit(){
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-   const shadowExs=getExercises(["defensive footwork","shadow boxing"],6);
+   const shadowExs=getExercises(["basic shadow boxing","defensive footwork"],6);
     if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
 
-    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):getExercises(["boxing only"],4);
-    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross Combo","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:20});
+    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):hiitType==="mixed"?getExercises(["kickboxing combo","boxing only"],4):getExercises(["boxing only"],4);
+    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:20});
 
-    const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
+    const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):hiitType==="mixed"?getExercises(["heavy bag combo","kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
     if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:20});
 
-    const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):getExercises(["boxing only","heavy bag combo"],12).slice(4,8);
+    const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):hiitType==="mixed"?getExercises(["kickboxing combo","power punching"],12).slice(4,8):getExercises(["boxing only","power punching"],12).slice(4,8);
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:20});
 
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
@@ -2821,16 +2821,18 @@ function advanceHiit(){
               <div style={{fontSize:"4rem",fontWeight:900,color:timeLeft<=3&&!isRest?"#f87171":isGloveTime?G.mangoDeep:isRest?G.greenMid:activeBlock?.color||G.mangoDeep,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{timeLeft}</div>
               <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>seconds</div>
             </div>
-
-            {isGloveTime&&(
+{isGloveTime&&(
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:"1.1rem",fontWeight:900,color:G.mangoDeep,marginBottom:4}}>🥊 Next Up — Put your gloves back on!</div>
-                <div style={{fontSize:"0.74rem",color:G.textSoft}}>Heavy bag round coming up next...</div>
+                <div style={{fontSize:"2rem",marginBottom:8}}>🥊</div>
+                <div style={{fontSize:"1.6rem",fontWeight:900,color:G.mangoDeep,marginBottom:6}}>Gloves!</div>
+                <div style={{fontSize:"0.82rem",color:G.textSoft}}>{hiitSession.blocks[currentBlock+1]?.name||"Next up"}...</div>
               </div>
+            )}
+            /div>
             )}
             {!isRest&&!isGloveTime&&activeExercise&&(
               <div style={{textAlign:"center",paddingHorizontal:8}}>
-                <div style={{fontSize:"1.3rem",fontWeight:900,color:G.text,marginBottom:6}}>{activeExercise.name}</div>
+                <div style={{fontSize:"1.8rem",fontWeight:900,color:G.text,marginBottom:6,lineHeight:1.2,textAlign:"center"}}>{activeExercise.name}</div>
                 <div style={{fontSize:"0.76rem",color:G.textSoft,lineHeight:1.7,maxWidth:300,margin:"0 auto"}}>{activeExercise.instructions}</div>
               </div>
             )}
