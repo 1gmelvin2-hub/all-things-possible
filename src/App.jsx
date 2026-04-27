@@ -2474,6 +2474,10 @@ function advanceHiit(){
           setIsRest(true);
           setIsGloveTime(true);
           setTimeLeft(15);
+        } else if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
+          setIsRest(true);
+          setIsGloveTime(true);
+          setTimeLeft(15);
         } else {
           setIsGloveTime(false);
           setCurrentBlock(nextBlock);
@@ -2501,6 +2505,10 @@ function advanceHiit(){
           const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
           const currentBlockName=block.name.toLowerCase();
           if(currentBlockName.includes("heavy")&&nextBlockName.includes("calist")){
+            setIsRest(true);
+            setIsGloveTime(true);
+            setTimeLeft(15);
+          } else if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
             setIsRest(true);
             setIsGloveTime(true);
             setTimeLeft(15);
