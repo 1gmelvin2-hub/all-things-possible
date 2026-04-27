@@ -2470,10 +2470,10 @@ function advanceHiit(){
         if(nextBlock>=hiitSession.blocks.length){ setSessionComplete(true); setTimerActive(false); return; }
         const nextBlockName=hiitSession.blocks[nextBlock].name.toLowerCase();
         const currentBlockName=block.name.toLowerCase();
-        if(currentBlockName.includes("calist")&&nextBlockName.includes("heavy")){
+        if(currentBlockName.includes("heavy")&&nextBlockName.includes("calist")){
           setIsRest(true);
           setIsGloveTime(true);
-          setTimeLeft(30);
+          setTimeLeft(15);
         } else {
           setIsGloveTime(false);
           setCurrentBlock(nextBlock);
