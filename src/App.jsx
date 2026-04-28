@@ -2517,13 +2517,17 @@ function advanceHiit(){
       }catch(e){ console.error(e); }
     }
 
-  function getExercises(cats,count){
-      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[2]||row[1]}));
-      // Shuffle and pick random exercises so every session is different
+  function parseDuration(str){
+      if(!str) return 60;
+      const n=parseInt(str);
+      return isNaN(n)?60:n;
+    }
+
+    function getExercises(cats,count){
+      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase())||(row[1]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:parseDuration(row[3])||60,category:row[2]||row[1]}));
       const shuffled=[...matches].sort(()=>Math.random()-0.5);
       return shuffled.slice(0,count);
     }
-
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
