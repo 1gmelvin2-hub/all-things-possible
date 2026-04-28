@@ -1245,7 +1245,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(selectedGroups.length===0) return;
     setGeneratingGym(true);
     const mins=parseInt(gymDuration)||45;
-    const exPerGroup=mins<=30?3:mins<=45?4:mins<=60?5:7;
+    const exPerGroup=sessionMins<=30?3:sessionsessionMins<=45?4:sessionsessionsessionMins<=60?5:7;
 
     let workoutRows=sheetData.workouts||[];
     if(workoutRows.length===0){
@@ -2528,8 +2528,8 @@ function advanceHiit(){
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
   const sessionMins=parseInt(hiitDuration)||45;
-    const numFootwork=sessionMins<=30?2:sessionMins<=45?3:4;
-    const numShadow=sessionMins<=30?4:sessionMins<=45?5:6; 
+    const numFootwork=sessionsessionMins<=30?2:sessionsessionsessionMins<=45?3:4;
+    const numShadow=sessionsessionMins<=30?4:sessionsessionsessionMins<=45?5:6; 
     const footworkExs=getExercises(["defensive footwork"],numFootwork);
     if(footworkExs.length<numFootwork) for(let i=footworkExs.length;i<numFootwork;i++) footworkExs.push({name:["Rapid Step-In Step-Out","Quick Lateral Slides","Fast Pivot Outs","Explosive V-Step Footwork"][i%4]||"Footwork Drill",instructions:"Stay light on your feet, explosive movement",duration:30});
     const shadowOnlyExs=getExercises(["basic shadow boxing"],numShadow);
@@ -2558,15 +2558,15 @@ function advanceHiit(){
     ];
     const warmdownFull=[...abExs,...warmdownExs].slice(0,8);
 
-   const mins=parseInt(hiitDuration)||45;
-    const blocks=mins<=30?[
+   
+    const blocks=sessionMins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:5,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
-    ]:mins<=45?[
+    ]:sessionsessionMins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
@@ -2575,7 +2575,7 @@ function advanceHiit(){
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
-    ]:mins<=60?[
+    ]:sessionsessionsessionMins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
@@ -2591,7 +2591,7 @@ function advanceHiit(){
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
