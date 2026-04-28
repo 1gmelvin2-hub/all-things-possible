@@ -2527,8 +2527,9 @@ function advanceHiit(){
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-   const numFootwork=mins<=30?2:mins<=45?3:4;
-    const numShadow=mins<=30?4:mins<=45?5:6;
+  const sessionMins=parseInt(hiitDuration)||45;
+    const numFootwork=sessionMins<=30?2:sessionMins<=45?3:4;
+    const numShadow=sessionMins<=30?4:sessionMins<=45?5:6; 
     const footworkExs=getExercises(["defensive footwork"],numFootwork);
     if(footworkExs.length<numFootwork) for(let i=footworkExs.length;i<numFootwork;i++) footworkExs.push({name:["Rapid Step-In Step-Out","Quick Lateral Slides","Fast Pivot Outs","Explosive V-Step Footwork"][i%4]||"Footwork Drill",instructions:"Stay light on your feet, explosive movement",duration:30});
     const shadowOnlyExs=getExercises(["basic shadow boxing"],numShadow);
