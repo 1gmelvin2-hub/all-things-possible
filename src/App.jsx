@@ -2532,7 +2532,7 @@ function advanceHiit(){
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
   const sessionMins=parseInt(hiitDuration)||45;
-    const numFootwork=sessionsessionMins<=30?2:sessionsessionsessionMins<=45?3:4;
+    const numFootwork=sessionMins<=30?2:sessionsessionsessionMins<=45?3:4;
     const numShadow=sessionsessionMins<=30?4:sessionsessionsessionMins<=45?5:6; 
     const footworkExs=getExercises(["defensive footwork"],numFootwork);
     if(footworkExs.length<numFootwork) for(let i=footworkExs.length;i<numFootwork;i++) footworkExs.push({name:["Rapid Step-In Step-Out","Quick Lateral Slides","Fast Pivot Outs","Explosive V-Step Footwork"][i%4]||"Footwork Drill",instructions:"Stay light on your feet, explosive movement",duration:30});
