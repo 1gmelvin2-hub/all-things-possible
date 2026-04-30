@@ -5932,7 +5932,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               <button onClick={logout} style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:"0.58rem",cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
             </div>
           </div> <div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.max(0,currentClient.weight-currentClient.goalWeight)} lbs to go</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.max(0,Math.round((currentClient.weight-currentClient.goalWeight)*10)/10)} lbs to go</span></div>
             <div style={{height:4,background:"rgba(255,255,255,.2)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,Math.max(0,((220-currentClient.weight)/(220-(currentClient.goalWeight||150)))*100))}%`,background:G.mango,borderRadius:2}}/></div>
           </div>
         </div>
