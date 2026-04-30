@@ -3451,10 +3451,10 @@ export default function AllThingsPossible(){
  // localStorage-only useEffect removed — Supabase useEffect above handles everything 
 
  useEffect(()=>{
-    if(timerRunning&&timerSec>0){ timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000); }
-    else if(timerSec===0&&timerRunning){ setTimerRunning(false); setTimerDone(true); }
-    return()=>clearTimeout(timerRef.current);
-  },[timerRunning,timerSec]);
+    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
+    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
+    return()=>clearTimeout(restRef.current);
+  },[restRunning,restTimerSec]);
 
   useEffect(()=>{
     if(currentClient&&program[currentClient.id]&&tab==="workout"){ checkAndAdvanceWeek(); }
