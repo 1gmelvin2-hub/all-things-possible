@@ -1240,18 +1240,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const [sessionComplete,setSessionComplete]=useState(false);
   const restRef=useRef(null);
 
-  useEffect(()=>{
-    if(timerActive&&timerSec>0){
-      if(timerSec<=3&&!isRest){
-        try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(timerSec===1?880:440,ctx.currentTime);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.15);}catch(e){}
-      }
-      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
-    } else if(timerActive&&timerSec===0){
-      try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);gain.gain.setValueAtTime(0.4,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);}catch(e){}
-      advanceCals();
-    }
-    return()=>clearTimeout(timerRef.current);
-  },[timerActive,timerSec,isRest]);
+  
 
   // Get current week number from program
   function getCurrentWeek(){
