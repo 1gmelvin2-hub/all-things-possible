@@ -2259,7 +2259,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
         <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
           <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💥 Quick Blast</div>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{isRestDay?"Rest Day 💤":`Today: ${todayGroup} 💪`}</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Week {weekNum} · 6 sets × 15 reps · +5lbs every 2 weeks</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Structured weekly split · Tap to start today's workout</div>
         </div>
 
         {isRestDay?(
