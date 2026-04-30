@@ -4367,10 +4367,9 @@ const BLAST_GROUPS={
       if(block.type==="superset"){
         const nextEx=blastExIdx+1;
         if(nextEx<block.exercises.length){
-          // 5 sec swap timer before next exercise
+          // Move to next exercise in superset — no rest
           setBlastExIdx(nextEx);
-          setBlastIsTransition(true);
-          setBlastTimerSec(5);
+          setBlastTimerSec(30);
         } else {
           setBlastRoundIdx(nextRound);
           setBlastExIdx(0);
