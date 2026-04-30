@@ -4308,17 +4308,21 @@ const BLAST_GROUPS={
   function buildBlastSession(group, weightInputs){
     const g=BLAST_GROUPS[group];
     if(!g) return null;
+    // +5lbs every 2 weeks progression
+    let weekNum=1;
+    try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");weekNum=prog[currentClient?.id]?.currentWeek||1;}catch(e){}
+    const weekIncrements=Math.floor((weekNum-1)/2);
     const blocks=g.blocks.map(block=>({
       ...block,
       exercises:block.exercises.map(ex=>{
-        const w=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
-        const scaled=w>0?Math.round((w*ex.scale)/5)*5:0;
+        const baseW=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
+        const progW=baseW>0?baseW+(weekIncrements*5):0;
+        const scaled=progW>0?Math.round((progW*ex.scale)/5)*5:0;
         return{...ex,weight:scaled,weightLabel:scaled>0?`${scaled} lbs`:"Bodyweight"};
       })
     }));
-    return{group,blocks,weightInputs,totalMin:30,generatedAt:todayStr()};
+    return{group,blocks,weightInputs,weekNum,totalMin:30,generatedAt:todayStr()};
   }
-
   useEffect(()=>{
     if(blastTimerActive&&blastTimerSec>0){
       if(blastTimerSec<=3){
@@ -4338,7 +4342,17 @@ const BLAST_GROUPS={
     if(!block){setBlastComplete(true);setBlastTimerActive(false);return;}
 
     if(blastIsTransition){
-      // Transition done — start next block
+      const block=blastSession.blocks[blastBlockIdx];
+      // Check if this was a within-superset swap (5 sec) or between-block transition (60 sec)
+      const isSwap=block&&blastExIdx>0;
+      if(isSwap){
+        // Swap done — start next exercise in superset
+        setBlastIsTransition(false);
+        setBlastIsRest(false);
+        setBlastTimerSec(30);
+        return;
+      }
+      // Block transition done — start next block
       setBlastIsTransition(false);
       setBlastIsRest(false);
       setBlastExIdx(0);
@@ -4351,19 +4365,12 @@ const BLAST_GROUPS={
     if(blastIsRest){
       // Rest done
       if(block.type==="superset"){
-        // After pair rest — start next round or next block
-        const nextRound=blastRoundIdx+1;
-        const blockDurationSec=block.duration*60;
-        const roundDuration=30+30+30; // ex1+ex2+rest
-        const roundsDone=(nextRound)*roundDuration;
-        if(roundsDone>=blockDurationSec){
-          // Block done — transition
-          const nextBlockIdx=blastBlockIdx+1;
-          if(nextBlockIdx>=blastSession.blocks.length){setBlastComplete(true);setBlastTimerActive(false);return;}
-          setBlastBlockIdx(nextBlockIdx);
-          setBlastIsRest(false);
+        const nextEx=blastExIdx+1;
+        if(nextEx<block.exercises.length){
+          // 5 sec swap timer before next exercise
+          setBlastExIdx(nextEx);
           setBlastIsTransition(true);
-          setBlastTimerSec(60);
+          setBlastTimerSec(5);
         } else {
           setBlastRoundIdx(nextRound);
           setBlastExIdx(0);
@@ -5789,14 +5796,14 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
                     {/* Current block name */}
                     <div style={{fontSize:"0.72rem",fontWeight:700,color:blastIsTransition?"#fff":blastIsRest?"#fca5a5":"#dc2626",textTransform:"uppercase",letterSpacing:1}}>
-                      {blastIsTransition?"🔄 GET READY":blastIsRest?"😮‍💨 REST":block?.name}
+                     {blastIsTransition&&blastExIdx>0?"🔄 SWAP WEIGHTS":blastIsTransition?"🔄 GET READY":blastIsRest?"😮‍💨 REST":block?.name} 
                     </div>
 
                     {/* Big timer */}
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:12}}>
                       <div style={{width:180,height:180,borderRadius:"50%",background:blastIsTransition?"#16213e":blastIsRest?"#fef2f2":"#fff5f5",border:`6px solid ${blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",boxShadow:`0 0 40px ${blastIsTransition?"#60a5fa44":blastIsRest?"#fca5a544":"#dc262644"}`}}>
                         <div style={{fontSize:"0.7rem",color:blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626",fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>
-                          {blastIsTransition?"NEXT UP":blastIsRest?"REST":"BLAST"}
+                         {blastIsTransition&&blastExIdx>0?"SWAP":blastIsTransition?"NEXT UP":blastIsRest?"REST":"BLAST"} 
                         </div>
                         <div style={{fontSize:"4rem",fontWeight:900,color:blastTimerSec<=3?"#f87171":blastIsTransition?"#60a5fa":blastIsRest?"#fca5a5":"#dc2626",fontVariantNumeric:"tabular-nums",lineHeight:1}}>{blastTimerSec}</div>
                         <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:4}}>seconds</div>
