@@ -1208,8 +1208,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(group==="Shoulders + Arms") return "Shoulders + Arms";
     return group;
   }
-  const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
-  const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
+  
 
   // Load saved data
   const [gymPhase,setGymPhase]=useState(()=>{
