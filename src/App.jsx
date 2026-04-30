@@ -159,13 +159,8 @@ const SITUATIONS=[
   {id:"car",     icon:"🚗", label:"Driving / in car"},
   {id:"small",   icon:"📦", label:"In a small space"},
   {id:"outside", icon:"🌳", label:"Outside / walking"},
-  {id:"gym",     icon:"🏋️", label:"At the gym"},
 ];
-
-const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Full Body","Cardio"];
-const GYM_LIFT_WEIGHTS={"Shoulders":["Shoulder Press","Lateral Raise"],"Arms (Biceps/Triceps)":["Bicep Curl","Tricep Pushdown"],"Chest":["Bench Press","Chest Fly"],"Back":["Bent-Over Row","Lat Pulldown"],"Legs":["Squat","Leg Press"],"Core/Abs":[],"Full Body":["Squat","Deadlift"],"Cardio":[]};
 const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
-
 const MOVEPROFILE_KEY="atp-moveprofile";
 
 function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,sbSetGlobal}){
