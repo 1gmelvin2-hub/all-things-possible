@@ -1203,10 +1203,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const [sessionComplete,setSessionComplete]=useState(false);
   const restRef=useRef(null);
 
-
-    }
-    return()=>clearTimeout(timerRef.current);
-  },[timerActive,timerSec,isRest]);
+  
 
   // Get current week number from program
   function getCurrentWeek(){
