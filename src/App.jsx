@@ -5254,11 +5254,10 @@ function buildBlastSession(group, weightInputs){
       // Exercise done
       if(block.type==="superset"){
         const nextEx=blastExIdx+1;
-       if(nextEx<block.exercises.length){
-          // 5 sec swap timer between superset exercises
+     if(nextEx<block.exercises.length){
+          // Move to next exercise in superset — no rest
           setBlastExIdx(nextEx);
-          setBlastIsTransition(true);
-          setBlastTimerSec(5);
+          setBlastTimerSec(30);
         } else {
           // Superset pair done — rest
           setBlastIsRest(true);
