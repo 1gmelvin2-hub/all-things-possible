@@ -2294,7 +2294,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
                 <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {blastHistory[blastHistory.length-1].weekNum} · Rated {blastHistory[blastHistory.length-1].rating}/5</div>
               </div>
             )}
-            <button onClick={()=>{setGymMode("");if(setTab)setTab("desk");}} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>💥 Start {todayGroup} Blast!</button>
+            <button onClick={()=>{if(setTab)setTab("desk");}} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>💥 Start {todayGroup} Blast!</button>
             <button onClick={()=>{setBlastLayout(0);try{localStorage.removeItem("atp-blast-layout");}catch(e){}}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>⚙️ Change layout</button>
           </>
         )}
