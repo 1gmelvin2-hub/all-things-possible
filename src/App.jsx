@@ -5191,7 +5191,15 @@ function buildBlastSession(group, weightInputs){
     if(!block){setBlastComplete(true);setBlastTimerActive(false);return;}
 
     if(blastIsTransition){
-      // Transition done — start next block
+      // Check if this was a 5 sec swap (blastExIdx>0) or a 60 sec block transition
+      if(blastExIdx>0){
+        // Swap done — just start the next exercise timer
+        setBlastIsTransition(false);
+        setBlastIsRest(false);
+        setBlastTimerSec(30);
+        return;
+      }
+      // Block transition done — start next block
       setBlastIsTransition(false);
       setBlastIsRest(false);
       setBlastExIdx(0);
@@ -5246,10 +5254,11 @@ function buildBlastSession(group, weightInputs){
       // Exercise done
       if(block.type==="superset"){
         const nextEx=blastExIdx+1;
-        if(nextEx<block.exercises.length){
-          // Move to next exercise in superset — no rest
+       if(nextEx<block.exercises.length){
+          // 5 sec swap timer between superset exercises
           setBlastExIdx(nextEx);
-          setBlastTimerSec(30);
+          setBlastIsTransition(true);
+          setBlastTimerSec(5);
         } else {
           // Superset pair done — rest
           setBlastIsRest(true);
