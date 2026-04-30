@@ -159,8 +159,13 @@ const SITUATIONS=[
   {id:"car",     icon:"🚗", label:"Driving / in car"},
   {id:"small",   icon:"📦", label:"In a small space"},
   {id:"outside", icon:"🌳", label:"Outside / walking"},
+  {id:"gym",     icon:"🏋️", label:"At the gym"},
 ];
+
+const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Full Body","Cardio"];
+const GYM_LIFT_WEIGHTS={"Shoulders":["Shoulder Press","Lateral Raise"],"Arms (Biceps/Triceps)":["Bicep Curl","Tricep Pushdown"],"Chest":["Bench Press","Chest Fly"],"Back":["Bent-Over Row","Lat Pulldown"],"Legs":["Squat","Leg Press"],"Core/Abs":[],"Full Body":["Squat","Deadlift"],"Cardio":[]};
 const DESK_TARGETS=["Seated at desk","Standing next to desk","Mix of both"];
+
 const MOVEPROFILE_KEY="atp-moveprofile";
 
 function RunningTab({currentClient,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,sbSetGlobal}){
@@ -1164,46 +1169,10 @@ Set any field not visible to null.`}
   return null;
 }
 
-function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){
+function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate}){
   const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
   const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
-
-  // Blast weekly layouts
-  const BLAST_LAYOUTS={
-    1:{ // Option 1 — Balanced
-      1:"Chest", 2:"Back", 3:null, 4:"Shoulders + Arms", 5:"Chest", 6:null, 0:null,
-      altFri:{A:"Chest",B:"Arms (Biceps/Triceps)"},
-    },
-    2:{ // Option 2 — Rest early
-      1:"Back", 2:"Chest", 3:null, 4:"Shoulders + Arms", 5:null, 6:"Chest", 0:null,
-      altSat:{A:"Chest",B:"Arms (Biceps/Triceps)"},
-    },
-  };
-
-  // Blast progression — +5lbs every 2 weeks
-  function getBlastWeight(baseWeight, weekNum){
-    const increments=Math.floor((weekNum-1)/2);
-    return Math.round((parseFloat(baseWeight||45)+(increments*5))/5)*5;
-  }
-
-  function getTodayBlastGroup(layoutOption){
-    const today=new Date().getDay(); // 0=Sun,1=Mon...6=Sat
-    const layout=BLAST_LAYOUTS[layoutOption||1];
-    if(!layout) return null;
-    const group=layout[today];
-    if(!group) return null;
-    // Handle Week A/B alternating
-    if(group==="Chest" && (today===5||today===6)){
-      const blastHistory=JSON.parse(localStorage.getItem("atp-blast")||"[]");
-      const lastFriSat=blastHistory.filter(h=>h.isAlt).slice(-1)[0];
-      const lastWk=lastFriSat?.week||"A";
-      return lastWk==="A"?"Arms (Biceps/Triceps)":"Chest";
-    }
-    if(group==="Shoulders + Arms") return "Shoulders + Arms";
-    return group;
-  }
-  
 
   // Load saved data
   const [gymPhase,setGymPhase]=useState(()=>{
@@ -1234,7 +1203,18 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const [sessionComplete,setSessionComplete]=useState(false);
   const restRef=useRef(null);
 
-  
+  useEffect(()=>{
+    if(timerActive&&timerSec>0){
+      if(timerSec<=3&&!isRest){
+        try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(timerSec===1?880:440,ctx.currentTime);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.15);}catch(e){}
+      }
+      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
+    } else if(timerActive&&timerSec===0){
+      try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.setValueAtTime(660,ctx.currentTime+0.15);gain.gain.setValueAtTime(0.4,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);}catch(e){}
+      advanceCals();
+    }
+    return()=>clearTimeout(timerRef.current);
+  },[timerActive,timerSec,isRest]);
 
   // Get current week number from program
   function getCurrentWeek(){
@@ -1261,161 +1241,11 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     return{weight:currentWeight,reps,sets:3};
   }
 
-  async function generateBlastSession(group){
-    const weekNum=getCurrentWeek();
-    let workoutRows=sheetData.workouts||[];
-    if(workoutRows.length===0){
-      try{
-        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
-        const text=await res.text();
-        const json=JSON.parse(text.substring(47).slice(0,-2));
-        workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-        setSheetData(p=>({...p,workouts:workoutRows}));
-        setSheetLoaded(true);
-      }catch(e){}
-    }
-
-    // Get groups to train
-    const groups=group==="Shoulders + Arms"?["Shoulders","Arms (Biceps/Triceps)"]:[group];
-    const exercises=[];
-
-    groups.forEach(g=>{
-      const cats=GYM_CAT_MAP[g]||[];
-      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      const exs=shuffle(workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c)))).slice(0,3).map(row=>({
-        name:row[0]||"",
-        category:row[1]||"",
-        muscles:row[6]||g,
-        instructions:row[5]||"",
-        group:g,
-        sets:6,
-        reps:15,
-        weight:getBlastWeight(baselineWeights[row[0]]||baselineWeights[BASELINE_EXERCISES.find(b=>row[0]?.toLowerCase().includes(b.toLowerCase().split(" ")[0]))]||45, weekNum),
-      }));
-      exercises.push(...exs);
-    });
-
-    // Interleave if two groups
-    const interleaved=[];
-    if(groups.length===2){
-      const g1=exercises.filter(e=>e.group===groups[0]);
-      const g2=exercises.filter(e=>e.group===groups[1]);
-      const max=Math.max(g1.length,g2.length);
-      for(let i=0;i<max;i++){
-        if(i<g1.length) interleaved.push(g1[i]);
-        if(i<g2.length) interleaved.push(g2[i]);
-      }
-    } else {
-      interleaved.push(...exercises);
-    }
-
-    setBlastSession({group,groups,weekNum,exercises:interleaved,generatedAt:todayStr()});
-    setBlastExIdx(0); setBlastSetIdx(0); setBlastSets({});
-    setBlastComplete(false); setBlastRating(null); setShowAddon(false);
-    setBlastPhase("preview");
-  }
-
-  async function saveBlastSession(rating){
-    const entry={
-      date:todayStr(),
-      group:blastSession.group,
-      weekNum:blastSession.weekNum,
-      exercises:blastSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})),
-      rating,
-      clientId:currentClient.id,
-      ts:new Date().toISOString(),
-    };
-    const newHistory=[...blastHistory,entry];
-    setBlastHistory(newHistory);
-    try{
-      localStorage.setItem("atp-blast",JSON.stringify(newHistory));
-      await sbSetGlobal("atp-blast-"+currentClient.id, newHistory);
-    }catch(e){}
-    setBlastRating(rating);
-    setShowAddon(true);
-  }
-
-  async function generateBlastSession(group){
-    const weekNum=getCurrentWeek();
-    let workoutRows=sheetData.workouts||[];
-    if(workoutRows.length===0){
-      try{
-        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
-        const text=await res.text();
-        const json=JSON.parse(text.substring(47).slice(0,-2));
-        workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-        setSheetData(p=>({...p,workouts:workoutRows}));
-        setSheetLoaded(true);
-      }catch(e){}
-    }
-
-    // Get groups to train
-    const groups=group==="Shoulders + Arms"?["Shoulders","Arms (Biceps/Triceps)"]:[group];
-    const exercises=[];
-
-    groups.forEach(g=>{
-      const cats=GYM_CAT_MAP[g]||[];
-      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      const exs=shuffle(workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c)))).slice(0,3).map(row=>({
-        name:row[0]||"",
-        category:row[1]||"",
-        muscles:row[6]||g,
-        instructions:row[5]||"",
-        group:g,
-        sets:6,
-        reps:15,
-        weight:getBlastWeight(baselineWeights[row[0]]||baselineWeights[BASELINE_EXERCISES.find(b=>row[0]?.toLowerCase().includes(b.toLowerCase().split(" ")[0]))]||45, weekNum),
-      }));
-      exercises.push(...exs);
-    });
-
-    // Interleave if two groups
-    const interleaved=[];
-    if(groups.length===2){
-      const g1=exercises.filter(e=>e.group===groups[0]);
-      const g2=exercises.filter(e=>e.group===groups[1]);
-      const max=Math.max(g1.length,g2.length);
-      for(let i=0;i<max;i++){
-        if(i<g1.length) interleaved.push(g1[i]);
-        if(i<g2.length) interleaved.push(g2[i]);
-      }
-    } else {
-      interleaved.push(...exercises);
-    }
-
-    setBlastSession({group,groups,weekNum,exercises:interleaved,generatedAt:todayStr()});
-    setBlastExIdx(0); setBlastSetIdx(0); setBlastSets({});
-    setBlastComplete(false); setBlastRating(null); setShowAddon(false);
-    setBlastPhase("preview");
-  }
-
-  async function saveBlastSession(rating){
-    const entry={
-      date:todayStr(),
-      group:blastSession.group,
-      weekNum:blastSession.weekNum,
-      exercises:blastSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})),
-      rating,
-      clientId:currentClient.id,
-      ts:new Date().toISOString(),
-    };
-    const newHistory=[...blastHistory,entry];
-    setBlastHistory(newHistory);
-    try{
-      localStorage.setItem("atp-blast",JSON.stringify(newHistory));
-      await sbSetGlobal("atp-blast-"+currentClient.id, newHistory);
-    }catch(e){}
-    setBlastRating(rating);
-    setShowAddon(true);
-  }
-
   async function generateGymSession(){
     if(selectedGroups.length===0) return;
     setGeneratingGym(true);
     const mins=parseInt(gymDuration)||45;
-    const exPerGroup=mins<=30?3:mins<=45?4:mins<=60?5:7;
+    const exPerGroup=sessionMins<=30?3:sessionMins<=45?4:sessionMins<=60?5:7;
 
     let workoutRows=sheetData.workouts||[];
     if(workoutRows.length===0){
@@ -1537,271 +1367,6 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const allSetsComplete=gymSession&&gymSession.exercises.every((ex,ei)=>
     Array.from({length:ex.sets||1}).every((_,si)=>completedSets[`${ei}-${si}`])
   );
-
-  // MODE SELECTOR
-  if(!gymMode) return(
-    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym</div>
-        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Workout Style</div>
-        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {getCurrentWeek()} · Pick how you want to train today</div>
-      </div>
-      {[
-        {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
-        {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload · AI built",color:"#6366f1"},
-      ].map(m=>(
-        <button key={m.id} onClick={()=>setGymMode(m.id)} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid ${m.color}33`,background:`${m.color}08`}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:52,height:52,borderRadius:"50%",background:m.color+"22",border:`2px solid ${m.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.6rem",flexShrink:0}}>{m.icon}</div>
-            <div>
-              <div style={{fontSize:"0.88rem",fontWeight:700,color:m.color}}>{m.label}</div>
-              <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3,lineHeight:1.5}}>{m.desc}</div>
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-
-  // BLAST — LAYOUT SELECTION (first time)
-  if(gymMode==="blast"&&!blastLayout) return(
-    <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💥 Quick Blast Setup</div>
-        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Weekly Layout</div>
-        <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Pick once — app handles the rest every day!</div>
-      </div>
-      {[
-        {opt:1,label:"Option 1 — Balanced",schedule:[{day:"Mon",group:"Chest"},{day:"Tue",group:"Back"},{day:"Wed",group:"Rest"},{day:"Thu",group:"Shoulders + Arms"},{day:"Fri",group:"Chest (A) / Arms (B)"}]},
-        {opt:2,label:"Option 2 — Rest Early",schedule:[{day:"Mon",group:"Back"},{day:"Tue",group:"Chest"},{day:"Wed",group:"Rest"},{day:"Thu",group:"Shoulders + Arms"},{day:"Sat",group:"Chest (A) / Arms (B)"}]},
-      ].map(({opt,label,schedule})=>(
-        <button key={opt} onClick={()=>{
-          setBlastLayout(opt);
-          try{localStorage.setItem("atp-blast-layout",String(opt));}catch(e){}
-        }} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid #ef444433`}}>
-          <div style={{fontSize:"0.82rem",fontWeight:700,color:"#ef4444",marginBottom:10}}>{label}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            {schedule.map((s,i)=>(
-              <div key={i} style={{display:"flex",gap:10,alignItems:"center"}}>
-                <div style={{width:36,fontSize:"0.68rem",fontWeight:700,color:s.group==="Rest"?G.textSoft:"#ef4444"}}>{s.day}</div>
-                <div style={{fontSize:"0.72rem",color:s.group==="Rest"?G.textSoft:G.text,fontWeight:s.group==="Rest"?400:600}}>{s.group==="Rest"?"— Rest":s.group}</div>
-              </div>
-            ))}
-          </div>
-        </button>
-      ))}
-      <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
-    </div>
-  );
-
-  // BLAST — DAILY SESSION
-  if(gymMode==="blast"&&blastLayout){
-    const todayGroup=getTodayBlastGroup(blastLayout);
-    const isRestDay=!todayGroup;
-
-    // Setup
-    if(blastPhase==="setup") return(
-      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💥 Quick Blast</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>
-            {isRestDay?"Rest Day 💤":`Today: ${todayGroup} 💪`}
-          </div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Week {getCurrentWeek()} · 6 sets × 15 reps · +5lbs every 2 weeks</div>
-        </div>
-
-        {isRestDay?(
-          <div style={{...card,textAlign:"center",padding:"28px 20px"}}>
-            <div style={{fontSize:"2rem",marginBottom:8}}>😴</div>
-            <div style={{fontSize:"0.88rem",fontWeight:700,color:G.brown,marginBottom:6}}>Rest Day!</div>
-            <div style={{fontSize:"0.74rem",color:G.textSoft,lineHeight:1.7,marginBottom:16}}>Your muscles grow during rest. Today is scheduled recovery — enjoy it! You can always add an optional Abs session if you feel like it.</div>
-            <button onClick={()=>setTab&&setTab("cals")} style={{...btnGreen,padding:"10px 20px",width:"auto",margin:"0 auto"}}>💪 Optional Abs Session</button>
-          </div>
-        ):(
-          <>
-            <div style={{...card,background:"#fff5f5",border:`1px solid #fecaca`}}>
-              <div style={lbl}>📅 Your Week</div>
-              <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                {(blastLayout===1?[
-                  {day:"Mon",group:"Chest"},{day:"Tue",group:"Back"},{day:"Wed",group:"Rest"},
-                  {day:"Thu",group:"Shoulders + Arms"},{day:"Fri",group:"Chest/Arms"},{day:"Sat",group:"Rest"},{day:"Sun",group:"Rest"}
-                ]:[
-                  {day:"Mon",group:"Back"},{day:"Tue",group:"Chest"},{day:"Wed",group:"Rest"},
-                  {day:"Thu",group:"Shoulders + Arms"},{day:"Fri",group:"Rest"},{day:"Sat",group:"Chest/Arms"},{day:"Sun",group:"Rest"}
-                ]).map((s,i)=>{
-                  const isToday=new Date().getDay()===([1,2,3,4,5,6,0][i]);
-                  return(
-                    <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"4px 8px",borderRadius:8,background:isToday?"#fee2e2":"transparent"}}>
-                      <div style={{width:32,fontSize:"0.68rem",fontWeight:isToday?700:400,color:isToday?"#ef4444":G.textSoft}}>{s.day}</div>
-                      <div style={{fontSize:"0.72rem",color:isToday?"#ef4444":s.group==="Rest"?G.textSoft:G.text,fontWeight:isToday?700:400}}>{s.group==="Rest"?"— Rest":s.group}</div>
-                      {isToday&&<div style={{marginLeft:"auto",fontSize:"0.6rem",padding:"2px 7px",borderRadius:20,background:"#ef4444",color:"#fff",fontWeight:700}}>TODAY</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {blastHistory.length>0&&(
-              <div style={{...card,background:"#fff5f5",border:`1px solid #fecaca`}}>
-                <div style={lbl}>📊 Last Blast</div>
-                <div style={{fontSize:"0.74rem",color:G.text}}>{blastHistory[blastHistory.length-1].group} — {fmtDate(blastHistory[blastHistory.length-1].date)}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {blastHistory[blastHistory.length-1].weekNum} · Rated {blastHistory[blastHistory.length-1].rating}/5</div>
-              </div>
-            )}
-
-            <button onClick={()=>generateBlastSession(todayGroup)} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>
-              💥 Start {todayGroup} Blast!
-            </button>
-            <button onClick={()=>{setBlastLayout(0);try{localStorage.removeItem("atp-blast-layout");}catch(e){}}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>⚙️ Change layout</button>
-          </>
-        )}
-        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
-      </div>
-    );
-
-    // Blast Preview
-    if(blastPhase==="preview"&&blastSession) return(
-      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💥 Quick Blast</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{blastSession.group} Day</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{blastSession.exercises.length} exercises · 6 sets × 15 reps · Week {blastSession.weekNum}</div>
-        </div>
-        {blastSession.exercises.map((ex,i)=>(
-          <div key={i} style={{...card,borderLeft:`4px solid #ef4444`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{ex.name}</div>
-                <div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:2}}>{ex.muscles}</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:"0.78rem",fontWeight:700,color:"#ef4444"}}>6×15 @ {ex.weight}lbs</div>
-              </div>
-            </div>
-            {ex.instructions&&<div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:5,fontStyle:"italic"}}>💡 {ex.instructions}</div>}
-          </div>
-        ))}
-        <button onClick={()=>setBlastPhase("active")} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>▶ Start Blast!</button>
-        <button onClick={()=>setBlastPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
-      </div>
-    );
-
-    // Blast Active
-    if(blastPhase==="active"&&blastSession){
-      const ex=blastSession.exercises[blastExIdx];
-      if(!ex) return null;
-      const totalSets=6;
-      const allDone=blastSession.exercises.every((_,ei)=>Array.from({length:totalSets}).every((_,si)=>blastSets[`${ei}-${si}`]));
-
-      return(
-        <div style={{flex:1,display:"flex",flexDirection:"column",background:"#fff5f5"}}>
-          <div style={{height:6,background:"#fecaca"}}>
-            <div style={{height:"100%",width:`${Math.round((blastExIdx/blastSession.exercises.length)*100)}%`,background:"linear-gradient(90deg,#7f1d1d,#ef4444)",transition:"width .5s"}}/>
-          </div>
-
-          {blastComplete?(
-            showAddon?(
-              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
-                <div style={{fontSize:"2rem"}}>💥</div>
-                <div style={{fontSize:"1rem",fontWeight:900,color:"#ef4444",textAlign:"center"}}>Blast Complete! 🔥</div>
-                <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Got more time today?</div>
-                <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
-                  <button onClick={()=>{if(setTab) setTab("cals");}} style={{...card,cursor:"pointer",textAlign:"center",border:`2px solid #7c3aed`,background:"#f5f3ff",padding:"14px"}}>
-                    <div style={{fontSize:"1.2rem",marginBottom:4}}>🤸</div>
-                    <div style={{fontSize:"0.82rem",fontWeight:700,color:"#7c3aed"}}>Add Abs Session</div>
-                    <div style={{fontSize:"0.66rem",color:G.textSoft}}>Head to the Cals tab for core work</div>
-                  </button>
-                  <button onClick={async()=>{
-                    await generateBlastSession("Legs");
-                    setBlastComplete(false);
-                    setShowAddon(false);
-                  }} style={{...card,cursor:"pointer",textAlign:"center",border:`2px solid ${G.green}`,background:"#f0faf4",padding:"14px"}}>
-                    <div style={{fontSize:"1.2rem",marginBottom:4}}>🦵</div>
-                    <div style={{fontSize:"0.82rem",fontWeight:700,color:G.green}}>Add Legs Session</div>
-                    <div style={{fontSize:"0.66rem",color:G.textSoft}}>Legs & glutes workout</div>
-                  </button>
-                  <button onClick={()=>{setBlastPhase("setup");setBlastComplete(false);setShowAddon(false);setGymMode("");}} style={{...btnGreen,padding:"12px"}}>✅ I'm Done — Great Workout!</button>
-                </div>
-              </div>
-            ):(
-              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
-                <div style={{fontSize:"3rem"}}>🏆</div>
-                <div style={{fontSize:"1.1rem",fontWeight:900,color:"#ef4444",textAlign:"center"}}>Blast Complete!</div>
-                {!blastRating?(
-                  <div style={{width:"100%",display:"flex",flexDirection:"column",gap:8}}>
-                    <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your blast?</div>
-                    <div style={{display:"flex",gap:6}}>
-                      {[1,2,3,4,5].map(r=>(
-                        <button key={r} onClick={()=>saveBlastSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${blastRating===r?"#ef4444":G.border}`,background:blastRating===r?"#fee2e2":G.cream,color:blastRating===r?"#ef4444":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
-                      ))}
-                    </div>
-                    <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
-                  </div>
-                ):null}
-              </div>
-            )
-          ):(
-            <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:"0.68rem",color:"#ef4444",fontWeight:700}}>Exercise {blastExIdx+1} of {blastSession.exercises.length}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft}}>{ex.group}</div>
-              </div>
-
-              {/* Main display */}
-              <div style={{...card,border:`2px solid #ef4444`,background:"#fff5f5",padding:20,textAlign:"center"}}>
-                <div style={{fontSize:"1.3rem",fontWeight:900,color:"#ef4444",marginBottom:8}}>{ex.name}</div>
-                <div style={{fontSize:"1rem",fontWeight:700,color:"#dc2626",marginBottom:4}}>6 sets × 15 reps @ {ex.weight} lbs</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,fontStyle:"italic",marginTop:6}}>{ex.instructions}</div>
-              </div>
-
-              {/* Set tracker */}
-              <div style={card}>
-                <div style={lbl}>Sets (6 × 15 reps)</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {Array.from({length:totalSets}).map((_,si)=>{
-                    const done=blastSets[`${blastExIdx}-${si}`];
-                    return(<button key={si} onClick={()=>{
-                      if(done) return;
-                      const key=`${blastExIdx}-${si}`;
-                      setBlastSets(p=>({...p,[key]:true}));
-                      // Start 5 sec swap timer after each set
-                      setSwapTimer(5);
-                      setSwapRunning(true);
-                    }} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${done?"#ef4444":G.border}`,background:done?"#ef4444":G.cream,color:done?"#fff":G.textSoft,fontSize:"0.72rem",fontWeight:700,cursor:done?"default":"pointer",minWidth:44}}>
-                      {done?"✓":`S${si+1}`}
-                    </button>);
-                  })}
-                </div>
-              </div>
-
-              {/* 5 sec swap timer */}
-              {(swapRunning||swapTimer>0)&&(
-                <div style={{...card,background:"#fff3e0",border:`1px solid ${G.mango}`,textAlign:"center",padding:"12px"}}>
-                  <div style={{fontSize:"0.7rem",fontWeight:700,color:G.mangoDeep,marginBottom:4}}>🔄 Swap Weights</div>
-                  <div style={{fontSize:"2rem",fontWeight:900,color:G.mangoDeep,fontVariantNumeric:"tabular-nums"}}>{swapTimer}</div>
-                  <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:2}}>seconds to grab next weight</div>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div style={{display:"flex",gap:8}}>
-                {blastExIdx>0&&<button onClick={()=>setBlastExIdx(i=>i-1)} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>← Back</button>}
-                {blastExIdx<blastSession.exercises.length-1?(
-                  <button onClick={()=>{setBlastExIdx(i=>i+1);setSwapRunning(false);setSwapTimer(0);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#7f1d1d,#ef4444)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>Next Exercise →</button>
-                ):(
-                  allDone?(
-                    <button onClick={()=>setBlastComplete(true)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#7f1d1d,#ef4444)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>✅ Complete Blast!</button>
-                  ):(
-                    <button style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#ccc",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"not-allowed"}}>Finish all sets first</button>
-                  )
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
 
   // BASELINE SCREEN
   if(gymPhase==="baseline") return(
@@ -2952,27 +2517,37 @@ function advanceHiit(){
       }catch(e){ console.error(e); }
     }
 
-  function getExercises(cats,count){
-      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[2]||row[1]}));
-      // Shuffle and pick random exercises so every session is different
+  function parseDuration(str){
+      if(!str) return 60;
+      const n=parseInt(str);
+      return isNaN(n)?60:n;
+    }
+
+    function getExercises(cats,count){
+      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase())||(row[1]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:parseDuration(row[3])||60,category:row[2]||row[1]}));
       const shuffled=[...matches].sort(()=>Math.random()-0.5);
       return shuffled.slice(0,count);
     }
-
     const warmupExs=getExercises(["warm-up"],5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-   const shadowExs=getExercises(["basic shadow boxing","defensive footwork"],6);
-    if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
+  const sessionMins=parseInt(hiitDuration)||45;
+    const numFootwork=sessionMins<=30?2:sessionMins<=45?3:4;
+    const numShadow=sessionMins<=30?4:sessionMins<=45?5:6; 
+    const footworkExs=getExercises(["defensive footwork"],numFootwork);
+    if(footworkExs.length<numFootwork) for(let i=footworkExs.length;i<numFootwork;i++) footworkExs.push({name:["Rapid Step-In Step-Out","Quick Lateral Slides","Fast Pivot Outs","Explosive V-Step Footwork"][i%4]||"Footwork Drill",instructions:"Stay light on your feet, explosive movement",duration:30});
+    const shadowOnlyExs=getExercises(["basic shadow boxing"],numShadow);
+    if(shadowOnlyExs.length<numShadow) for(let i=shadowOnlyExs.length;i<numShadow;i++) shadowOnlyExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Jab-Reset-Footwork"][i%6]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
+    const shadowExs=[...shadowOnlyExs,...footworkExs];
 
     const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):hiitType==="mixed"?getExercises(["kickboxing combo","boxing only"],4):getExercises(["boxing only"],4);
-    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:20});
+    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:60});
 
     const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):hiitType==="mixed"?getExercises(["heavy bag combo","kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
-    if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:20});
+    if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:60});
 
     const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):hiitType==="mixed"?getExercises(["kickboxing combo","power punching"],12).slice(4,8):getExercises(["boxing only","power punching"],12).slice(4,8);
-    if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:20});
+    if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
 
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
     const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
@@ -2987,46 +2562,46 @@ function advanceHiit(){
     ];
     const warmdownFull=[...abExs,...warmdownExs].slice(0,8);
 
-   const mins=parseInt(hiitDuration)||45;
-    const blocks=mins<=30?[
+   
+    const blocks=sessionMins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
-      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:5,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
-    ]:mins<=45?[
+    ]:sessionMins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
-    ]:mins<=60?[
+    ]:sessionMins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:[...cals1,...cals2].slice(0,2)},
-      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:5,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:5,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
     ]; 
 
@@ -6199,7 +5774,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
               <button onClick={logout} style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:"0.58rem",cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
             </div>
           </div> <div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.max(0,currentClient.weight-currentClient.goalWeight)} lbs to go</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.54rem",color:"rgba(255,255,255,.75)",marginBottom:2}}><span>Goal: {currentClient.goalWeight} lbs</span><span>{Math.round(Math.max(0,currentClient.weight-currentClient.goalWeight))} lbs to go</span></div>
             <div style={{height:4,background:"rgba(255,255,255,.2)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,Math.max(0,((220-currentClient.weight)/(220-(currentClient.goalWeight||150)))*100))}%`,background:G.mango,borderRadius:2}}/></div>
           </div>
         </div>
@@ -7732,7 +7307,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
      {/* ── HIIT ── */}
     {tab==="grocery"&&<GroceryTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} lbl={lbl} nutrition={nutrition}/>}
       {tab==="abs"&&<AbsTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}      {tab==="running"&&<RunningTab currentClient={currentClient} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}         {tab==="cals"&&<CalisthenicsTab  currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
-        {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} setTab={setTab}/>}
+        {tab==="gym"&&<GymTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate}/>}
         {tab==="hiit"&&<HIITTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr}/>}
         {tab==="trx"&&<TRXTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}
         {tab==="trampoline"&&<TrampolineTab currentClient={currentClient} sheetData={sheetData} sheetLoaded={sheetLoaded} setSheetData={setSheetData} setSheetLoaded={setSheetLoaded} SHEETS_ID={SHEETS_ID} G={G} card={card} iStyle={iStyle} btnGreen={btnGreen} btnMango={btnMango} lbl={lbl} todayStr={todayStr} fmtDate={fmtDate} sbSetGlobal={sbSetGlobal}/>}
