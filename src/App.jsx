@@ -4151,7 +4151,9 @@ export default function AllThingsPossible(){
   const [ratings,setRatings]       = useState({});
   const [nutrition,setNutrition]   = useState({});
   const [moveProfile,setMoveProfile] = useState({});
-  const [blastWeights,setBlastWeights] = useState({});
+ const [blastWeights,setBlastWeights] = useState(()=>{
+    try{return JSON.parse(localStorage.getItem("atp-blast-weights")||"{}");}catch(e){return{};}
+  }); 
   const [blastSession,setBlastSession] = useState(null);
   const [blastPhase,setBlastPhase] = useState("setup");
   const [blastBlockIdx,setBlastBlockIdx] = useState(0);
@@ -5151,20 +5153,25 @@ const BLAST_GROUPS={
     },
   };
 
-  function buildBlastSession(group, weightInputs){
+  
+function buildBlastSession(group, weightInputs){
     const g=BLAST_GROUPS[group];
     if(!g) return null;
+    // +5lbs every 2 weeks progression
+    let weekNum=1;
+    try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");weekNum=prog[currentClient?.id]?.currentWeek||1;}catch(e){}
+    const weekIncrements=Math.floor((weekNum-1)/2);
     const blocks=g.blocks.map(block=>({
       ...block,
       exercises:block.exercises.map(ex=>{
-        const w=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
-        const scaled=w>0?Math.round((w*ex.scale)/5)*5:0;
+        const baseW=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
+        const progW=baseW>0?baseW+(weekIncrements*5):0;
+        const scaled=progW>0?Math.round((progW*ex.scale)/5)*5:0;
         return{...ex,weight:scaled,weightLabel:scaled>0?`${scaled} lbs`:"Bodyweight"};
       })
     }));
-    return{group,blocks,weightInputs,totalMin:30,generatedAt:todayStr()};
+    return{group,blocks,weightInputs,weekNum,totalMin:30,generatedAt:todayStr()};
   }
-
   useEffect(()=>{
     if(blastTimerActive&&blastTimerSec>0){
       if(blastTimerSec<=3){
@@ -5255,15 +5262,21 @@ const BLAST_GROUPS={
       }
     }
   }
-
-  async function saveBlastSession(rating){
+async function saveBlastSession(rating){
     const entry={date:todayStr(),group:blastSession.group,rating,weights:blastSession.weightInputs,clientId:currentClient.id,ts:new Date().toISOString()};
     const newHistory=[...blastHistory,entry];
     setBlastHistory(newHistory);
-    try{localStorage.setItem("atp-blast",JSON.stringify(newHistory));}catch(e){}
+    try{
+      localStorage.setItem("atp-blast",JSON.stringify(newHistory));
+      // Save weights so they pre-fill next time
+      const savedWeights=JSON.parse(localStorage.getItem("atp-blast-weights")||"{}");
+      const updatedWeights={...savedWeights,...blastSession.weightInputs};
+      localStorage.setItem("atp-blast-weights",JSON.stringify(updatedWeights));
+      setBlastWeights(updatedWeights);
+    }catch(e){}
     setBlastRating(rating);
   }
-
+ 
   async function generateDeskMoves(situation, enjoys){
     setGeneratingDesk(true);
     const c=currentClient;
