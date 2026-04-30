@@ -1204,6 +1204,12 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const restRef=useRef(null);
 
   useEffect(()=>{
+    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
+    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
+    return()=>clearTimeout(restRef.current);
+  },[restRunning,restTimerSec]);
+
+  useEffect(()=>{
     if(timerActive&&timerSec>0){
       if(timerSec<=3&&!isRest){
         try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.setValueAtTime(timerSec===1?880:440,ctx.currentTime);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.15);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.15);}catch(e){}
@@ -3445,11 +3451,7 @@ export default function AllThingsPossible(){
 
  // localStorage-only useEffect removed — Supabase useEffect above handles everything 
 
- useEffect(()=>{
-    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
-    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
-    return()=>clearTimeout(restRef.current);
-  },[restRunning,restTimerSec]);
+ 
 
   useEffect(()=>{
     if(currentClient&&program[currentClient.id]&&tab==="workout"){ checkAndAdvanceWeek(); }
