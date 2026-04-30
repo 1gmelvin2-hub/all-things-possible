@@ -2020,8 +2020,8 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
   const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
   const BLAST_LAYOUTS={
-    1:{1:"Chest",2:"Back",3:null,4:"Shoulders + Arms",5:"Chest/Arms",6:null,0:null},
-    2:{1:"Back",2:"Chest",3:null,4:"Shoulders + Arms",5:null,6:"Chest/Arms",0:null},
+    1:{1:"Chest",2:"Back",3:null,4:"Shoulders",5:"Chest",6:null,0:null},
+    2:{1:"Back",2:"Chest",3:null,4:"Shoulders",5:null,6:"Chest",0:null},
   };
 
   // Mode
