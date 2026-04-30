@@ -2059,8 +2059,7 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       playPing("end");
       advanceAbs();
     }
-    return()=>clearTimeout(timerRef.current);
-  },[timerActive,timerSec,isRest]);
+    
 
   function advanceAbs(){
     if(!absSession) return;
