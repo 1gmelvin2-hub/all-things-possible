@@ -2060,12 +2060,7 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     }catch(e){}
   }
 
-  useEffect(()=>{
-    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
-    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
-    return()=>clearTimeout(restRef.current);
-  },[restRunning,restTimerSec]);
-
+ 
   function advanceAbs(){
     if(!absSession) return;
     if(isRest){
