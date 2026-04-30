@@ -5261,7 +5261,7 @@ function buildBlastSession(group, weightInputs){
         } else {
           // Superset pair done — rest
           setBlastIsRest(true);
-          setBlastTimerSec(30);
+          setBlastTimerSec(35);
         }
       } else {
         // Finisher — rest after each set
