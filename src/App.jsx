@@ -4364,6 +4364,7 @@ const BLAST_GROUPS={
 
     if(blastIsRest){
       // Rest done
+      const nextRound=blastRoundIdx+1;
       if(block.type==="superset"){
         const nextEx=blastExIdx+1;
         if(nextEx<block.exercises.length){
@@ -4378,7 +4379,6 @@ const BLAST_GROUPS={
         }
       } else {
         // Finisher rest done — next set or next block
-        const nextRound=blastRoundIdx+1;
         const blockDurationSec=block.duration*60;
         const setDuration=(block.workSec||45)+(block.restSec||30);
         const setsDone=nextRound*setDuration;
