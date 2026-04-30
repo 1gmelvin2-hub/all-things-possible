@@ -2063,15 +2063,10 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   }
 
   useEffect(()=>{
-    if(timerActive&&timerSec>0){
-      if(timerSec<=3&&!isRest) playPing("tick");
-      timerRef.current=setTimeout(()=>setTimerSec(s=>s-1),1000);
-    } else if(timerActive&&timerSec===0){
-      playPing("end");
-      advanceAbs();
-    }
-    return()=>clearTimeout(timerRef.current);
-  },[timerActive,timerSec,isRest]);
+    if(restRunning&&restTimerSec>0){ restRef.current=setTimeout(()=>setRestTimerSec(s=>s-1),1000); }
+    else if(restRunning&&restTimerSec===0){ setRestRunning(false); }
+    return()=>clearTimeout(restRef.current);
+  },[restRunning,restTimerSec]);
 
   function advanceAbs(){
     if(!absSession) return;
