@@ -3041,7 +3041,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
-function GroceryTab...
+
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
