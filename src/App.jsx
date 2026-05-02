@@ -2212,7 +2212,8 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       {[
         {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
         {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload",color:"#6366f1"},
-       {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly · 30-45 min",color:"#6b7280"}, .map(m=>(
+       {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},
+      ].map(m=>(
         <button key={m.id} onClick={()=>!m.soon&&setGymMode(m.id)} style={{...card,cursor:m.soon?"default":"pointer",textAlign:"left",width:"100%",border:`2px solid ${m.color}33`,background:`${m.color}08`,opacity:m.soon?0.6:1}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:52,height:52,borderRadius:"50%",background:m.color+"22",border:`2px solid ${m.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.6rem",flexShrink:0}}>{m.icon}</div>
