@@ -159,7 +159,7 @@ const SITUATIONS=[
   {id:"car",     icon:"🚗", label:"Driving / in car"},
   {id:"small",   icon:"📦", label:"In a small space"},
   {id:"outside", icon:"🌳", label:"Outside / walking"},
-  {id:"gym",     icon:"🏋️", label:"At the gym"},
+  {id:"gym",     icon:"💪", label:"At the gym"},
 ];
 
 const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Full Body","Cardio"];
@@ -2205,7 +2205,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   if(!gymMode) return(
     <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
       <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym</div>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💪 Gym</div>
         <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Workout Style</div>
         <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · Pick how you want to train today</div>
       </div>
@@ -2441,7 +2441,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(gymPhase==="baseline") return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym Setup</div>
+          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💪 Gym Setup</div>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Let's set your starting weights</div>
           <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",lineHeight:1.7}}>Enter what you can comfortably lift for 3 sets of 8 reps.</div>
         </div>
@@ -2512,7 +2512,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(activePhase==="preview"&&gymSession) return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🏋️ Today's Session</div>
+          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💪 Today's Session</div>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{gymSession.groups.join(" + ")} Day</div>
           <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{gymSession.exercises.length} exercises · {gymDuration} · Week {weekNum}</div>
         </div>
@@ -2683,7 +2683,7 @@ const renderMachineCircuit = () => {
     return (
       <div style={{padding:'20px'}}>
         <div style={{textAlign:'center', marginBottom:'24px'}}>
-          <div style={{fontSize:'40px'}}>🏋️</div>
+          <div style={{fontSize:'40px'}}>💪</div>
           <h2 style={{margin:'8px 0 4px', color:'#1f2937', fontSize:'22px'}}>Machine Circuit</h2>
           <p style={{color:'#6b7280', margin:0, fontSize:'14px'}}>Lunch-break friendly · 30–45 min</p>
         </div>
@@ -2722,7 +2722,7 @@ const renderMachineCircuit = () => {
           <div style={{fontSize:'52px'}}>{circuit.emoji}</div>
           <h2 style={{margin:'8px 0 4px', color:'#1f2937'}}>{circuit.name}</h2>
           <div style={{display:'flex', justifyContent:'center', gap:'14px', color:'#6b7280', fontSize:'13px', flexWrap:'wrap'}}>
-            <span>🏋️ {circuit.exercises.length} exercises</span>
+            <span>💪 {circuit.exercises.length} exercises</span>
             <span>💪 {totalSets} sets</span>
             <span>⏱️ ~{estMins} min</span>
             <span>📅 Week {week}</span>
@@ -2986,7 +2986,7 @@ const renderMachineCircuit = () => {
         <div style={{fontSize:'20px', marginBottom:'24px'}}>{circuit.emoji} {circuit.name}</div>
 
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'24px'}}>
-          {[['Exercises', circuit.exercises.length,'🏋️'], ['Total Sets', machineSetsLog.length,'💪'],
+          {[['Exercises', circuit.exercises.length,'💪'], ['Total Sets', machineSetsLog.length,'💪'],
             ['Program Week', week,'📅'], ['Progression', cycleWeek>=5?'+5 lbs':cycleWeek>=3?'+2 reps':'Foundation','📈']
           ].map(([label, val, emoji]) => (
             <div key={label} style={{background:'#f9fafb', borderRadius:'12px', padding:'16px'}}>
@@ -6220,7 +6220,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
           {q:"What activities do you enjoy?",field:"likes",placeholder:"e.g. Walking, yoga, swimming, dancing...",type:"text"},
           {q:"Fitness level",field:"level",type:"select"},
         ]},
-        {title:"Equipment",icon:"🏋️",fields:[
+        {title:"Equipment",icon:"💪",fields:[
           {q:"What equipment do you have access to?",field:"equipment",type:"equipment"},
         ]},
         {title:"Workout Schedule",icon:"📅",fields:[
@@ -6427,7 +6427,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
- const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["abs","🔥","Abs"],["running","🏃","Run"],["trampoline","🦘","Bounce"],["trx","🔗","TRX"]];
+ const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","💪","Gym"],["cals","🤸","Cals"],["abs","🔥","Abs"],["running","🏃","Run"],["trampoline","🦘","Bounce"],["trx","🔗","TRX"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -6628,7 +6628,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     {[
                       {id:"hiit",icon:"🥊",label:"HIIT / Boxing",desc:"Shadow boxing, heavy bag, kickboxing"},
-                      {id:"gym",icon:"🏋️",label:"Gym",desc:"Weighted exercises with progressive overload"},
+                      {id:"gym",icon:"💪",label:"Gym",desc:"Weighted exercises with progressive overload"},
                      {id:"cals",icon:"🤸",label:"Calisthenics & Abs",desc:"Bodyweight circuit training"},
                       {id:"running",icon:"🏃",label:"Running",desc:"Couch to 5K, half marathon, full marathon"},
                     ].map(t=>{
@@ -6783,7 +6783,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                       const isTabDay=exercises.length===1&&exercises[0]?.name?.startsWith("→ Go to");
                       const tabName=isTabDay?exercises[0].name.replace("→ Go to ","").replace(" tab","").trim():"";
                       const tabId=tabName.toLowerCase().includes("hiit")||tabName.toLowerCase().includes("boxing")?"hiit":tabName.toLowerCase().includes("gym")?"gym":tabName.toLowerCase().includes("calist")?"cals":"";
-                      const tabIcon=tabId==="hiit"?"🥊":tabId==="gym"?"🏋️":tabId==="cals"?"🤸":"💪";
+                      const tabIcon=tabId==="hiit"?"🥊":tabId==="gym"?"💪":tabId==="cals"?"🤸":"💪";
                       const tabColor=tabId==="hiit"?G.mangoDeep:tabId==="gym"?"#4f46e5":tabId==="cals"?"#7c3aed":G.green;
                       if(isTabDay) return(
                         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,padding:"20px 0"}}>
@@ -7497,7 +7497,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     <div style={{display:"flex",gap:8,marginBottom:6,flexWrap:"wrap"}}>
                       {row[1]&&<span style={{fontSize:"0.65rem",padding:"2px 8px",borderRadius:20,background:G.creamDark,color:G.textSoft}}>{row[1]}</span>}
                       {row[3]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>⏱ {row[3]}</span>}
-                      {row[4]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>🏋️ {row[4]}</span>}
+                      {row[4]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>💪 {row[4]}</span>}
                     </div>
                     {row[5]&&<div style={{fontSize:"0.72rem",color:G.text,marginBottom:4}}>{row[5]}</div>}
                     {row[6]&&<div style={{fontSize:"0.63rem",color:G.green,fontStyle:"italic"}}>💪 {row[6]}</div>}
@@ -8648,7 +8648,7 @@ MESSAGE: [the client message]`;
                       <div style={{fontSize:"0.82rem",fontWeight:700,color:G.green}}>{row[0]}</div>
                       <div style={{fontSize:"0.62rem",padding:"2px 8px",borderRadius:20,background:"#d8f3dc",color:G.green}}>{row[2]}</div>
                     </div>
-                    <div style={{fontSize:"0.68rem",color:G.textSoft}}>{row[1]} · ⏱ {row[3]} · 🏋️ {row[4]}</div>
+                    <div style={{fontSize:"0.68rem",color:G.textSoft}}>{row[1]} · ⏱ {row[3]} · 💪 {row[4]}</div>
                     {row[6]&&<div style={{fontSize:"0.66rem",color:G.green,fontStyle:"italic",marginTop:3}}>💪 {row[6]}</div>}
                   </div>
                 ))}
