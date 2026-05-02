@@ -3032,13 +3032,16 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
             boxShadow:`0 4px 12px ${circuit.color}40`}}>
           💾 Save & Finish
         </button>
-      </div>
+        </div>
     );
   }
+  return null;
+  };
 
+  if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
-
+function GroceryTab...
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
