@@ -830,8 +830,8 @@ Set any field not visible to null.`}
       }catch(e){ console.error(e); }
     }
 
-    function getByLevelAndCat(cat,level,count){
-      return workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).slice(0,count).map(row=>({
+  function getByLevelAndCat(cat,level,count){
+      const all=workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).map(row=>({
         name:row[0]||"",
         category:row[1]||"",
         level:row[2]||level,
@@ -841,6 +841,7 @@ Set any field not visible to null.`}
         progression:row[7]||"none",
         videoUrl:row[8]||null,
       }));
+      return [...all].sort(()=>Math.random()-0.5).slice(0,count);
     }
 
     // Get exercises by difficulty for both calisthenics and abs
