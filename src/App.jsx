@@ -2615,7 +2615,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       );
     }
   }
-const renderMachineCircuit = () => {
+  const renderMachineCircuit = () => {
   const circuit = machineCircuitKey ? MACHINE_CIRCUITS[machineCircuitKey] : null;
 
   // Progression helpers
@@ -3038,6 +3038,7 @@ const renderMachineCircuit = () => {
 
   return null;
 }
+
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
