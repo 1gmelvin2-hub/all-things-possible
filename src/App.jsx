@@ -2015,7 +2015,371 @@ function TrampolineTab({currentClient,sheetData,sheetLoaded,setSheetData,setShee
   return null;
 }
 
-function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){
+function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){// ── MACHINE CIRCUIT STATE ──
+  const [machineCircuitView, setMachineCircuitView] = useState('select');
+  const [machineCircuitKey, setMachineCircuitKey] = useState(null);
+  const [machineExerciseIdx, setMachineExerciseIdx] = useState(0);
+  const [machineSetIdx, setMachineSetIdx] = useState(0);
+  const [machinePhase, setMachinePhase] = useState('exercise');
+  const [machineTimer, setMachineTimer] = useState(0);
+  const [machineTimerTotal, setMachineTimerTotal] = useState(0);
+  const [machineTimerActive, setMachineTimerActive] = useState(false);
+  const [machineWeights, setMachineWeights] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('atp-machine-weights-'+currentClient.id) || '{}'); } catch { return {}; }
+  });
+  const [machineSessionWeights, setMachineSessionWeights] = useState({});
+  const [machineRating, setMachineRating] = useState(0);
+  const [machineSetsLog, setMachineSetsLog] = useState([]);
+
+  // ── MACHINE CIRCUIT TIMER ──
+  useEffect(() => {
+    if (!machineTimerActive || machineTimer <= 0) return;
+    const id = setTimeout(() => setMachineTimer(t => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [machineTimerActive, machineTimer]);
+
+  // ── MACHINE CIRCUIT RENDER ──
+  const renderMachineCircuit = () => {
+    const circuit = machineCircuitKey ? MACHINE_CIRCUITS[machineCircuitKey] : null;
+    const getProgramWeek = () => {
+      try {
+        const d = JSON.parse(localStorage.getItem('atp-program-'+currentClient.id) || '{}');
+        if (d.startDate) {
+          const diff = Math.floor((Date.now() - new Date(d.startDate)) / 86400000);
+          return Math.min(Math.max(Math.floor(diff / 7) + 1, 1), 12);
+        }
+      } catch {}
+      return 1;
+    };
+    const week = getProgramWeek();
+    const cycleWeek = ((week - 1) % 6) + 1;
+    const getTargetReps = (ex) => ex.reps + (cycleWeek >= 3 && cycleWeek <= 4 ? 2 : 0);
+    const getBaseWeight = (ex) => machineWeights[ex.name] || ex.startingWeight;
+    const getTargetWeight = (ex) => getBaseWeight(ex) + (cycleWeek >= 5 ? 5 : 0);
+    const mcFmt = (s) => Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');
+    const startTimer = (secs) => { setMachineTimer(secs); setMachineTimerTotal(secs); setMachineTimerActive(true); };
+    const circ = 2 * Math.PI * 52;
+    const timerProg = machineTimerTotal > 0 ? machineTimer / machineTimerTotal : 0;
+
+    const handleCompleteSet = () => {
+      const ex = circuit.exercises[machineExerciseIdx];
+      const wt = machineSessionWeights[ex.name] || getTargetWeight(ex);
+      setMachineSetsLog(prev => [...prev, { exercise: ex.name, set: machineSetIdx + 1, weight: wt, reps: getTargetReps(ex) }]);
+      const nextSet = machineSetIdx + 1;
+      if (nextSet < ex.sets) {
+        setMachineSetIdx(nextSet);
+        setMachinePhase('set-rest');
+        startTimer(ex.restBetweenSets);
+      } else {
+        const nextEx = machineExerciseIdx + 1;
+        if (nextEx < circuit.exercises.length) {
+          setMachineExerciseIdx(nextEx);
+          setMachineSetIdx(0);
+          setMachinePhase('ex-rest');
+          startTimer(ex.restAfterExercise);
+        } else {
+          const newW = { ...machineWeights };
+          circuit.exercises.forEach(e => { if (machineSessionWeights[e.name]) newW[e.name] = machineSessionWeights[e.name]; });
+          setMachineWeights(newW);
+          localStorage.setItem('atp-machine-weights-'+currentClient.id, JSON.stringify(newW));
+          setMachineTimerActive(false);
+          setMachineCircuitView('complete');
+        }
+      }
+    };
+
+    const handleTimerContinue = () => { setMachineTimerActive(false); setMachineTimer(0); setMachinePhase('exercise'); };
+
+    // SELECT
+    if (machineCircuitView === 'select') return (
+      <div style={{padding:'20px'}}>
+        <div style={{textAlign:'center', marginBottom:'24px'}}>
+          <div style={{fontSize:'40px'}}>💪</div>
+          <h2 style={{margin:'8px 0 4px', color:'#1f2937', fontSize:'22px'}}>Machine Circuit</h2>
+          <p style={{color:'#6b7280', margin:0, fontSize:'14px'}}>Lunch-break friendly - 30-45 min</p>
+        </div>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'20px'}}>
+          {Object.entries(MACHINE_CIRCUITS).map(([key, c]) => (
+            <button key={key} onClick={() => { setMachineCircuitKey(key); setMachineCircuitView('preview'); }}
+              style={{background:'white', border:'2px solid '+c.color+'30', borderRadius:'16px',
+                padding:'24px 12px', cursor:'pointer', textAlign:'center', boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
+              <div style={{fontSize:'40px', marginBottom:'8px'}}>{c.emoji}</div>
+              <div style={{fontWeight:'700', color:c.color, fontSize:'15px'}}>{c.name}</div>
+              <div style={{color:'#9ca3af', fontSize:'12px', marginTop:'4px'}}>
+                {c.exercises.length} machines - {c.exercises.reduce((t,e)=>t+e.sets,0)} sets
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setGymMode('main')}
+          style={{width:'100%', padding:'12px', background:'none', border:'1px solid #e5e7eb',
+            borderRadius:'10px', color:'#6b7280', cursor:'pointer', fontSize:'14px'}}>
+          Back to Gym
+        </button>
+      </div>
+    );
+
+    // PREVIEW
+    if (machineCircuitView === 'preview' && circuit) {
+      const totalSets = circuit.exercises.reduce((t,e)=>t+e.sets, 0);
+      const estMins = Math.ceil(circuit.exercises.reduce((t,e) => t+(e.sets*30)+((e.sets-1)*e.restBetweenSets)+e.restAfterExercise, 0) / 60);
+      return (
+        <div style={{padding:'20px'}}>
+          <div style={{textAlign:'center', marginBottom:'20px'}}>
+            <div style={{fontSize:'52px'}}>{circuit.emoji}</div>
+            <h2 style={{margin:'8px 0 4px', color:'#1f2937'}}>{circuit.name}</h2>
+            <div style={{display:'flex', justifyContent:'center', gap:'14px', color:'#6b7280', fontSize:'13px', flexWrap:'wrap'}}>
+              <span>{circuit.exercises.length} exercises</span>
+              <span>{totalSets} sets</span>
+              <span>~{estMins} min</span>
+              <span>Week {week}</span>
+            </div>
+          </div>
+          {cycleWeek >= 5 && (
+            <div style={{background:'#fef3c7', border:'1px solid #f59e0b', borderRadius:'10px',
+              padding:'10px 14px', marginBottom:'16px', fontSize:'13px', color:'#92400e'}}>
+              Weight increase week! Targets are +5 lbs from your last session.
+            </div>
+          )}
+          {cycleWeek >= 3 && cycleWeek <= 4 && (
+            <div style={{background:'#ecfdf5', border:'1px solid #10b981', borderRadius:'10px',
+              padding:'10px 14px', marginBottom:'16px', fontSize:'13px', color:'#065f46'}}>
+              Rep increase week! Targeting +2 extra reps per set.
+            </div>
+          )}
+          <div style={{background:'#f9fafb', borderRadius:'12px', marginBottom:'20px'}}>
+            {circuit.exercises.map((ex, i) => (
+              <div key={i} style={{display:'flex', alignItems:'center', padding:'12px 16px',
+                borderBottom: i < circuit.exercises.length-1 ? '1px solid #e5e7eb' : 'none'}}>
+                <div style={{width:'26px', height:'26px', borderRadius:'50%', background:circuit.color,
+                  color:'white', display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:'12px', fontWeight:'700', flexShrink:0}}>{i+1}</div>
+                <div style={{marginLeft:'12px', flex:1}}>
+                  <div style={{fontWeight:'600', fontSize:'14px', color:'#1f2937'}}>{ex.name}</div>
+                  <div style={{color:'#9ca3af', fontSize:'11px'}}>{ex.muscles}</div>
+                </div>
+                <div style={{textAlign:'right', fontSize:'13px'}}>
+                  <div style={{fontWeight:'700', color:'#374151'}}>{ex.sets}x{getTargetReps(ex)}</div>
+                  <div style={{color:'#6b7280'}}>{getTargetWeight(ex)} lbs</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => {
+            const sw = {};
+            circuit.exercises.forEach(ex => { sw[ex.name] = getTargetWeight(ex); });
+            setMachineSessionWeights(sw);
+            setMachineExerciseIdx(0); setMachineSetIdx(0);
+            setMachinePhase('exercise'); setMachineSetsLog([]);
+            setMachineTimerActive(false); setMachineTimer(0);
+            setMachineCircuitView('session');
+          }} style={{width:'100%', padding:'16px', background:circuit.color, color:'white',
+            border:'none', borderRadius:'14px', fontSize:'17px', fontWeight:'700', cursor:'pointer'}}>
+            Start Circuit
+          </button>
+          <button onClick={() => setMachineCircuitView('select')}
+            style={{width:'100%', marginTop:'10px', padding:'12px', background:'none',
+              border:'1px solid #e5e7eb', borderRadius:'10px', color:'#6b7280', cursor:'pointer', fontSize:'14px'}}>
+            Back
+          </button>
+        </div>
+      );
+    }
+
+    // SESSION
+    if (machineCircuitView === 'session' && circuit) {
+      const ex = circuit.exercises[machineExerciseIdx];
+      const prevEx = circuit.exercises[machineExerciseIdx - 1];
+      const nextEx = circuit.exercises[machineExerciseIdx + 1];
+      if (!ex) return null;
+      const sessionWeight = machineSessionWeights[ex.name] != null ? machineSessionWeights[ex.name] : getTargetWeight(ex);
+      const targetReps = getTargetReps(ex);
+      return (
+        <div style={{padding:'16px'}}>
+          <div style={{marginBottom:'16px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px'}}>
+              <span style={{color:circuit.color, fontWeight:'700'}}>{circuit.emoji} {circuit.name}</span>
+              <span style={{color:'#6b7280'}}>Exercise {machineExerciseIdx+1}/{circuit.exercises.length}</span>
+            </div>
+            <div style={{background:'#e5e7eb', borderRadius:'999px', height:'6px'}}>
+              <div style={{background:circuit.color, height:'6px', borderRadius:'999px',
+                width:((machineExerciseIdx/circuit.exercises.length)*100)+'%', transition:'width 0.4s ease'}}/>
+            </div>
+          </div>
+
+          {machinePhase === 'exercise' && (
+            <div>
+              <div style={{background:'white', borderRadius:'16px', padding:'20px',
+                boxShadow:'0 2px 12px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px'}}>
+                  <div style={{flex:1, paddingRight:'12px'}}>
+                    <div style={{fontWeight:'800', fontSize:'20px', color:'#111827', lineHeight:'1.2'}}>{ex.name}</div>
+                    <div style={{fontSize:'13px', color:circuit.color, fontWeight:'600', marginTop:'4px'}}>{ex.muscles}</div>
+                  </div>
+                  <div style={{background:circuit.color+'15', borderRadius:'12px', padding:'10px 16px', textAlign:'center', flexShrink:0}}>
+                    <div style={{fontSize:'11px', color:'#6b7280'}}>Set</div>
+                    <div style={{fontSize:'24px', fontWeight:'800', color:circuit.color, lineHeight:'1'}}>{machineSetIdx+1}/{ex.sets}</div>
+                  </div>
+                </div>
+                <div style={{background:'#f9fafb', borderRadius:'10px', padding:'12px', marginBottom:'16px',
+                  fontSize:'13px', color:'#374151', lineHeight:'1.5'}}>{ex.instructions}</div>
+                <div style={{display:'flex', gap:'12px'}}>
+                  <div style={{flex:1, textAlign:'center'}}>
+                    <div style={{fontSize:'11px', color:'#9ca3af', marginBottom:'6px'}}>Weight (lbs)</div>
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+                      <button onClick={() => setMachineSessionWeights(w => ({...w, [ex.name]: Math.max(0, (w[ex.name] != null ? w[ex.name] : getTargetWeight(ex)) - 5)}))}
+                        style={{width:'34px', height:'34px', borderRadius:'50%', border:'1px solid #e5e7eb',
+                          background:'white', cursor:'pointer', fontSize:'20px', color:'#374151'}}>-</button>
+                      <input type="number" value={sessionWeight}
+                        onChange={e => setMachineSessionWeights(w => ({...w, [ex.name]: parseInt(e.target.value)||0}))}
+                        style={{width:'68px', textAlign:'center', border:'2px solid '+circuit.color,
+                          borderRadius:'8px', padding:'6px 4px', fontSize:'22px', fontWeight:'700', color:'#111827'}}/>
+                      <button onClick={() => setMachineSessionWeights(w => ({...w, [ex.name]: (w[ex.name] != null ? w[ex.name] : getTargetWeight(ex)) + 5}))}
+                        style={{width:'34px', height:'34px', borderRadius:'50%', border:'1px solid #e5e7eb',
+                          background:'white', cursor:'pointer', fontSize:'20px', color:'#374151'}}>+</button>
+                    </div>
+                  </div>
+                  <div style={{flex:1, textAlign:'center'}}>
+                    <div style={{fontSize:'11px', color:'#9ca3af', marginBottom:'6px'}}>Target Reps</div>
+                    <div style={{fontSize:'36px', fontWeight:'800', color:'#111827'}}>{targetReps}</div>
+                  </div>
+                </div>
+              </div>
+              <button onClick={handleCompleteSet}
+                style={{width:'100%', padding:'18px', background:circuit.color, color:'white',
+                  border:'none', borderRadius:'14px', fontSize:'18px', fontWeight:'700', cursor:'pointer'}}>
+                Complete Set {machineSetIdx+1}
+              </button>
+              {nextEx && machineSetIdx === ex.sets - 1 && (
+                <div style={{marginTop:'12px', padding:'10px 14px', background:'#f9fafb',
+                  borderRadius:'10px', fontSize:'13px', color:'#6b7280'}}>
+                  Next up: <strong style={{color:'#374151'}}>{nextEx.name}</strong>
+                </div>
+              )}
+            </div>
+          )}
+
+          {machinePhase === 'set-rest' && (
+            <div style={{textAlign:'center', padding:'12px 0'}}>
+              <div style={{fontSize:'28px'}}>😮</div>
+              <h3 style={{margin:'4px 0 2px', color:'#1f2937'}}>Set {machineSetIdx} Complete!</h3>
+              <p style={{color:'#6b7280', margin:'0 0 20px', fontSize:'14px'}}>Rest before set {machineSetIdx+1}</p>
+              <div style={{position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'20px'}}>
+                <svg width="140" height="140" style={{transform:'rotate(-90deg)'}}>
+                  <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+                  <circle cx="70" cy="70" r="52" fill="none" stroke={circuit.color} strokeWidth="8"
+                    strokeDasharray={(circ * timerProg)+' '+circ} strokeLinecap="round"/>
+                </svg>
+                <div style={{position:'absolute', textAlign:'center'}}>
+                  <div style={{fontSize:'34px', fontWeight:'800', color:'#111827'}}>{mcFmt(machineTimer)}</div>
+                  <div style={{fontSize:'11px', color:'#9ca3af'}}>REST</div>
+                </div>
+              </div>
+              <div style={{background:'#f9fafb', borderRadius:'10px', padding:'12px', marginBottom:'20px', fontSize:'13px', color:'#374151'}}>
+                Up next: <strong>{ex.name}</strong> - Set {machineSetIdx+1} - {sessionWeight} lbs x {targetReps} reps
+              </div>
+              <button onClick={handleTimerContinue}
+                style={{padding:'14px 36px', background: machineTimer <= 0 ? circuit.color : '#6b7280',
+                  color:'white', border:'none', borderRadius:'12px', fontSize:'16px', fontWeight:'700', cursor:'pointer'}}>
+                {machineTimer <= 0 ? 'Go!' : 'Skip Rest'}
+              </button>
+            </div>
+          )}
+
+          {machinePhase === 'ex-rest' && (
+            <div style={{textAlign:'center', padding:'12px 0'}}>
+              <div style={{fontSize:'28px'}}>Done!</div>
+              <h3 style={{margin:'4px 0 2px', color:'#1f2937'}}>{prevEx ? prevEx.name : ''}</h3>
+              <p style={{color:'#10b981', margin:'0 0 20px', fontSize:'14px', fontWeight:'600'}}>
+                {prevEx ? prevEx.sets : ''} sets complete!
+              </p>
+              <div style={{position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'20px'}}>
+                <svg width="140" height="140" style={{transform:'rotate(-90deg)'}}>
+                  <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+                  <circle cx="70" cy="70" r="52" fill="none" stroke={circuit.color} strokeWidth="8"
+                    strokeDasharray={(circ * timerProg)+' '+circ} strokeLinecap="round"/>
+                </svg>
+                <div style={{position:'absolute', textAlign:'center'}}>
+                  <div style={{fontSize:'34px', fontWeight:'800', color:'#111827'}}>{mcFmt(machineTimer)}</div>
+                  <div style={{fontSize:'11px', color:'#9ca3af'}}>REST</div>
+                </div>
+              </div>
+              <div style={{background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px',
+                padding:'14px 16px', marginBottom:'20px', textAlign:'left'}}>
+                <div style={{fontSize:'11px', color:'#6b7280', marginBottom:'4px'}}>Next - Exercise {machineExerciseIdx+1}/{circuit.exercises.length}</div>
+                <div style={{fontWeight:'700', color:'#111827', fontSize:'16px'}}>{ex.name}</div>
+                <div style={{color:'#6b7280', fontSize:'12px', marginTop:'2px'}}>{ex.muscles}</div>
+                <div style={{marginTop:'8px', fontSize:'13px'}}>
+                  <span style={{color:circuit.color, fontWeight:'600'}}>{ex.sets} sets x {getTargetReps(ex)} reps</span>
+                  <span style={{color:'#6b7280', marginLeft:'12px'}}>{machineSessionWeights[ex.name] != null ? machineSessionWeights[ex.name] : getTargetWeight(ex)} lbs</span>
+                </div>
+              </div>
+              <button onClick={handleTimerContinue}
+                style={{padding:'14px 36px', background: machineTimer <= 0 ? circuit.color : '#6b7280',
+                  color:'white', border:'none', borderRadius:'12px', fontSize:'16px', fontWeight:'700', cursor:'pointer'}}>
+                {machineTimer <= 0 ? 'Start Next Exercise!' : 'Skip Rest'}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // COMPLETE
+    if (machineCircuitView === 'complete' && circuit) {
+      const saveWorkout = async () => {
+        const entry = {
+          date: new Date().toISOString(),
+          type: 'Machine Circuit',
+          circuit: circuit.name,
+          exercises: circuit.exercises.length,
+          sets: machineSetsLog.length,
+          week,
+          rating: machineRating
+        };
+        try {
+          const key = 'atp-workouts-'+currentClient.id;
+          const hist = JSON.parse(localStorage.getItem(key) || '[]');
+          hist.unshift(entry);
+          localStorage.setItem(key, JSON.stringify(hist.slice(0, 100)));
+        } catch {}
+        try {
+          if (typeof supabase !== 'undefined') {
+            await supabase.from('workouts').insert([{ client_id: currentClient.id, ...entry }]);
+          }
+        } catch {}
+        setMachineRating(0);
+        setMachineSetsLog([]);
+        setMachineCircuitView('select');
+        setGymMode('main');
+      };
+      return (
+        <div style={{padding:'20px', textAlign:'center'}}>
+          <div style={{fontSize:'64px', marginBottom:'8px'}}>trophy</div>
+          <h2 style={{margin:'0 0 4px', color:'#1f2937', fontSize:'24px'}}>Circuit Complete!</h2>
+          <div style={{fontSize:'20px', marginBottom:'24px'}}>{circuit.emoji} {circuit.name}</div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'24px'}}>
+            {[['Exercises', circuit.exercises.length,''],['Total Sets', machineSetsLog.length,''],
+              ['Program Week', week,''],['Progression', cycleWeek>=5?'+5 lbs':cycleWeek>=3?'+2 reps':'Foundation','']
+            ].map(([label, val]) => (
+              <div key={label} style={{background:'#f9fafb', borderRadius:'12px', padding:'16px'}}>
+                <div style={{fontSize:'20px', fontWeight:'800', color:'#111827'}}>{val}</div>
+                <div style={{fontSize:'12px', color:'#6b7280'}}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:'#f9fafb', borderRadius:'12px', padding:'16px', marginBottom:'24px', textAlign:'left'}}>
+            <div style={{fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'10px'}}>Session Summary</div>
+            {circuit.exercises.map((ex, i) => {
+              const exSets = machineSetsLog.filter(s => s.exercise === ex.name);
+              const wt = exSets.length ? Math.round(exSets.reduce((t,s)=>t+s.weight,0)/exSets.length) : getTargetWeight(ex);
+              return (
+                <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'6px 0',
+                  borderBottom: i < circuit.exercises.length-1 ? '1px solid #e5e7eb' : 'none', fontSize:'13px'}}>
+                  <span style={{color:'#374151'}}>{ex.name}</span>
+                  <span style={{color:'#6b7280'}}>{exSets.length||ex.sets}x{getTargetReps(ex)} @ {wt} lbs</span>
+                </div>
+              );
   const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
   const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
