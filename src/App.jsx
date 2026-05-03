@@ -2166,7 +2166,20 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     selectedGroups.forEach(group=>{
       const cats=GYM_CAT_MAP[group]||[];
       const groupExs=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
-      exercises.push(...groupExs);
+     exercises.push(...groupExs);
+// FALLBACK if sheet returned nothing
+if(groupExs.length===0){
+  const FALLBACKS={
+    "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
+    "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
+    "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders"},{name:"Front Raise",muscles:"Shoulders"}],
+    "Arms (Biceps/Triceps)":[{name:"Bicep Curl",muscles:"Biceps",instructions:"Curl dumbbells to shoulders."},{name:"Tricep Extension",muscles:"Triceps"},{name:"Hammer Curl",muscles:"Biceps"}],
+    "Legs":[{name:"Barbell Squat",muscles:"Legs",instructions:"Squat to 90 degrees."},{name:"Leg Press",muscles:"Legs"},{name:"Romanian Deadlift",muscles:"Hamstrings"}],
+    "Core/Abs":[{name:"Plank",muscles:"Core",instructions:"Hold 60 sec."},{name:"Crunches",muscles:"Abs"},{name:"Leg Raises",muscles:"Abs"}],
+  };
+  const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
+  exercises.push(...fb);
+} 
     });
     const interleaved=[];
     if(selectedGroups.length===2){
@@ -2175,7 +2188,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       const maxLen=Math.max(group1.length,group2.length);
       for(let i=0;i<maxLen;i++){if(i<group1.length)interleaved.push(group1[i]);if(i<group2.length)interleaved.push(group2[i]);}
     } else {interleaved.push(...exercises);}
-    const withPrescription=interleaved.map(ex=>({...ex,...getWeekPrescription(ex.name,weekNum)}));
+    const withPrescription=interleaved.filter(ex=>ex.name).map(ex=>({...ex,...getWeekPrescription(ex.name,weekNum)}));
     const warmupExs=workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("warm-up")).slice(0,3).map(row=>({name:row[0],instructions:row[5]||"",muscles:"Full Body",group:"Warm-up",sets:1,reps:8,weight:0,progression:"none"}));
     if(warmupExs.length<3){const defaults=["Jumping Jacks","Arm Circles","Hip Rotations"];while(warmupExs.length<3)warmupExs.push({name:defaults[warmupExs.length],instructions:"Keep it light",muscles:"Full Body",group:"Warm-up",sets:1,reps:10,weight:0,progression:"none"});}
     const coreExs=[{name:"Plank",instructions:"Hold for 60 seconds, core tight",muscles:"Core",group:"Core",sets:3,reps:"60 sec",weight:0,progression:"increase time"},{name:"Crunches",instructions:"Focus on the squeeze at the top",muscles:"Core",group:"Core",sets:3,reps:15,weight:0,progression:"increase reps"}];
@@ -3574,9 +3587,9 @@ function advanceHiit(){
     const blocks=mins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
