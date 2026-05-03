@@ -159,7 +159,7 @@ const SITUATIONS=[
   {id:"car",     icon:"🚗", label:"Driving / in car"},
   {id:"small",   icon:"📦", label:"In a small space"},
   {id:"outside", icon:"🌳", label:"Outside / walking"},
-  {id:"gym",     icon:"💪", label:"At the gym"},
+  {id:"gym",     icon:"🏋️", label:"At the gym"},
 ];
 
 const GYM_TARGETS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs","Full Body","Cardio"];
@@ -337,12 +337,6 @@ Set any field not visible to null. For splits include as many as visible.`}
     return()=>clearTimeout(timerRef.current);
   },[timerActive,timerSec]);
 
-// MACHINE CIRCUIT TIMER
-useEffect(() => {
-  if (!machineTimerActive || machineTimer <= 0) return;
-  const id = setTimeout(() => setMachineTimer(t => t - 1), 1000);
-  return () => clearTimeout(id);
-}, [machineTimerActive, machineTimer]);
   function buildSession(planKey){
     const plan=PLANS[planKey];
     const weekNum=getPlanWeek(planKey);
@@ -836,8 +830,8 @@ Set any field not visible to null.`}
       }catch(e){ console.error(e); }
     }
 
-  function getByLevelAndCat(cat,level,count){
-      const all=workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).map(row=>({
+    function getByLevelAndCat(cat,level,count){
+      return workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).slice(0,count).map(row=>({
         name:row[0]||"",
         category:row[1]||"",
         level:row[2]||level,
@@ -847,7 +841,6 @@ Set any field not visible to null.`}
         progression:row[7]||"none",
         videoUrl:row[8]||null,
       }));
-      return [...all].sort(()=>Math.random()-0.5).slice(0,count);
     }
 
     // Get exercises by difficulty for both calisthenics and abs
@@ -2205,14 +2198,14 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   if(!gymMode) return(
     <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
       <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💪 Gym</div>
+        <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym</div>
         <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Workout Style</div>
         <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · Pick how you want to train today</div>
       </div>
       {[
         {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
         {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload",color:"#6366f1"},
-       {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},
+        {id:"machine",icon:"🏃",label:"Machine Circuit",desc:"Coming soon — lunch break friendly machine circuit",color:"#94a3b8",soon:true},
       ].map(m=>(
         <button key={m.id} onClick={()=>!m.soon&&setGymMode(m.id)} style={{...card,cursor:m.soon?"default":"pointer",textAlign:"left",width:"100%",border:`2px solid ${m.color}33`,background:`${m.color}08`,opacity:m.soon?0.6:1}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -2442,7 +2435,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(gymPhase==="baseline") return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>💪 Gym Setup</div>
+          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym Setup</div>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Let's set your starting weights</div>
           <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",lineHeight:1.7}}>Enter what you can comfortably lift for 3 sets of 8 reps.</div>
         </div>
@@ -2513,7 +2506,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(activePhase==="preview"&&gymSession) return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💪 Today's Session</div>
+          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🏋️ Today's Session</div>
           <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{gymSession.groups.join(" + ")} Day</div>
           <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{gymSession.exercises.length} exercises · {gymDuration} · Week {weekNum}</div>
         </div>
@@ -2615,433 +2608,9 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       );
     }
   }
-  const renderMachineCircuit = () => {
-  const circuit = machineCircuitKey ? MACHINE_CIRCUITS[machineCircuitKey] : null;
 
-  // Progression helpers
-  const getProgramWeek = () => {
-    try {
-      const d = JSON.parse(localStorage.getItem(`atp-program-${clientId}`) || '{}');
-      if (d.startDate) {
-        const diff = Math.floor((Date.now() - new Date(d.startDate)) / 86400000);
-        return Math.min(Math.max(Math.floor(diff / 7) + 1, 1), 12);
-      }
-    } catch {}
-    return 1;
-  };
-  const week = getProgramWeek();
-  const cycleWeek = ((week - 1) % 6) + 1;
-  const getTargetReps = (ex) => ex.reps + (cycleWeek >= 3 && cycleWeek <= 4 ? 2 : 0);
-  const getBaseWeight = (ex) => machineWeights[ex.name] || ex.startingWeight;
-  const getTargetWeight = (ex) => getBaseWeight(ex) + (cycleWeek >= 5 ? 5 : 0);
-  const mcFmt = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-
-  const startTimer = (secs) => {
-    setMachineTimer(secs);
-    setMachineTimerTotal(secs);
-    setMachineTimerActive(true);
-  };
-
-  const handleCompleteSet = () => {
-    const ex = circuit.exercises[machineExerciseIdx];
-    const wt = machineSessionWeights[ex.name] || getTargetWeight(ex);
-    setMachineSetsLog(prev => [...prev, { exercise: ex.name, set: machineSetIdx + 1, weight: wt, reps: getTargetReps(ex) }]);
-    const nextSet = machineSetIdx + 1;
-    if (nextSet < ex.sets) {
-      setMachineSetIdx(nextSet);
-      setMachinePhase('set-rest');
-      startTimer(ex.restBetweenSets);
-    } else {
-      const nextEx = machineExerciseIdx + 1;
-      if (nextEx < circuit.exercises.length) {
-        setMachineExerciseIdx(nextEx);
-        setMachineSetIdx(0);
-        setMachinePhase('ex-rest');
-        startTimer(ex.restAfterExercise);
-      } else {
-        // Save weights and finish
-        const newW = { ...machineWeights };
-        circuit.exercises.forEach(e => { if (machineSessionWeights[e.name]) newW[e.name] = machineSessionWeights[e.name]; });
-        setMachineWeights(newW);
-        localStorage.setItem(`atp-machine-weights-${clientId}`, JSON.stringify(newW));
-        setMachineTimerActive(false);
-        setMachineCircuitView('complete');
-      }
-    }
-  };
-
-  const handleTimerContinue = () => {
-    setMachineTimerActive(false);
-    setMachineTimer(0);
-    setMachinePhase('exercise');
-  };
-
-  const timerProg = machineTimerTotal > 0 ? machineTimer / machineTimerTotal : 0;
-  const circ = 2 * Math.PI * 52;
-
-  // ──────── SELECT ────────
-  if (machineCircuitView === 'select') {
-    return (
-      <div style={{padding:'20px'}}>
-        <div style={{textAlign:'center', marginBottom:'24px'}}>
-          <div style={{fontSize:'40px'}}>💪</div>
-          <h2 style={{margin:'8px 0 4px', color:'#1f2937', fontSize:'22px'}}>Machine Circuit</h2>
-          <p style={{color:'#6b7280', margin:0, fontSize:'14px'}}>Lunch-break friendly · 30–45 min</p>
-        </div>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'20px'}}>
-          {Object.entries(MACHINE_CIRCUITS).map(([key, c]) => (
-            <button key={key}
-              onClick={() => { setMachineCircuitKey(key); setMachineCircuitView('preview'); }}
-              style={{background:'white', border:`2px solid ${c.color}30`, borderRadius:'16px',
-                padding:'24px 12px', cursor:'pointer', textAlign:'center',
-                boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
-              <div style={{fontSize:'40px', marginBottom:'8px'}}>{c.emoji}</div>
-              <div style={{fontWeight:'700', color:c.color, fontSize:'15px'}}>{c.name}</div>
-              <div style={{color:'#9ca3af', fontSize:'12px', marginTop:'4px'}}>
-                {c.exercises.length} machines · {c.exercises.reduce((t,e)=>t+e.sets,0)} sets
-              </div>
-            </button>
-          ))}
-        </div>
-        <button onClick={() => setGymView('main')}
-          style={{width:'100%', padding:'12px', background:'none', border:'1px solid #e5e7eb',
-            borderRadius:'10px', color:'#6b7280', cursor:'pointer', fontSize:'14px'}}>
-          ← Back to Gym
-        </button>
-      </div>
-    );
-  }
-
-  // ──────── PREVIEW ────────
-  if (machineCircuitView === 'preview' && circuit) {
-    const totalSets = circuit.exercises.reduce((t,e)=>t+e.sets, 0);
-    const estMins = Math.ceil(circuit.exercises.reduce((t,e) => t+(e.sets*30)+((e.sets-1)*e.restBetweenSets)+e.restAfterExercise, 0) / 60);
-
-    return (
-      <div style={{padding:'20px'}}>
-        <div style={{textAlign:'center', marginBottom:'20px'}}>
-          <div style={{fontSize:'52px'}}>{circuit.emoji}</div>
-          <h2 style={{margin:'8px 0 4px', color:'#1f2937'}}>{circuit.name}</h2>
-          <div style={{display:'flex', justifyContent:'center', gap:'14px', color:'#6b7280', fontSize:'13px', flexWrap:'wrap'}}>
-            <span>💪 {circuit.exercises.length} exercises</span>
-            <span>💪 {totalSets} sets</span>
-            <span>⏱️ ~{estMins} min</span>
-            <span>📅 Week {week}</span>
-          </div>
-        </div>
-
-        {cycleWeek >= 5 && (
-          <div style={{background:'#fef3c7', border:'1px solid #f59e0b', borderRadius:'10px',
-            padding:'10px 14px', marginBottom:'16px', fontSize:'13px', color:'#92400e'}}>
-            🔺 <strong>Weight increase week!</strong> Targets are +5 lbs from your last session.
-          </div>
-        )}
-        {cycleWeek >= 3 && cycleWeek <= 4 && (
-          <div style={{background:'#ecfdf5', border:'1px solid #10b981', borderRadius:'10px',
-            padding:'10px 14px', marginBottom:'16px', fontSize:'13px', color:'#065f46'}}>
-            📈 <strong>Rep increase week!</strong> Targeting +2 extra reps per set.
-          </div>
-        )}
-
-        <div style={{background:'#f9fafb', borderRadius:'12px', marginBottom:'20px'}}>
-          {circuit.exercises.map((ex, i) => (
-            <div key={i} style={{display:'flex', alignItems:'center', padding:'12px 16px',
-              borderBottom: i < circuit.exercises.length-1 ? '1px solid #e5e7eb' : 'none'}}>
-              <div style={{width:'26px', height:'26px', borderRadius:'50%', background:circuit.color,
-                color:'white', display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:'12px', fontWeight:'700', flexShrink:0}}>{i+1}</div>
-              <div style={{marginLeft:'12px', flex:1}}>
-                <div style={{fontWeight:'600', fontSize:'14px', color:'#1f2937'}}>{ex.name}</div>
-                <div style={{color:'#9ca3af', fontSize:'11px'}}>{ex.muscles}</div>
-              </div>
-              <div style={{textAlign:'right', fontSize:'13px'}}>
-                <div style={{fontWeight:'700', color:'#374151'}}>{ex.sets}×{getTargetReps(ex)}</div>
-                <div style={{color:'#6b7280'}}>{getTargetWeight(ex)} lbs</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button onClick={() => {
-          const sw = {};
-          circuit.exercises.forEach(ex => { sw[ex.name] = getTargetWeight(ex); });
-          setMachineSessionWeights(sw);
-          setMachineExerciseIdx(0);
-          setMachineSetIdx(0);
-          setMachinePhase('exercise');
-          setMachineSetsLog([]);
-          setMachineTimerActive(false);
-          setMachineTimer(0);
-          setMachineCircuitView('session');
-        }} style={{width:'100%', padding:'16px', background:circuit.color, color:'white',
-          border:'none', borderRadius:'14px', fontSize:'17px', fontWeight:'700', cursor:'pointer',
-          boxShadow:`0 4px 12px ${circuit.color}40`}}>
-          🚀 Start Circuit
-        </button>
-        <button onClick={() => setMachineCircuitView('select')}
-          style={{width:'100%', marginTop:'10px', padding:'12px', background:'none',
-            border:'1px solid #e5e7eb', borderRadius:'10px', color:'#6b7280', cursor:'pointer', fontSize:'14px'}}>
-          ← Back
-        </button>
-      </div>
-    );
-  }
-
-  // ──────── SESSION ────────
-  if (machineCircuitView === 'session' && circuit) {
-    const ex = circuit.exercises[machineExerciseIdx];
-    const prevEx = circuit.exercises[machineExerciseIdx - 1];
-    const nextEx = circuit.exercises[machineExerciseIdx + 1];
-    if (!ex) return null;
-    const sessionWeight = machineSessionWeights[ex.name] ?? getTargetWeight(ex);
-    const targetReps = getTargetReps(ex);
-
-    return (
-      <div style={{padding:'16px', maxWidth:'420px', margin:'0 auto'}}>
-        {/* Progress bar */}
-        <div style={{marginBottom:'16px'}}>
-          <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px'}}>
-            <span style={{color:circuit.color, fontWeight:'700'}}>{circuit.emoji} {circuit.name}</span>
-            <span style={{color:'#6b7280'}}>Exercise {machineExerciseIdx+1}/{circuit.exercises.length}</span>
-          </div>
-          <div style={{background:'#e5e7eb', borderRadius:'999px', height:'6px'}}>
-            <div style={{background:circuit.color, height:'6px', borderRadius:'999px',
-              width:`${(machineExerciseIdx/circuit.exercises.length)*100}%`, transition:'width 0.4s ease'}}/>
-          </div>
-        </div>
-
-        {/* EXERCISE PHASE */}
-        {machinePhase === 'exercise' && (
-          <div>
-            <div style={{background:'white', borderRadius:'16px', padding:'20px',
-              boxShadow:'0 2px 12px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px'}}>
-                <div style={{flex:1, paddingRight:'12px'}}>
-                  <div style={{fontWeight:'800', fontSize:'20px', color:'#111827', lineHeight:'1.2'}}>{ex.name}</div>
-                  <div style={{fontSize:'13px', color:circuit.color, fontWeight:'600', marginTop:'4px'}}>{ex.muscles}</div>
-                </div>
-                <div style={{background:`${circuit.color}15`, borderRadius:'12px', padding:'10px 16px', textAlign:'center', flexShrink:0}}>
-                  <div style={{fontSize:'11px', color:'#6b7280'}}>Set</div>
-                  <div style={{fontSize:'24px', fontWeight:'800', color:circuit.color, lineHeight:'1'}}>{machineSetIdx+1}/{ex.sets}</div>
-                </div>
-              </div>
-
-              <div style={{background:'#f9fafb', borderRadius:'10px', padding:'12px', marginBottom:'16px',
-                fontSize:'13px', color:'#374151', lineHeight:'1.5'}}>
-                {ex.instructions}
-              </div>
-
-              <div style={{display:'flex', gap:'12px'}}>
-                {/* Weight control */}
-                <div style={{flex:1, textAlign:'center'}}>
-                  <div style={{fontSize:'11px', color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Weight (lbs)</div>
-                  <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
-                    <button
-                      onClick={() => setMachineSessionWeights(w => ({...w, [ex.name]: Math.max(0, (w[ex.name]??getTargetWeight(ex)) - 5)}))}
-                      style={{width:'34px', height:'34px', borderRadius:'50%', border:'1px solid #e5e7eb',
-                        background:'white', cursor:'pointer', fontSize:'20px', color:'#374151', lineHeight:'1'}}>−</button>
-                    <input type="number"
-                      value={sessionWeight}
-                      onChange={e => setMachineSessionWeights(w => ({...w, [ex.name]: parseInt(e.target.value)||0}))}
-                      style={{width:'68px', textAlign:'center', border:`2px solid ${circuit.color}`,
-                        borderRadius:'8px', padding:'6px 4px', fontSize:'22px', fontWeight:'700', color:'#111827'}}/>
-                    <button
-                      onClick={() => setMachineSessionWeights(w => ({...w, [ex.name]: (w[ex.name]??getTargetWeight(ex)) + 5}))}
-                      style={{width:'34px', height:'34px', borderRadius:'50%', border:'1px solid #e5e7eb',
-                        background:'white', cursor:'pointer', fontSize:'20px', color:'#374151', lineHeight:'1'}}>+</button>
-                  </div>
-                </div>
-                {/* Reps */}
-                <div style={{flex:1, textAlign:'center'}}>
-                  <div style={{fontSize:'11px', color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em'}}>Target Reps</div>
-                  <div style={{fontSize:'36px', fontWeight:'800', color:'#111827', paddingTop:'2px'}}>{targetReps}</div>
-                </div>
-              </div>
-            </div>
-
-            <button onClick={handleCompleteSet}
-              style={{width:'100%', padding:'18px', background:circuit.color, color:'white',
-                border:'none', borderRadius:'14px', fontSize:'18px', fontWeight:'700', cursor:'pointer',
-                boxShadow:`0 4px 14px ${circuit.color}50`}}>
-              ✅ Complete Set {machineSetIdx+1}
-            </button>
-
-            {nextEx && machineSetIdx === ex.sets - 1 && (
-              <div style={{marginTop:'12px', padding:'10px 14px', background:'#f9fafb',
-                borderRadius:'10px', fontSize:'13px', color:'#6b7280'}}>
-                Next up: <strong style={{color:'#374151'}}>{nextEx.name}</strong>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* SET REST PHASE */}
-        {machinePhase === 'set-rest' && (
-          <div style={{textAlign:'center', padding:'12px 0'}}>
-            <div style={{fontSize:'28px'}}>😮‍💨</div>
-            <h3 style={{margin:'4px 0 2px', color:'#1f2937'}}>Set {machineSetIdx} Complete!</h3>
-            <p style={{color:'#6b7280', margin:'0 0 20px', fontSize:'14px'}}>Rest before set {machineSetIdx+1}</p>
-
-            <div style={{position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'20px'}}>
-              <svg width="140" height="140" style={{transform:'rotate(-90deg)'}}>
-                <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
-                <circle cx="70" cy="70" r="52" fill="none" stroke={circuit.color} strokeWidth="8"
-                  strokeDasharray={`${circ * timerProg} ${circ}`} strokeLinecap="round"/>
-              </svg>
-              <div style={{position:'absolute', textAlign:'center'}}>
-                <div style={{fontSize:'34px', fontWeight:'800', color:'#111827'}}>{mcFmt(machineTimer)}</div>
-                <div style={{fontSize:'11px', color:'#9ca3af', letterSpacing:'0.1em'}}>REST</div>
-              </div>
-            </div>
-
-            <div style={{background:'#f9fafb', borderRadius:'10px', padding:'12px', marginBottom:'20px', fontSize:'13px', color:'#374151'}}>
-              Up next: <strong>{ex.name}</strong> · Set {machineSetIdx+1} · {sessionWeight} lbs × {targetReps} reps
-            </div>
-
-            <button onClick={handleTimerContinue}
-              style={{padding:'14px 36px', background: machineTimer <= 0 ? circuit.color : '#6b7280',
-                color:'white', border:'none', borderRadius:'12px', fontSize:'16px', fontWeight:'700', cursor:'pointer'}}>
-              {machineTimer <= 0 ? '🏃 Go!' : '⏭️ Skip Rest'}
-            </button>
-          </div>
-        )}
-
-        {/* EXERCISE REST PHASE */}
-        {machinePhase === 'ex-rest' && (
-          <div style={{textAlign:'center', padding:'12px 0'}}>
-            <div style={{fontSize:'28px'}}>🏁</div>
-            <h3 style={{margin:'4px 0 2px', color:'#1f2937'}}>{prevEx?.name}</h3>
-            <p style={{color:'#10b981', margin:'0 0 20px', fontSize:'14px', fontWeight:'600'}}>
-              ✅ {prevEx?.sets} sets complete!
-            </p>
-
-            <div style={{position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'20px'}}>
-              <svg width="140" height="140" style={{transform:'rotate(-90deg)'}}>
-                <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
-                <circle cx="70" cy="70" r="52" fill="none" stroke={circuit.color} strokeWidth="8"
-                  strokeDasharray={`${circ * timerProg} ${circ}`} strokeLinecap="round"/>
-              </svg>
-              <div style={{position:'absolute', textAlign:'center'}}>
-                <div style={{fontSize:'34px', fontWeight:'800', color:'#111827'}}>{mcFmt(machineTimer)}</div>
-                <div style={{fontSize:'11px', color:'#9ca3af', letterSpacing:'0.1em'}}>REST</div>
-              </div>
-            </div>
-
-            <div style={{background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px',
-              padding:'14px 16px', marginBottom:'20px', textAlign:'left'}}>
-              <div style={{fontSize:'11px', color:'#6b7280', marginBottom:'4px'}}>
-                Next — Exercise {machineExerciseIdx+1}/{circuit.exercises.length}
-              </div>
-              <div style={{fontWeight:'700', color:'#111827', fontSize:'16px'}}>{ex.name}</div>
-              <div style={{color:'#6b7280', fontSize:'12px', marginTop:'2px'}}>{ex.muscles}</div>
-              <div style={{marginTop:'8px', display:'flex', gap:'12px', fontSize:'13px'}}>
-                <span style={{color:circuit.color, fontWeight:'600'}}>{ex.sets} sets × {getTargetReps(ex)} reps</span>
-                <span style={{color:'#6b7280'}}>{machineSessionWeights[ex.name]??getTargetWeight(ex)} lbs</span>
-              </div>
-            </div>
-
-            <button onClick={handleTimerContinue}
-              style={{padding:'14px 36px', background: machineTimer <= 0 ? circuit.color : '#6b7280',
-                color:'white', border:'none', borderRadius:'12px', fontSize:'16px', fontWeight:'700', cursor:'pointer'}}>
-              {machineTimer <= 0 ? '🏃 Start Next Exercise!' : '⏭️ Skip Rest'}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ──────── COMPLETE ────────
-  if (machineCircuitView === 'complete' && circuit) {
-    const saveWorkout = async () => {
-      const entry = {
-        date: new Date().toISOString(),
-        type: 'Machine Circuit',
-        circuit: circuit.name,
-        exercises: circuit.exercises.length,
-        sets: machineSetsLog.length,
-        week,
-        rating: machineRating
-      };
-      try {
-        const key = `atp-workouts-${clientId}`;
-        const hist = JSON.parse(localStorage.getItem(key) || '[]');
-        hist.unshift(entry);
-        localStorage.setItem(key, JSON.stringify(hist.slice(0, 100)));
-      } catch {}
-      try {
-        if (typeof supabase !== 'undefined') {
-          await supabase.from('workouts').insert([{ client_id: clientId, ...entry }]);
-        }
-      } catch {}
-      setMachineRating(0);
-      setMachineSetsLog([]);
-      setMachineCircuitView('select');
-      setGymView('main');
-    };
-
-    return (
-      <div style={{padding:'20px', textAlign:'center'}}>
-        <div style={{fontSize:'64px', marginBottom:'8px'}}>🏆</div>
-        <h2 style={{margin:'0 0 4px', color:'#1f2937', fontSize:'24px'}}>Circuit Complete!</h2>
-        <div style={{fontSize:'20px', marginBottom:'24px'}}>{circuit.emoji} {circuit.name}</div>
-
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'24px'}}>
-          {[['Exercises', circuit.exercises.length,'💪'], ['Total Sets', machineSetsLog.length,'💪'],
-            ['Program Week', week,'📅'], ['Progression', cycleWeek>=5?'+5 lbs':cycleWeek>=3?'+2 reps':'Foundation','📈']
-          ].map(([label, val, emoji]) => (
-            <div key={label} style={{background:'#f9fafb', borderRadius:'12px', padding:'16px'}}>
-              <div style={{fontSize:'24px'}}>{emoji}</div>
-              <div style={{fontSize:'20px', fontWeight:'800', color:'#111827'}}>{val}</div>
-              <div style={{fontSize:'12px', color:'#6b7280'}}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Summary */}
-        <div style={{background:'#f9fafb', borderRadius:'12px', padding:'16px', marginBottom:'24px', textAlign:'left'}}>
-          <div style={{fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'10px'}}>Session Summary</div>
-          {circuit.exercises.map((ex, i) => {
-            const exSets = machineSetsLog.filter(s => s.exercise === ex.name);
-            const wt = exSets.length ? Math.round(exSets.reduce((t,s)=>t+s.weight,0)/exSets.length) : getTargetWeight(ex);
-            return (
-              <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'6px 0',
-                borderBottom: i < circuit.exercises.length-1 ? '1px solid #e5e7eb' : 'none', fontSize:'13px'}}>
-                <span style={{color:'#374151'}}>{ex.name}</span>
-                <span style={{color:'#6b7280'}}>{exSets.length||ex.sets}×{getTargetReps(ex)} @ {wt} lbs</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Rating */}
-        <div style={{marginBottom:'24px'}}>
-          <div style={{fontSize:'15px', fontWeight:'600', color:'#374151', marginBottom:'12px'}}>How was your workout?</div>
-          <div style={{display:'flex', justifyContent:'center', gap:'8px'}}>
-            {[1,2,3,4,5].map(star => (
-              <button key={star} onClick={() => setMachineRating(star)}
-                style={{fontSize:'34px', background:'none', border:'none', cursor:'pointer',
-                  opacity: machineRating >= star ? 1 : 0.25, transition:'opacity 0.15s'}}>⭐</button>
-            ))}
-          </div>
-        </div>
-
-        <button onClick={saveWorkout}
-          style={{width:'100%', padding:'16px', background:circuit.color, color:'white',
-            border:'none', borderRadius:'14px', fontSize:'17px', fontWeight:'700', cursor:'pointer',
-            boxShadow:`0 4px 12px ${circuit.color}40`}}>
-          💾 Save & Finish
-        </button>
-        </div>
-    );
-  }
-  return null;
-  };
-
-  if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
-
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
@@ -3974,19 +3543,19 @@ function advanceHiit(){
     }
 
     const warmupExs=getExercises(["warm-up"],5);
-    if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:45});
+    if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
    const shadowExs=getExercises(["basic shadow boxing","defensive footwork"],6);
     if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
 
     const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):hiitType==="mixed"?getExercises(["kickboxing combo","boxing only"],4):getExercises(["boxing only"],4);
-    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:60});
+    if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:20});
 
     const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):hiitType==="mixed"?getExercises(["heavy bag combo","kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
-    if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:60});
+    if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:20});
 
     const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):hiitType==="mixed"?getExercises(["kickboxing combo","power punching"],12).slice(4,8):getExercises(["boxing only","power punching"],12).slice(4,8);
-    if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:60});
+    if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:20});
 
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
     const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
@@ -4005,42 +3574,42 @@ function advanceHiit(){
     const blocks=mins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
-      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:15,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:mins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:[...cals1,...cals2].slice(0,2)},
-      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:30,exercises:bagExs2.slice(0,4)},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:20},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:20}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull},
     ]; 
 
@@ -4582,9 +4151,7 @@ export default function AllThingsPossible(){
   const [ratings,setRatings]       = useState({});
   const [nutrition,setNutrition]   = useState({});
   const [moveProfile,setMoveProfile] = useState({});
- const [blastWeights,setBlastWeights] = useState(()=>{
-    try{return JSON.parse(localStorage.getItem("atp-blast-weights")||"{}");}catch(e){return{};}
-  }); 
+  const [blastWeights,setBlastWeights] = useState({});
   const [blastSession,setBlastSession] = useState(null);
   const [blastPhase,setBlastPhase] = useState("setup");
   const [blastBlockIdx,setBlastBlockIdx] = useState(0);
@@ -4626,22 +4193,7 @@ export default function AllThingsPossible(){
  const [gFitToken,setGFitToken]         = useState(null);
   const [sheetData,setSheetData]         = useState({workouts:[],recipes:[],foods:[]});
   const [sheetLoading,setSheetLoading]   = useState(false);
-  // MACHINE CIRCUIT STATE
-const [machineCircuitView, setMachineCircuitView] = useState('select'); // 'select'|'preview'|'session'|'complete'
-const [machineCircuitKey, setMachineCircuitKey] = useState(null);
-const [machineExerciseIdx, setMachineExerciseIdx] = useState(0);
-const [machineSetIdx, setMachineSetIdx] = useState(0);
-const [machinePhase, setMachinePhase] = useState('exercise'); // 'exercise'|'set-rest'|'ex-rest'
-const [machineTimer, setMachineTimer] = useState(0);
-const [machineTimerTotal, setMachineTimerTotal] = useState(0);
-const [machineTimerActive, setMachineTimerActive] = useState(false);
-const [machineWeights, setMachineWeights] = useState(() => {
-  try { return JSON.parse(localStorage.getItem(`atp-machine-weights-${clientId}`) || '{}'); } catch { return {}; }
-});
-const [machineSessionWeights, setMachineSessionWeights] = useState({});
-const [machineRating, setMachineRating] = useState(0);
-const [machineSetsLog, setMachineSetsLog] = useState([]);
- const [sheetLoaded,setSheetLoaded]     = useState(false);
+  const [sheetLoaded,setSheetLoaded]     = useState(false);
   const [activeSheetTab,setActiveSheetTab] = useState("recipes");
   const [foodSearch,setFoodSearch]       = useState(""); const workoutTimerRef = useRef(null);
   const restTimerRef = useRef(null);
@@ -5599,75 +5151,20 @@ const BLAST_GROUPS={
     },
   };
 
- // =============================================
-// MACHINE CIRCUIT DATA
-// =============================================
-const MACHINE_CIRCUITS = {
-  upper: {
-    name: "Upper Body", emoji: "💪", color: "#3b82f6",
-    exercises: [
-      { name:"Chest Press Machine", muscles:"Chest, Shoulders, Triceps", instructions:"Sit with back flat. Push handles forward until arms nearly straight. Return slowly.", sets:3, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Lat Pulldown", muscles:"Back, Biceps", instructions:"Grip bar wide. Pull down to upper chest squeezing shoulder blades. Return with control.", sets:3, reps:12, startingWeight:50, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Seated Cable Row", muscles:"Mid Back, Biceps", instructions:"Sit tall, pull handle to lower chest elbows back. Squeeze at top. Return slowly.", sets:3, reps:12, startingWeight:45, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Shoulder Press Machine", muscles:"Shoulders, Triceps", instructions:"Grip handles at shoulder height. Press up until arms nearly straight. Lower slowly.", sets:3, reps:12, startingWeight:30, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Pec Deck Fly", muscles:"Chest", instructions:"Arms on pads at shoulder height. Bring together in front of chest. Return with control.", sets:3, reps:12, startingWeight:35, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Tricep Pushdown", muscles:"Triceps", instructions:"Push cable handle down until arms fully extended. Keep elbows tucked. Return slowly.", sets:3, reps:12, startingWeight:25, restBetweenSets:45, restAfterExercise:60 }
-    ]
-  },
-  lower: {
-    name: "Lower Body", emoji: "🦵", color: "#10b981",
-    exercises: [
-      { name:"Leg Press", muscles:"Quads, Glutes, Hamstrings", instructions:"Feet hip-width on platform. Lower until knees at 90°. Press through heels to extend.", sets:3, reps:12, startingWeight:80, restBetweenSets:60, restAfterExercise:75 },
-      { name:"Leg Extension", muscles:"Quadriceps", instructions:"Pad just above ankles. Extend legs until straight, hold 1 sec. Lower slowly.", sets:3, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Seated Leg Curl", muscles:"Hamstrings", instructions:"Pad behind lower leg. Curl down as far as comfortable. Return slowly.", sets:3, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Hip Abductor Machine", muscles:"Glutes, Hip Abductors", instructions:"Pads on outer thighs. Press legs outward. Return slowly.", sets:3, reps:15, startingWeight:50, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Hip Adductor Machine", muscles:"Inner Thighs", instructions:"Pads on inner thighs. Press legs inward. Return slowly.", sets:3, reps:15, startingWeight:50, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Calf Raise Machine", muscles:"Calves", instructions:"Balls of feet on platform. Rise on toes, hold 1 sec. Lower slowly.", sets:3, reps:15, startingWeight:60, restBetweenSets:30, restAfterExercise:45 }
-    ]
-  },
-  full: {
-    name: "Full Body", emoji: "🔥", color: "#f59e0b",
-    exercises: [
-      { name:"Chest Press Machine", muscles:"Chest, Shoulders, Triceps", instructions:"Push handles forward until arms nearly straight. Return slowly.", sets:2, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Leg Press", muscles:"Quads, Glutes, Hamstrings", instructions:"Feet hip-width. Lower until 90°. Press through heels.", sets:2, reps:12, startingWeight:80, restBetweenSets:60, restAfterExercise:75 },
-      { name:"Lat Pulldown", muscles:"Back, Biceps", instructions:"Pull to upper chest squeezing shoulder blades.", sets:2, reps:12, startingWeight:50, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Leg Extension", muscles:"Quadriceps", instructions:"Extend legs until straight, hold 1 sec. Lower slowly.", sets:2, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Shoulder Press Machine", muscles:"Shoulders, Triceps", instructions:"Press up until arms nearly straight. Lower slowly.", sets:2, reps:12, startingWeight:30, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Seated Leg Curl", muscles:"Hamstrings", instructions:"Curl down as far as comfortable. Return slowly.", sets:2, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Seated Cable Row", muscles:"Mid Back, Biceps", instructions:"Pull to lower chest elbows back. Squeeze at top.", sets:2, reps:12, startingWeight:45, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Calf Raise Machine", muscles:"Calves", instructions:"Rise on toes, hold 1 sec. Lower slowly.", sets:2, reps:15, startingWeight:60, restBetweenSets:30, restAfterExercise:45 }
-    ]
-  },
-  glutes: {
-    name: "Glutes & Legs", emoji: "🍑", color: "#ec4899",
-    exercises: [
-      { name:"Hip Thrust Machine", muscles:"Glutes, Hamstrings", instructions:"Pad across hips. Drive hips up until body straight. Squeeze glutes at top. Lower slowly.", sets:3, reps:12, startingWeight:45, restBetweenSets:60, restAfterExercise:75 },
-      { name:"Glute Kickback Machine", muscles:"Glutes", instructions:"Place foot on pad. Kick back and up squeezing glute. Complete all reps then switch sides.", sets:3, reps:12, startingWeight:30, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Hip Abductor Machine", muscles:"Glutes, Hip Abductors", instructions:"Press legs outward. Squeeze glutes. Return slowly.", sets:3, reps:15, startingWeight:50, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Leg Press (High Foot)", muscles:"Glutes, Hamstrings", instructions:"Feet HIGH on platform hip-width. Lower to 90°. Press through heels — targets glutes more.", sets:3, reps:12, startingWeight:70, restBetweenSets:60, restAfterExercise:75 },
-      { name:"Seated Leg Curl", muscles:"Hamstrings, Glutes", instructions:"Curl down as far as comfortable. Squeeze hamstrings. Return slowly.", sets:3, reps:12, startingWeight:40, restBetweenSets:45, restAfterExercise:60 },
-      { name:"Calf Raise Machine", muscles:"Calves", instructions:"Rise on toes, hold 1 sec. Lower below platform for full stretch.", sets:3, reps:15, startingWeight:60, restBetweenSets:30, restAfterExercise:45 }
-    ]
-  }
-}; 
-function buildBlastSession(group, weightInputs){
+  function buildBlastSession(group, weightInputs){
     const g=BLAST_GROUPS[group];
     if(!g) return null;
-    // +5lbs every 2 weeks progression
-    let weekNum=1;
-    try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");weekNum=prog[currentClient?.id]?.currentWeek||1;}catch(e){}
-    const weekIncrements=Math.floor((weekNum-1)/2);
     const blocks=g.blocks.map(block=>({
       ...block,
       exercises:block.exercises.map(ex=>{
-        const baseW=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
-        const progW=baseW>0?baseW+(weekIncrements*5):0;
-        const scaled=progW>0?Math.round((progW*ex.scale)/5)*5:0;
+        const w=ex.scaleKey?parseFloat(weightInputs[ex.scaleKey]||0):0;
+        const scaled=w>0?Math.round((w*ex.scale)/5)*5:0;
         return{...ex,weight:scaled,weightLabel:scaled>0?`${scaled} lbs`:"Bodyweight"};
       })
     }));
-    return{group,blocks,weightInputs,weekNum,totalMin:30,generatedAt:todayStr()};
+    return{group,blocks,weightInputs,totalMin:30,generatedAt:todayStr()};
   }
+
   useEffect(()=>{
     if(blastTimerActive&&blastTimerSec>0){
       if(blastTimerSec<=3){
@@ -5687,15 +5184,7 @@ function buildBlastSession(group, weightInputs){
     if(!block){setBlastComplete(true);setBlastTimerActive(false);return;}
 
     if(blastIsTransition){
-      // Check if this was a 5 sec swap (blastExIdx>0) or a 60 sec block transition
-      if(blastExIdx>0){
-        // Swap done — just start the next exercise timer
-        setBlastIsTransition(false);
-        setBlastIsRest(false);
-        setBlastTimerSec(30);
-        return;
-      }
-      // Block transition done — start next block
+      // Transition done — start next block
       setBlastIsTransition(false);
       setBlastIsRest(false);
       setBlastExIdx(0);
@@ -5750,14 +5239,14 @@ function buildBlastSession(group, weightInputs){
       // Exercise done
       if(block.type==="superset"){
         const nextEx=blastExIdx+1;
-     if(nextEx<block.exercises.length){
+        if(nextEx<block.exercises.length){
           // Move to next exercise in superset — no rest
           setBlastExIdx(nextEx);
           setBlastTimerSec(30);
         } else {
           // Superset pair done — rest
           setBlastIsRest(true);
-          setBlastTimerSec(35);
+          setBlastTimerSec(30);
         }
       } else {
         // Finisher — rest after each set
@@ -5766,21 +5255,15 @@ function buildBlastSession(group, weightInputs){
       }
     }
   }
-async function saveBlastSession(rating){
+
+  async function saveBlastSession(rating){
     const entry={date:todayStr(),group:blastSession.group,rating,weights:blastSession.weightInputs,clientId:currentClient.id,ts:new Date().toISOString()};
     const newHistory=[...blastHistory,entry];
     setBlastHistory(newHistory);
-    try{
-      localStorage.setItem("atp-blast",JSON.stringify(newHistory));
-      // Save weights so they pre-fill next time
-      const savedWeights=JSON.parse(localStorage.getItem("atp-blast-weights")||"{}");
-      const updatedWeights={...savedWeights,...blastSession.weightInputs};
-      localStorage.setItem("atp-blast-weights",JSON.stringify(updatedWeights));
-      setBlastWeights(updatedWeights);
-    }catch(e){}
+    try{localStorage.setItem("atp-blast",JSON.stringify(newHistory));}catch(e){}
     setBlastRating(rating);
   }
- 
+
   async function generateDeskMoves(situation, enjoys){
     setGeneratingDesk(true);
     const c=currentClient;
@@ -6225,7 +5708,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
           {q:"What activities do you enjoy?",field:"likes",placeholder:"e.g. Walking, yoga, swimming, dancing...",type:"text"},
           {q:"Fitness level",field:"level",type:"select"},
         ]},
-        {title:"Equipment",icon:"💪",fields:[
+        {title:"Equipment",icon:"🏋️",fields:[
           {q:"What equipment do you have access to?",field:"equipment",type:"equipment"},
         ]},
         {title:"Workout Schedule",icon:"📅",fields:[
@@ -6432,7 +5915,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   // ═══════════════════════════════════════════════════════════════════════════
   if(screen==="client"&&currentClient){
 const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["workout","💪","Workout"],["desk","⚡","Quick Move"],["nutrition","🥩","Nutrition"]];
- const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","💪","Gym"],["cals","🤸","Cals"],["abs","🔥","Abs"],["running","🏃","Run"],["trampoline","🦘","Bounce"],["trx","🔗","TRX"]];
+ const MORE_TABS=[["grocery","🛒","Grocery"],["stats","🔢","My Stats"],["progress","📈","Progress"],["messages","💌","Messages"],["hiit","🔥","HIIT"],["gym","🏋️","Gym"],["cals","🤸","Cals"],["abs","🔥","Abs"],["running","🏃","Run"],["trampoline","🦘","Bounce"],["trx","🔗","TRX"]];
     const ALL_TABS=[...MAIN_TABS,...MORE_TABS];
     return(
       <div style={{minHeight:"100vh",background:G.creamDark,fontFamily:"'Palatino Linotype',Palatino,serif",display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
@@ -6633,7 +6116,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     {[
                       {id:"hiit",icon:"🥊",label:"HIIT / Boxing",desc:"Shadow boxing, heavy bag, kickboxing"},
-                      {id:"gym",icon:"💪",label:"Gym",desc:"Weighted exercises with progressive overload"},
+                      {id:"gym",icon:"🏋️",label:"Gym",desc:"Weighted exercises with progressive overload"},
                      {id:"cals",icon:"🤸",label:"Calisthenics & Abs",desc:"Bodyweight circuit training"},
                       {id:"running",icon:"🏃",label:"Running",desc:"Couch to 5K, half marathon, full marathon"},
                     ].map(t=>{
@@ -6788,7 +6271,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                       const isTabDay=exercises.length===1&&exercises[0]?.name?.startsWith("→ Go to");
                       const tabName=isTabDay?exercises[0].name.replace("→ Go to ","").replace(" tab","").trim():"";
                       const tabId=tabName.toLowerCase().includes("hiit")||tabName.toLowerCase().includes("boxing")?"hiit":tabName.toLowerCase().includes("gym")?"gym":tabName.toLowerCase().includes("calist")?"cals":"";
-                      const tabIcon=tabId==="hiit"?"🥊":tabId==="gym"?"💪":tabId==="cals"?"🤸":"💪";
+                      const tabIcon=tabId==="hiit"?"🥊":tabId==="gym"?"🏋️":tabId==="cals"?"🤸":"💪";
                       const tabColor=tabId==="hiit"?G.mangoDeep:tabId==="gym"?"#4f46e5":tabId==="cals"?"#7c3aed":G.green;
                       if(isTabDay) return(
                         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,padding:"20px 0"}}>
@@ -7502,7 +6985,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                     <div style={{display:"flex",gap:8,marginBottom:6,flexWrap:"wrap"}}>
                       {row[1]&&<span style={{fontSize:"0.65rem",padding:"2px 8px",borderRadius:20,background:G.creamDark,color:G.textSoft}}>{row[1]}</span>}
                       {row[3]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>⏱ {row[3]}</span>}
-                      {row[4]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>💪 {row[4]}</span>}
+                      {row[4]&&<span style={{fontSize:"0.65rem",color:G.textSoft}}>🏋️ {row[4]}</span>}
                     </div>
                     {row[5]&&<div style={{fontSize:"0.72rem",color:G.text,marginBottom:4}}>{row[5]}</div>}
                     {row[6]&&<div style={{fontSize:"0.63rem",color:G.green,fontStyle:"italic"}}>💪 {row[6]}</div>}
@@ -8653,7 +8136,7 @@ MESSAGE: [the client message]`;
                       <div style={{fontSize:"0.82rem",fontWeight:700,color:G.green}}>{row[0]}</div>
                       <div style={{fontSize:"0.62rem",padding:"2px 8px",borderRadius:20,background:"#d8f3dc",color:G.green}}>{row[2]}</div>
                     </div>
-                    <div style={{fontSize:"0.68rem",color:G.textSoft}}>{row[1]} · ⏱ {row[3]} · 💪 {row[4]}</div>
+                    <div style={{fontSize:"0.68rem",color:G.textSoft}}>{row[1]} · ⏱ {row[3]} · 🏋️ {row[4]}</div>
                     {row[6]&&<div style={{fontSize:"0.66rem",color:G.green,fontStyle:"italic",marginTop:3}}>💪 {row[6]}</div>}
                   </div>
                 ))}
