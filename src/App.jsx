@@ -2015,7 +2015,8 @@ function TrampolineTab({currentClient,sheetData,sheetLoaded,setSheetData,setShee
   return null;
 }
 
-function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){// ── MACHINE CIRCUIT STATE ──
+function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){
+// ── MACHINE CIRCUIT STATE ──
   const [machineCircuitView, setMachineCircuitView] = useState('select');
   const [machineCircuitKey, setMachineCircuitKey] = useState(null);
   const [machineExerciseIdx, setMachineExerciseIdx] = useState(0);
@@ -2380,6 +2381,28 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
                   <span style={{color:'#6b7280'}}>{exSets.length||ex.sets}x{getTargetReps(ex)} @ {wt} lbs</span>
                 </div>
               );
+            })}
+          </div>
+          <div style={{marginBottom:'24px'}}>
+            <div style={{fontSize:'15px', fontWeight:'600', color:'#374151', marginBottom:'12px'}}>How was your workout?</div>
+            <div style={{display:'flex', justifyContent:'center', gap:'8px'}}>
+              {[1,2,3,4,5].map(star => (
+                <button key={star} onClick={() => setMachineRating(star)}
+                  style={{fontSize:'34px', background:'none', border:'none', cursor:'pointer',
+                    opacity: machineRating >= star ? 1 : 0.25}}>*</button>
+              ))}
+            </div>
+          </div>
+          <button onClick={saveWorkout}
+            style={{width:'100%', padding:'16px', background:circuit.color, color:'white',
+              border:'none', borderRadius:'14px', fontSize:'17px', fontWeight:'700', cursor:'pointer'}}>
+            Save and Finish
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
   const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
   const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
@@ -2972,7 +2995,7 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       );
     }
   }
-
+  if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
