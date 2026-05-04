@@ -2743,7 +2743,16 @@ if(groupExs.length===0){
           {progExercises.map((ex,i)=>{
             const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
             const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
-            const pool=EXERCISE_POOL[group]||[];
+            const sheetRows=sheetData.workouts||[];
+            const cats=GYM_CAT_MAP[group]||[];
+            const sheetPool=sheetRows.slice(1).filter(row=>
+              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
+            ).map(row=>({
+              name:row[0]||"",
+              muscles:row[6]||group,
+              instructions:row[5]||"",
+            })).filter(e=>e.name);
+            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);
             const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
             return(
               <div key={i} style={{...card,border:`2px solid ${isAbs?"#14b8a644":"#6366f133"}`}}>
