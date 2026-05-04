@@ -2059,6 +2059,22 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
   const [sessionRating,setSessionRating]=useState(null);
   const [sessionComplete,setSessionComplete]=useState(false);
   const restRef=useRef(null);
+  // Full Program v2 state
+  const [progControlLevel,setProgControlLevel]=useState('');
+  const [progExercises,setProgExercises]=useState([]);
+  const [progAddAbs,setProgAddAbs]=useState(false);
+  const [progPhase,setProgPhase]=useState('control');
+  const [progExIdx,setProgExIdx]=useState(0);
+  const [progSetIdx,setProgSetIdx]=useState(0);
+  const [progWorkPhase,setProgWorkPhase]=useState('work');
+  const [progTimer,setProgTimer]=useState(0);
+  const [progTimerTotal,setProgTimerTotal]=useState(0);
+  const [progTimerActive,setProgTimerActive]=useState(false);
+  const [progSessionWeights,setProgSessionWeights]=useState({});
+  const [progSavedWeights,setProgSavedWeights]=useState(()=>{try{return JSON.parse(localStorage.getItem('atp-pw-'+currentClient.id)||'{}');}catch{return{};}});
+  const [progRating,setProgRating]=useState(0);
+  const [progSwapIdx,setProgSwapIdx]=useState(null);
+  const progAdvanceRef=useRef(null);
 
   // Swap timer effect
   useEffect(()=>{
@@ -2073,6 +2089,18 @@ function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     else if(restRunning&&restTimerSec===0){setRestRunning(false);}
     return()=>clearTimeout(restRef.current);
   },[restRunning,restTimerSec]);
+
+  // Program timer countdown
+  useEffect(()=>{
+    if(!progTimerActive||progTimer<=0) return;
+    const id=setTimeout(()=>setProgTimer(t=>t-1),1000);
+    return()=>clearTimeout(id);
+  },[progTimerActive,progTimer]);
+
+  // Program timer advance on zero
+  useEffect(()=>{
+    if(progTimerActive&&progTimer===0) progAdvanceRef.current?.();
+  },[progTimerActive,progTimer]);
 
   function getCurrentWeek(){
     try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");return prog[currentClient.id]?.currentWeek||1;}catch(e){return 1;}
@@ -2218,7 +2246,7 @@ if(groupExs.length===0){
       {[
         {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
         {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload",color:"#6366f1"},
-        {id:"machine",icon:"🏃",label:"Machine Circuit",desc:"Coming soon — lunch break friendly machine circuit",color:"#94a3b8",soon:true},
+      {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},  
       ].map(m=>(
         <button key={m.id} onClick={()=>!m.soon&&setGymMode(m.id)} style={{...card,cursor:m.soon?"default":"pointer",textAlign:"left",width:"100%",border:`2px solid ${m.color}33`,background:`${m.color}08`,opacity:m.soon?0.6:1}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -2445,48 +2473,151 @@ if(groupExs.length===0){
 
   // ── FULL PROGRAM ──
   if(gymMode==="program"){
-    if(gymPhase==="baseline") return(
-      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym Setup</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Let's set your starting weights</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)",lineHeight:1.7}}>Enter what you can comfortably lift for 3 sets of 8 reps.</div>
-        </div>
-        {BASELINE_EXERCISES.map(ex=>(
-          <div key={ex} style={card}>
-            <div style={lbl}>💪 {ex}</div>
-            <div style={{fontSize:"0.68rem",color:G.textSoft,marginBottom:8}}>Comfortable weight for 3 × 8 reps</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <input type="number" value={baselineForm[ex]||""} onChange={e=>setBaselineForm(p=>({...p,[ex]:e.target.value}))} placeholder="e.g. 95" style={{...iStyle,width:100,padding:"8px 12px"}}/>
-              <span style={{fontSize:"0.76rem",color:G.textSoft}}>lbs</span>
-            </div>
-          </div>
-        ))}
-        <button onClick={()=>{
-          if(BASELINE_EXERCISES.some(ex=>!baselineForm[ex])){alert("Please enter a starting weight for all exercises!");return;}
-          const weights={};
-          BASELINE_EXERCISES.forEach(ex=>weights[ex]=parseFloat(baselineForm[ex]));
-          setBaselineWeights(weights);
-          try{localStorage.setItem("atp-gymstarts",JSON.stringify(weights));}catch(e){}
-          setGymPhase("session");
-        }} style={btnGreen}>💪 Save & Start Training</button>
-        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
-      </div>
-    );
+    const EXERCISE_POOL={
+      "Chest":[
+        {name:"Dumbbell Chest Press",muscles:"Chest, Triceps",instructions:"Lie on bench. Press dumbbells up from chest, lower slowly."},
+        {name:"Incline Dumbbell Press",muscles:"Upper Chest",instructions:"45 degree incline. Press up and slightly inward. Full stretch at bottom."},
+        {name:"Dumbbell Fly",muscles:"Chest",instructions:"Arms wide, slight bend. Open chest fully, squeeze hard at top."},
+        {name:"Cable Crossover",muscles:"Chest",instructions:"Cables at shoulder height. Pull down and across, squeeze chest at center."},
+        {name:"Push-Ups",muscles:"Chest, Triceps",instructions:"Hands shoulder width. Lower chest to floor, explode up."},
+        {name:"Incline Dumbbell Fly",muscles:"Upper Chest",instructions:"Incline bench, arms wide. Deep stretch, squeeze at top."},
+      ],
+      "Back":[
+        {name:"Bent-Over Barbell Row",muscles:"Back, Biceps",instructions:"Hinge at hips, back flat. Pull bar to lower chest. Squeeze shoulder blades."},
+        {name:"Dumbbell Row",muscles:"Back, Biceps",instructions:"One knee on bench. Pull dumbbell to hip, lead with elbow."},
+        {name:"Lat Pulldown",muscles:"Lats, Biceps",instructions:"Wide grip. Pull bar to upper chest, lean back slightly."},
+        {name:"Seated Cable Row",muscles:"Mid Back",instructions:"Sit tall. Pull handle to abdomen, squeeze shoulder blades at end."},
+        {name:"Face Pull",muscles:"Rear Delts",instructions:"Cable at face height. Pull to forehead, elbows high and wide."},
+        {name:"Straight Arm Pulldown",muscles:"Lats",instructions:"Arms straight. Pull cable from overhead to hips. Slow and controlled."},
+      ],
+      "Shoulders":[
+        {name:"Dumbbell Shoulder Press",muscles:"Shoulders, Triceps",instructions:"Press dumbbells overhead. Lock out at top. Lower to ear level."},
+        {name:"Lateral Raise",muscles:"Side Delts",instructions:"Slight bend in elbows. Raise arms to shoulder height. Lead with elbows."},
+        {name:"Arnold Press",muscles:"Full Shoulder",instructions:"Start palms facing you, rotate outward as you press overhead."},
+        {name:"Front Raise",muscles:"Front Delts",instructions:"Alternating arms. Raise to eye level, keep slight bend."},
+        {name:"Rear Delt Fly",muscles:"Rear Delts",instructions:"Bent over. Raise elbows out and up, squeeze rear delts."},
+        {name:"Upright Row",muscles:"Shoulders, Traps",instructions:"Narrow grip. Pull bar to chin, elbows flare high and wide."},
+      ],
+      "Arms (Biceps/Triceps)":[
+        {name:"Barbell Curl",muscles:"Biceps",instructions:"Stand. Curl bar from hips to shoulders. Squeeze hard at top."},
+        {name:"Hammer Curl",muscles:"Biceps, Forearms",instructions:"Neutral grip, thumbs up. Curl alternating. Control descent fully."},
+        {name:"Incline Dumbbell Curl",muscles:"Biceps",instructions:"Incline bench, arms hang. Curl up slowly squeezing at top."},
+        {name:"Cable Pushdown",muscles:"Triceps",instructions:"Push cable down, lock out. Keep elbows pinned to sides."},
+        {name:"Overhead Tricep Extension",muscles:"Triceps",instructions:"Hold dumbbell overhead. Lower behind head slowly, extend fully."},
+        {name:"Skull Crushers",muscles:"Triceps",instructions:"Lie on bench. Lower bar to forehead, extend arms fully."},
+      ],
+      "Legs":[
+        {name:"Barbell Squat",muscles:"Quads, Glutes",instructions:"Bar on traps. Sit back and down, chest up. Drive through heels."},
+        {name:"Romanian Deadlift",muscles:"Hamstrings, Glutes",instructions:"Slight knee bend. Hinge at hips, bar drags down legs."},
+        {name:"Walking Lunges",muscles:"Quads, Glutes",instructions:"Step forward, lower back knee near floor. Drive front heel to stand."},
+        {name:"Leg Press",muscles:"Quads, Glutes",instructions:"Feet shoulder width. Lower to 90 degrees, press through heels."},
+        {name:"Leg Curl",muscles:"Hamstrings",instructions:"Lie on machine. Curl heels to glutes, squeeze at top."},
+        {name:"Calf Raises",muscles:"Calves",instructions:"Stand on edge. Rise to toes, hold 1 sec, lower fully."},
+      ],
+      "Core/Abs":[
+        {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line head to heels. Core tight, breathe steady."},
+        {name:"Crunches",muscles:"Abs",instructions:"Lie on back, knees bent. Curl shoulders toward knees, squeeze at top."},
+        {name:"Leg Raises",muscles:"Lower Abs",instructions:"Lie flat. Raise legs to 90 degrees slowly, lower without touching floor."},
+        {name:"Russian Twists",muscles:"Obliques",instructions:"Sit at 45 degrees, feet raised. Rotate side to side touching floor."},
+        {name:"Bicycle Crunches",muscles:"Abs, Obliques",instructions:"Alternate elbow to opposite knee. Slow and controlled."},
+        {name:"Ab Wheel Rollout",muscles:"Full Core",instructions:"Kneel with ab wheel. Roll forward slowly, engage core, pull back."},
+      ],
+    };
+    const ABS_POOL=[
+      {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line head to heels. Core tight."},
+      {name:"Crunches",muscles:"Abs",instructions:"Curl shoulders toward knees, squeeze at top."},
+      {name:"Leg Raises",muscles:"Lower Abs",instructions:"Raise legs to 90 degrees, lower without touching floor."},
+    ];
+    const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
+    const phaseColor=progWorkPhase==="work"?"#6366f1":progWorkPhase==="rest"?"#f59e0b":"#10b981";
+    const phaseBg=progWorkPhase==="work"?"#f8f7ff":progWorkPhase==="rest"?"#fffbeb":"#f0fdf4";
+    const phaseLabel=progWorkPhase==="work"?"LIFT!":progWorkPhase==="rest"?"REST":"NEXT UP";
+    const timerProg=progTimerTotal>0?progTimer/progTimerTotal:0;
+    const circ=2*Math.PI*52;
 
-    if(activePhase==="setup") return(
+    // Always keep advance function fresh (avoids stale closure)
+    progAdvanceRef.current=()=>{
+      setProgTimerActive(false);
+      const totalEx=progExercises.length;
+      if(progWorkPhase==="work"){
+        if(progSetIdx<5){setProgWorkPhase("rest");setProgTimer(30);setProgTimerTotal(30);setProgTimerActive(true);}
+        else if(progExIdx<totalEx-1){setProgWorkPhase("transition");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);}
+        else{setProgPhase("complete");}
+      } else if(progWorkPhase==="rest"){
+        setProgSetIdx(s=>s+1);setProgWorkPhase("work");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
+      } else if(progWorkPhase==="transition"){
+        setProgExIdx(i=>i+1);setProgSetIdx(0);setProgWorkPhase("work");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
+      }
+    };
+
+    function buildAutoExercises(){
+      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+      let list=[];
+      if(selectedGroups.length===2){
+        const perGroup=Math.ceil(exCount/2);
+        const g1=shuffle(EXERCISE_POOL[selectedGroups[0]]||[]).slice(0,perGroup);
+        const g2=shuffle(EXERCISE_POOL[selectedGroups[1]]||[]).slice(0,perGroup);
+        const max=Math.max(g1.length,g2.length);
+        for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
+      } else {
+        list=shuffle(EXERCISE_POOL[selectedGroups[0]]||[]).slice(0,exCount);
+      }
+      if(progAddAbs) list.push(...ABS_POOL);
+      return list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
+    }
+
+    // ── CONTROL LEVEL ──
+    if(progPhase==="control") return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
           <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>📈 Full Program</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Week {weekNum} — {["Foundation","Foundation","Foundation","Foundation","Build","Build","Build","Build","Peak","Peak","Peak","Peak"][weekNum-1]||"Build"} Phase</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Select your muscle groups and let's get to work!</div>
+          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>How much control do you want?</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Choose your style for today's session</div>
+        </div>
+        {[
+          {id:"ai",icon:"🤖",label:"Full AI",desc:"App picks the best exercises. Just show up and lift.",color:"#6366f1"},
+          {id:"half",icon:"🔀",label:"Half & Half",desc:"AI suggests exercises — you can swap any you don't want.",color:"#8b5cf6"},
+          {id:"manual",icon:"✋",label:"I Pick Everything",desc:"You choose every exercise. Full control.",color:"#06b6d4"},
+        ].map(opt=>(
+          <button key={opt.id} onClick={()=>{setProgControlLevel(opt.id);setProgPhase("setup");}} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid ${opt.color}33`,background:`${opt.color}08`}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:52,height:52,borderRadius:"50%",background:opt.color+"22",border:`2px solid ${opt.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.6rem",flexShrink:0}}>{opt.icon}</div>
+              <div>
+                <div style={{fontSize:"0.88rem",fontWeight:700,color:opt.color}}>{opt.label}</div>
+                <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3,lineHeight:1.5}}>{opt.desc}</div>
+              </div>
+            </div>
+          </button>
+        ))}
+        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
+      </div>
+    );
+
+    // ── SETUP ──
+    if(progPhase==="setup") return(
+      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
+          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>📈 Full Program</div>
+          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Set Up Your Session</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · 6 sets · 60s on · 30s rest · 60s transition</div>
         </div>
         <div style={card}>
-          <div style={lbl}>🎯 Muscle Groups (pick 1 or 2)</div>
+          <div style={lbl}>⏱ How long do you have?</div>
+          <div style={{display:"flex",gap:6}}>
+            {["45 min","60 min","90 min"].map(t=>(
+              <button key={t} onClick={()=>setGymDuration(t)} style={{flex:1,padding:"10px 0",borderRadius:10,border:`2px solid ${gymDuration===t?"#6366f1":G.border}`,background:gymDuration===t?"#eef2ff":G.cream,color:gymDuration===t?"#6366f1":G.textSoft,fontSize:"0.72rem",fontWeight:gymDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                {t}
+                <div style={{fontSize:"0.56rem",marginTop:2,color:gymDuration===t?"#6366f1":G.textSoft}}>{t==="45 min"?"4 exercises":t==="60 min"?"6 exercises":"9 exercises"}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={card}>
+          <div style={lbl}>💪 Muscle Groups (pick 1 or 2)</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {GYM_MUSCLE_GROUPS.map(g=>{
+            {GYM_MUSCLE_GROUPS.filter(g=>g!=="Core/Abs").map(g=>{
               const selected=selectedGroups.includes(g);
-              return(<button key={g} onClick={()=>{if(selected){setSelectedGroups(p=>p.filter(x=>x!==g));}else if(selectedGroups.length<2){setSelectedGroups(p=>([...p,g]));} }} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${selected?"#6366f1":G.border}`,background:selected?"#eef2ff":G.cream,color:selected?"#6366f1":G.text,fontSize:"0.74rem",fontWeight:selected?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+              return(<button key={g} onClick={()=>{if(selected){setSelectedGroups(p=>p.filter(x=>x!==g));}else if(selectedGroups.length<2){setSelectedGroups(p=>([...p,g]));}}} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${selected?"#6366f1":G.border}`,background:selected?"#eef2ff":G.cream,color:selected?"#6366f1":G.text,fontSize:"0.74rem",fontWeight:selected?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
                 {selected?"✓ ":""}{g}
               </button>);
             })}
@@ -2494,136 +2625,225 @@ if(groupExs.length===0){
           {selectedGroups.length>0&&<div style={{marginTop:8,fontSize:"0.68rem",color:"#6366f1",fontWeight:600}}>Selected: {selectedGroups.join(" + ")}</div>}
         </div>
         <div style={card}>
-          <div style={lbl}>⏱ How long do you have?</div>
-          <div style={{display:"flex",gap:6}}>
-            {["30 min","45 min","60 min","90 min"].map(t=>(
-              <button key={t} onClick={()=>setGymDuration(t)} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${gymDuration===t?"#6366f1":G.border}`,background:gymDuration===t?"#eef2ff":G.cream,color:gymDuration===t?"#6366f1":G.textSoft,fontSize:"0.72rem",fontWeight:gymDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>{t}</button>
-            ))}
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>setProgAddAbs(a=>!a)} style={{width:26,height:26,borderRadius:6,border:`2px solid ${progAddAbs?"#6366f1":G.border}`,background:progAddAbs?"#6366f1":G.cream,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.8rem",flexShrink:0}}>{progAddAbs?"✓":""}</button>
+            <div>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:G.text}}>Add Abs at the end?</div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft}}>3 core exercises added after your main workout</div>
+            </div>
           </div>
         </div>
-        {gymHistory.length>0&&(
-          <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`}}>
-            <div style={lbl}>📊 Last Session</div>
-            <div style={{fontSize:"0.74rem",color:G.text}}>{gymHistory[gymHistory.length-1].groups.join(" + ")} — {fmtDate(gymHistory[gymHistory.length-1].date)}</div>
-            <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {gymHistory[gymHistory.length-1].weekNum} · Rated {gymHistory[gymHistory.length-1].rating}/5</div>
-          </div>
-        )}
-        <button onClick={generateGymSession} disabled={generatingGym||selectedGroups.length===0} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)",opacity:selectedGroups.length>0?1:0.5}}>
-          {generatingGym?"💪 Building your session...":"💪 Generate Gym Session"}
+        <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.72rem",color:"#0369a1",lineHeight:1.8}}>
+          <strong>Your session:</strong> {exCount} exercises{progAddAbs?" + 3 abs":""} × 6 sets · 60s lift · 30s rest · 60s transition
+        </div>
+        <button onClick={()=>{
+          if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
+          const list=buildAutoExercises();
+          setProgExercises(list);
+          setProgSessionWeights({});
+          setProgSwapIdx(null);
+          setProgPhase(progControlLevel==="ai"?"preview":"pick");
+        }} disabled={!selectedGroups.length} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",opacity:selectedGroups.length>0?1:0.5}}>
+          {progControlLevel==="ai"?"🤖 Build My Session":progControlLevel==="half"?"🔀 See Suggestions":"✋ Pick Exercises"}
         </button>
-        <button onClick={()=>setGymPhase("baseline")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>⚙️ Update starting weights</button>
-        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
+        <button onClick={()=>setProgPhase("control")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
       </div>
     );
 
-    if(activePhase==="preview"&&gymSession) return(
-      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>🏋️ Today's Session</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{gymSession.groups.join(" + ")} Day</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{gymSession.exercises.length} exercises · {gymDuration} · Week {weekNum}</div>
-        </div>
-        {gymSession.exercises.map((ex,i)=>(
-          <div key={i} style={{...card,borderLeft:`4px solid ${ex.group==="Warm-up"?"#60a5fa":ex.group==="Core"||ex.group==="Core/Abs"?G.greenMid:"#6366f1"}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{ex.name}</div>
-                <div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:2}}>{ex.muscles}</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                {ex.weight>0?<div style={{fontSize:"0.78rem",fontWeight:700,color:"#6366f1"}}>{ex.sets}×{ex.reps} @ {ex.weight}lbs</div>:<div style={{fontSize:"0.78rem",fontWeight:700,color:G.greenMid}}>{ex.sets}×{ex.reps}</div>}
-              </div>
-            </div>
-            {ex.instructions&&<div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:5,fontStyle:"italic"}}>💡 {ex.instructions}</div>}
-          </div>
-        ))}
-        <button onClick={()=>{setActivePhase("active");setCurrentExIdx(0);setCurrentSetIdx(0);}} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>▶ Start Session</button>
-        <button onClick={()=>setActivePhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
-      </div>
-    );
-
-    if(activePhase==="active"&&gymSession){
-      const ex=gymSession.exercises[currentExIdx];
-      if(!ex) return null;
-      const totalSets=ex.sets||1;
+    // ── PICK / PREVIEW ──
+    if(progPhase==="pick"||progPhase==="preview"){
+      const canSwap=progControlLevel!=="ai";
       return(
-        <div style={{flex:1,display:"flex",flexDirection:"column",background:"#f8f7ff"}}>
-          <div style={{height:6,background:"#e0e7ff"}}>
-            <div style={{height:"100%",width:`${Math.round((currentExIdx/gymSession.exercises.length)*100)}%`,background:"linear-gradient(90deg,#4f46e5,#6366f1)",transition:"width .5s"}}/>
-          </div>
-          {sessionComplete?(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
-              <div style={{fontSize:"3rem"}}>🏆</div>
-              <div style={{fontSize:"1.1rem",fontWeight:900,color:"#4f46e5",textAlign:"center"}}>Gym Session Complete!</div>
-              <div style={{fontSize:"0.78rem",color:G.textSoft,textAlign:"center",lineHeight:1.7}}>Amazing work {currentClient.name.split(" ")[0]}! Week {weekNum} done. All things are possible! 🙏</div>
-              <button onClick={()=>{setActivePhase("setup");setSessionComplete(false);setGymSession(null);setSelectedGroups([]);setGymMode("");}} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)"}}>💪 New Session</button>
+        <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
+            <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>
+              📈 {progControlLevel==="manual"?"Pick Your Exercises":progControlLevel==="half"?"Review and Swap":"Your Session"}
             </div>
-          ):(
-            <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:"0.68rem",color:"#6366f1",fontWeight:700}}>Exercise {currentExIdx+1} of {gymSession.exercises.length}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft}}>{ex.group}</div>
-              </div>
-              <div style={{...card,border:`2px solid #6366f1`,background:"#eef2ff",padding:20,textAlign:"center"}}>
-                <div style={{fontSize:"1.3rem",fontWeight:900,color:"#4f46e5",marginBottom:8}}>{ex.name}</div>
-                {ex.weight>0?<div style={{fontSize:"1rem",fontWeight:700,color:"#6366f1",marginBottom:4}}>{ex.sets} sets × {ex.reps} reps @ {ex.weight} lbs</div>:<div style={{fontSize:"1rem",fontWeight:700,color:G.greenMid,marginBottom:4}}>{ex.sets} sets × {ex.reps}</div>}
-                <div style={{fontSize:"0.68rem",color:G.textSoft,fontStyle:"italic",marginTop:6}}>{ex.instructions}</div>
-              </div>
-              <div style={card}>
-                <div style={lbl}>Sets</div>
-                <div style={{display:"flex",gap:8}}>
-                  {Array.from({length:totalSets}).map((_,si)=>{
-                    const done=completedSets[`${currentExIdx}-${si}`];
-                    return(<button key={si} onClick={()=>{if(!done){const key=`${currentExIdx}-${si}`;setCompletedSets(p=>({...p,[key]:true}));setRestTimerSec(75);setRestRunning(true);}}} style={{flex:1,padding:"14px 0",borderRadius:12,border:`2px solid ${done?"#6366f1":G.border}`,background:done?"#6366f1":G.cream,color:done?"#fff":G.textSoft,fontSize:"0.78rem",fontWeight:700,cursor:done?"default":"pointer"}}>
-                      {done?"✓":"Set "+(si+1)}
-                    </button>);
-                  })}
-                </div>
-              </div>
-              <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                  <div style={{fontSize:"0.7rem",fontWeight:700,color:G.green}}>⏱ Rest Timer</div>
-                  <div style={{fontSize:"1.4rem",fontWeight:900,color:restRunning?G.green:restTimerSec>0?"#f87171":G.textSoft,fontVariantNumeric:"tabular-nums"}}>{Math.floor(restTimerSec/60).toString().padStart(2,"0")}:{(restTimerSec%60).toString().padStart(2,"0")}</div>
-                </div>
-                <div style={{display:"flex",gap:6,marginTop:8}}>
-                  {[60,75,90,120].map(s=>(
-                    <button key={s} onClick={()=>{setRestTimerSec(s);setRestRunning(true);}} style={{flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.66rem",cursor:"pointer"}}>{s}s</button>
-                  ))}
-                  <button onClick={()=>{setRestRunning(false);setRestTimerSec(0);}} style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.66rem",cursor:"pointer"}}>↺</button>
-                </div>
-                {restTimerSec===0&&!restRunning&&<div style={{fontSize:"0.66rem",color:G.greenMid,fontWeight:600,textAlign:"center",marginTop:4}}>✅ Rest done — next set!</div>}
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                {currentExIdx>0&&<button onClick={()=>setCurrentExIdx(i=>i-1)} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>← Back</button>}
-                {currentExIdx<gymSession.exercises.length-1?(
-                  <button onClick={()=>{setCurrentExIdx(i=>i+1);setCurrentSetIdx(0);setRestRunning(false);setRestTimerSec(0);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f46e5,#6366f1)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>Next Exercise →</button>
-                ):(
-                  allSetsComplete&&!sessionRating?(
-                    <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
-                      <div style={{fontSize:"0.76rem",fontWeight:700,color:G.brown,textAlign:"center"}}>How was your workout?</div>
-                      <div style={{display:"flex",gap:6}}>
-                        {[1,2,3,4,5].map(r=>(
-                          <button key={r} onClick={()=>saveGymSession(r)} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${sessionRating===r?"#6366f1":G.border}`,background:sessionRating===r?"#eef2ff":G.cream,color:sessionRating===r?"#6366f1":G.textSoft,fontSize:"1.1rem",fontWeight:900,cursor:"pointer"}}>{r}</button>
-                        ))}
-                      </div>
-                      <div style={{fontSize:"0.62rem",color:G.textSoft,textAlign:"center"}}>1 = Too Easy · 3 = Just Right · 5 = Too Hard</div>
-                    </div>
-                  ):(
-                    <button onClick={()=>{if(allSetsComplete&&sessionRating)saveGymSession(sessionRating);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:allSetsComplete?"linear-gradient(135deg,#4f46e5,#6366f1)":"#ccc",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:allSetsComplete?"pointer":"not-allowed"}}>
-                      {allSetsComplete?"✅ Complete Workout":"Finish all sets first"}
-                    </button>
-                  )
-                )}
-              </div>
+            <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{selectedGroups.join(" + ")}{progAddAbs?" + Abs":""}</div>
+            <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{progExercises.length} exercises · {gymDuration} · 6 sets each</div>
+          </div>
+          {canSwap&&(
+            <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.7rem",color:"#0369a1"}}>
+              {progControlLevel==="manual"?"Tap Swap on any exercise to pick a different one.":"AI picked these — tap Swap on any you want to change."}
             </div>
           )}
+          {progExercises.map((ex,i)=>{
+            const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
+            const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
+            const pool=(EXERCISE_POOL[group]||[]).filter(p=>p.name!==ex.name&&!progExercises.some((e,ei)=>ei!==i&&e.name===p.name));
+            const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
+            const isSwapping=progSwapIdx===i;
+            return(
+              <div key={i} style={{...card,border:`2px solid ${isAbs?"#14b8a644":"#6366f133"}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:isAbs?"#14b8a6":"#6366f1",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.62rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
+                      <div style={{fontSize:"0.84rem",fontWeight:700,color:G.text}}>{ex.name}</div>
+                    </div>
+                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginLeft:28}}>{ex.muscles}</div>
+                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginLeft:28,fontStyle:"italic",marginTop:2}}>{ex.instructions}</div>
+                  </div>
+                  {canSwap&&!isAbs&&(
+                    <button onClick={()=>setProgSwapIdx(isSwapping?null:i)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${isSwapping?"#ef4444":"#6366f1"}`,background:isSwapping?"#fee2e2":"#eef2ff",color:isSwapping?"#ef4444":"#6366f1",fontSize:"0.62rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0,marginLeft:8}}>
+                      {isSwapping?"Close":"Swap"}
+                    </button>
+                  )}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
+                  <div style={{fontSize:"0.62rem",color:G.textSoft}}>Weight:</div>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text,lineHeight:1}}>-</button>
+                  <input type="number" value={weight} onChange={e=>setProgSessionWeights(w=>({...w,[ex.name]:parseInt(e.target.value)||0}))} style={{width:56,textAlign:"center",border:`2px solid #6366f1`,borderRadius:7,padding:"4px",fontSize:"0.9rem",fontWeight:700,color:G.text}}/>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text,lineHeight:1}}>+</button>
+                  <span style={{fontSize:"0.6rem",color:G.textSoft}}>lbs</span>
+                  {progSavedWeights[ex.name]>0&&<span style={{fontSize:"0.58rem",color:"#6366f1",marginLeft:4}}>Last: {progSavedWeights[ex.name]}lbs</span>}
+                </div>
+                {isSwapping&&(
+                  <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${G.border}`}}>
+                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:6,fontWeight:600}}>Pick a replacement:</div>
+                    {pool.length===0?<div style={{fontSize:"0.68rem",color:G.textSoft}}>No other exercises available.</div>:
+                    pool.map((alt,ai)=>(
+                      <button key={ai} onClick={()=>{
+                        const updated=[...progExercises];
+                        updated[i]={...alt,weight:progSavedWeights[alt.name]||0};
+                        setProgExercises(updated);
+                        setProgSwapIdx(null);
+                      }} style={{display:"block",width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${G.border}`,background:G.creamDark,color:G.text,fontSize:"0.72rem",cursor:"pointer",textAlign:"left",fontFamily:"inherit",marginBottom:4}}>
+                        <strong>{alt.name}</strong> <span style={{color:G.textSoft}}>— {alt.muscles}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <button onClick={()=>{
+            const withWeights=progExercises.map(ex=>({...ex,weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}));
+            setProgExercises(withWeights);
+            setProgExIdx(0);setProgSetIdx(0);setProgWorkPhase("work");
+            setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
+            setProgPhase("active");
+          }} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>
+            ▶ Start Session
+          </button>
+          <button onClick={()=>setProgPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
         </div>
       );
     }
+
+    // ── ACTIVE SESSION ──
+    if(progPhase==="active"&&progExercises.length>0){
+      const ex=progExercises[progExIdx];
+      if(!ex) return null;
+      const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
+      const nextEx=progExercises[progExIdx+1];
+      return(
+        <div style={{flex:1,display:"flex",flexDirection:"column",background:phaseBg}}>
+          <div style={{height:6,background:"#e0e7ff"}}>
+            <div style={{height:"100%",width:`${(progExIdx/progExercises.length)*100}%`,background:"linear-gradient(90deg,#4f46e5,#6366f1)",transition:"width .5s"}}/>
+          </div>
+          <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:"0.68rem",color:"#6366f1",fontWeight:700}}>Exercise {progExIdx+1}/{progExercises.length}</div>
+              <div style={{fontSize:"0.68rem",color:G.textSoft}}>Set {progSetIdx+1} of 6</div>
+            </div>
+            <div style={{...card,border:`2px solid ${phaseColor}`,textAlign:"center",padding:16}}>
+              <div style={{fontSize:"1.2rem",fontWeight:900,color:"#4f46e5",marginBottom:4}}>{ex.name}</div>
+              <div style={{fontSize:"0.64rem",color:G.textSoft,fontStyle:"italic"}}>{ex.instructions}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+              <div style={{position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="160" height="160" style={{transform:"rotate(-90deg)"}}>
+                  <circle cx="80" cy="80" r="52" fill="none" stroke="#e5e7eb" strokeWidth="10"/>
+                  <circle cx="80" cy="80" r="52" fill="none" stroke={phaseColor} strokeWidth="10"
+                    strokeDasharray={`${circ*timerProg} ${circ}`} strokeLinecap="round"/>
+                </svg>
+                <div style={{position:"absolute",textAlign:"center"}}>
+                  <div style={{fontSize:"2.8rem",fontWeight:900,color:progTimer<=5?"#ef4444":phaseColor,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{progTimer}</div>
+                  <div style={{fontSize:"0.68rem",fontWeight:700,color:phaseColor,letterSpacing:"0.08em"}}>{phaseLabel}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                {Array.from({length:6}).map((_,si)=>(
+                  <div key={si} style={{width:10,height:10,borderRadius:"50%",background:si<progSetIdx?"#6366f1":si===progSetIdx&&progWorkPhase==="work"?"#6366f1":"#e5e7eb",border:`2px solid ${si<=progSetIdx?"#6366f1":"#e5e7eb"}`}}/>
+                ))}
+              </div>
+            </div>
+            <div style={{...card,padding:"10px 14px"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                <span style={{fontSize:"0.64rem",color:G.textSoft}}>Weight:</span>
+                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>-</button>
+                <div style={{fontSize:"2rem",fontWeight:900,color:"#4f46e5",minWidth:64,textAlign:"center"}}>{weight}</div>
+                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>+</button>
+                <span style={{fontSize:"0.64rem",color:G.textSoft}}>lbs</span>
+              </div>
+            </div>
+            {progWorkPhase==="transition"&&nextEx&&(
+              <div style={{...card,background:"#f0fdf4",border:"1px solid #bbf7d0",textAlign:"center",padding:"10px 14px"}}>
+                <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:3}}>Next up:</div>
+                <div style={{fontSize:"1rem",fontWeight:700,color:"#059669"}}>{nextEx.name}</div>
+                <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:2}}>{nextEx.muscles}</div>
+              </div>
+            )}
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setProgTimerActive(a=>!a)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:progTimerActive?phaseColor:"#6b7280",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>
+                {progTimerActive?"⏸ Pause":"▶ Resume"}
+              </button>
+              <button onClick={()=>progAdvanceRef.current?.()} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── COMPLETE ──
+    if(progPhase==="complete"){
+      const saveSession=async()=>{
+        const newWeights={...progSavedWeights};
+        progExercises.forEach(ex=>{if(progSessionWeights[ex.name]!=null)newWeights[ex.name]=progSessionWeights[ex.name];});
+        setProgSavedWeights(newWeights);
+        try{localStorage.setItem("atp-pw-"+currentClient.id,JSON.stringify(newWeights));}catch{}
+        const entry={date:todayStr(),groups:selectedGroups,duration:gymDuration,weekNum,exercises:progExercises.map(ex=>({name:ex.name,sets:6,reps:"60s",weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)})),rating:progRating,clientId:currentClient.id,ts:new Date().toISOString()};
+        const newHist=[...gymHistory,entry];
+        setGymHistory(newHist);
+        try{localStorage.setItem("atp-gym",JSON.stringify(newHist));await sbSetGlobal("atp-gym-"+currentClient.id,newHist);}catch{}
+        setProgPhase("control");setProgExercises([]);setProgSessionWeights({});setProgRating(0);setSelectedGroups([]);setGymMode("");
+      };
+      return(
+        <div style={{flex:1,overflowY:"auto",padding:20,display:"flex",flexDirection:"column",gap:16,alignItems:"center",textAlign:"center"}}>
+          <div style={{fontSize:"4rem"}}>🏆</div>
+          <div style={{fontSize:"1.3rem",fontWeight:900,color:"#4f46e5"}}>Session Complete!</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7}}>Outstanding work {currentClient.name.split(" ")[0]}! {progExercises.length} exercises, 6 sets each. All things are possible! 🙏</div>
+          <div style={{width:"100%",background:"#f9fafb",borderRadius:12,padding:16,textAlign:"left"}}>
+            <div style={{fontSize:"0.68rem",fontWeight:700,color:G.textSoft,marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Session Summary</div>
+            {progExercises.map((ex,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:i<progExercises.length-1?"1px solid #e5e7eb":"none",fontSize:"0.72rem"}}>
+                <span style={{color:G.text}}>{ex.name}</span>
+                <span style={{color:"#6366f1",fontWeight:700}}>6x60s @ {progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}lbs</span>
+              </div>
+            ))}
+          </div>
+          <div style={{width:"100%"}}>
+            <div style={{fontSize:"0.8rem",fontWeight:700,color:G.brown,marginBottom:10}}>How was your workout?</div>
+            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+              {[1,2,3,4,5].map(s=>(
+                <button key={s} onClick={()=>setProgRating(s)} style={{fontSize:"2rem",background:"none",border:"none",cursor:"pointer",opacity:progRating>=s?1:0.25,transition:"opacity 0.15s"}}>⭐</button>
+              ))}
+            </div>
+          </div>
+          <button onClick={saveSession} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",width:"100%"}}>
+            💾 Save and Finish
+          </button>
+        </div>
+      );
+    }
+
+    return null;
   }
 
   return null;
 }
+  
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
