@@ -461,6 +461,7 @@ Set any field not visible to null. For splits include as many as visible.`}
       await sbSetGlobal("atp-running-"+currentClient.id, newHistory);
     }catch(e){}
     setRunRating(rating);
+    try{logWeeklySession("run");}catch{}
   }
 
   const plan=selectedPlan?PLANS[selectedPlan]:null;
@@ -2214,6 +2215,7 @@ const MACHINE_CIRCUITS={
     setBlastHistory(newHistory);
     try{localStorage.setItem("atp-blast-new",JSON.stringify(newHistory));await sbSetGlobal("atp-blast-"+currentClient.id,newHistory);}catch(e){}
     setBlastRating(rating);setShowAddon(true);
+    try{logWeeklySession("gym");}catch{}
   }
 
   function getWeekPrescription(exerciseName,weekNum){
@@ -4082,6 +4084,7 @@ If any field is not visible set it to null.`}
       await sbSetGlobal("atp-hiit-"+currentClient.id, newHistory);
     }catch(e){}
     setHiitRating(rating);
+    try{logWeeklySession("hiit");}catch{}
   }
 
  useEffect(()=>{
@@ -5971,6 +5974,49 @@ Return ONLY valid JSON array (no markdown):
     const key=getWeekKey();
     return weeklyLog[key]||{};
   }
+function logWeeklySession(type){
+    const cid=currentClient.id;
+    const key=getWeekKey();
+    const existing=weeklyLog[key]||{};
+    const updated={...weeklyLog,[key]:{...existing,[type]:(existing[type]||0)+1}};
+    setWeeklyLog(updated);
+    try{localStorage.setItem("atp-weekly-log-"+cid,JSON.stringify(updated));}catch{}
+    // Track streak
+    try{
+      const streakKey="atp-weekly-streak-"+cid;
+      const streaks=JSON.parse(localStorage.getItem(streakKey)||"{}");
+      const thisWeekGoal=(weeklyGoals||{})[type]||0;
+      const thisWeekDone=(updated[key]||{})[type]||0;
+      if(thisWeekGoal>0&&thisWeekDone>=thisWeekGoal){
+        streaks[type]=(streaks[type]||0)+1;
+        localStorage.setItem(streakKey,JSON.stringify(streaks));
+      }
+    }catch{}
+  }
+
+  function getProgressionSuggestion(){
+    const cid=currentClient.id;
+    try{
+      const streaks=JSON.parse(localStorage.getItem("atp-weekly-streak-"+cid)||"{}");
+      const suggestions=[];
+      if((streaks.gym||0)>=2) suggestions.push({type:"gym",icon:"🏋️",msg:"You hit your Gym goal 2 weeks straight! Try adding +5 lbs this week.",action:"addweight"});
+      if((streaks.hiit||0)>=2){
+        const lastHiit=JSON.parse(localStorage.getItem("atp-hiit")||"[]").slice(-1)[0];
+        const cur=lastHiit?.duration||"30 min";
+        const next=cur==="30 min"?"45 min":cur==="45 min"?"60 min":cur==="60 min"?"90 min":null;
+        if(next) suggestions.push({type:"hiit",icon:"🥊",msg:`You crushed HIIT ${streaks.hiit} weeks straight! Ready to level up to ${next}?`,action:"hiitduration",next});
+      }
+      if((streaks.run||0)>=2){
+        const lastRun=JSON.parse(localStorage.getItem("atp-running")||"[]").slice(-1)[0];
+        const planMap={"c25k":"5kto10k","5kto10k":"half","half":"full"};
+        const nextPlan=planMap[lastRun?.plan];
+        if(nextPlan) suggestions.push({type:"run",icon:"🏃",msg:`Amazing running consistency! Ready to move up to the next plan?`,action:"runplan",next:nextPlan});
+      }
+      if((streaks.cals||0)>=2) suggestions.push({type:"cals",icon:"🤸",msg:"Calisthenics streak! Your difficulty level is advancing next session.",action:"calslevel"});
+      if((streaks.bounce||0)>=2) suggestions.push({type:"bounce",icon:"🦘",msg:"Bounce streak! Ready to move up a level?",action:"bouncelevel"});
+      return suggestions;
+    }catch{return[];}
+  }
 function logSet(di,ei){ const k=`${di}-${ei}`; setLoggedSets(p=>({...p,[k]:(p[k]||0)+1})); }
 
   function sendCoachMessage(cid,text){
@@ -6713,7 +6759,39 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
           return(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-
+{/* ── PROGRESSION SUGGESTIONS ── */}
+            {(()=>{
+              const suggestions=getProgressionSuggestion();
+              if(suggestions.length===0) return null;
+              return suggestions.map((s,i)=>(
+                <div key={i} style={{...card,background:`linear-gradient(135deg,${G.mango},${G.mangoDeep})`,border:"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{fontSize:"2rem"}}>{s.icon}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:"0.72rem",fontWeight:700,color:"#fff",marginBottom:3}}>🔥 Level Up Time!</div>
+                      <div style={{fontSize:"0.68rem",color:"rgba(255,255,255,.9)",lineHeight:1.6}}>{s.msg}</div>
+                    </div>
+                    <button onClick={()=>{
+                      // Clear streak so suggestion doesn't keep showing
+                      try{
+                        const streakKey="atp-weekly-streak-"+currentClient.id;
+                        const streaks=JSON.parse(localStorage.getItem(streakKey)||"{}");
+                        streaks[s.type]=0;
+                        localStorage.setItem(streakKey,JSON.stringify(streaks));
+                      }catch{}
+                      // Navigate to relevant tab
+                      if(s.type==="hiit") setTab("hiit");
+                      if(s.type==="run") setTab("running");
+                      if(s.type==="gym") setTab("gym");
+                      if(s.type==="cals") setTab("cals");
+                      if(s.type==="bounce") setTab("trampoline");
+                    }} style={{padding:"6px 12px",borderRadius:20,border:"none",background:"rgba(255,255,255,.25)",color:"#fff",fontSize:"0.68rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                      Let's Go!
+                    </button>
+                  </div>
+                </div>
+              ));
+            })()}
             {/* ── WEEKLY GOALS ── */}
             {!editingGoals&&weeklyGoals&&!allGoalsMet&&(
               <div style={{...card,border:`1.5px solid ${G.greenMid}44`}}>
