@@ -2733,6 +2733,58 @@ if(groupExs.length===0){
     // ── PICK / PREVIEW ──
     if(progPhase==="pick"||progPhase==="preview"){
       const canSwap=progControlLevel!=="ai";
+      if(progControlLevel==="manual"||progControlLevel==="half") return(
+        <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
+            <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>📈 Pick Your Exercises</div>
+            <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{selectedGroups.join(" + ")}{progAddAbs?" + Abs":""}</div>
+            <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{progExercises.length} exercises · {gymDuration} · 6 sets each</div>
+          </div>
+          {progExercises.map((ex,i)=>{
+            const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
+            const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
+            const pool=EXERCISE_POOL[group]||[];
+            const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
+            return(
+              <div key={i} style={{...card,border:`2px solid ${isAbs?"#14b8a644":"#6366f133"}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:28,height:28,borderRadius:"50%",background:isAbs?"#14b8a6":"#6366f1",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
+                  <div style={{fontSize:"0.72rem",fontWeight:700,color:G.textSoft}}>{isAbs?"Core/Abs":group}</div>
+                </div>
+                <select value={ex.name} onChange={e=>{
+                  const selected=pool.find(p=>p.name===e.target.value)||pool[0];
+                  const updated=[...progExercises];
+                  updated[i]={...selected,weight:progSavedWeights[selected.name]||0};
+                  setProgExercises(updated);
+                }} style={{...iStyle,marginBottom:10,fontWeight:600,color:"#4f46e5",border:"2px solid #6366f1"}}>
+                  {pool.map(p=>(
+                    <option key={p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+                <div style={{fontSize:"0.62rem",color:G.textSoft,fontStyle:"italic",marginBottom:10}}>{ex.instructions}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:"0.64rem",color:G.textSoft}}>Weight:</span>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>-</button>
+                  <input type="number" value={weight} onChange={e=>setProgSessionWeights(w=>({...w,[ex.name]:parseInt(e.target.value)||0}))} style={{width:60,textAlign:"center",border:`2px solid #6366f1`,borderRadius:7,padding:"4px",fontSize:"0.9rem",fontWeight:700,color:G.text}}/>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>+</button>
+                  <span style={{fontSize:"0.6rem",color:G.textSoft}}>lbs</span>
+                  {progSavedWeights[ex.name]>0&&<span style={{fontSize:"0.58rem",color:"#6366f1",marginLeft:4}}>Last: {progSavedWeights[ex.name]}lbs</span>}
+                </div>
+              </div>
+            );
+          })}
+          <button onClick={()=>{
+            const withWeights=progExercises.map(ex=>({...ex,weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}));
+            setProgExercises(withWeights);
+            setProgExIdx(0);setProgSetIdx(0);setProgWorkPhase("work");
+            setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
+            setProgPhase("active");
+          }} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>
+            ▶ Start Session
+          </button>
+          <button onClick={()=>setProgPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
+        </div>
+      );
       return(
         <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
           <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
