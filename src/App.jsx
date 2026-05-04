@@ -2604,9 +2604,19 @@ if(groupExs.length===0){
       }
     };
 
-    function buildAutoExercises(){
+    async function buildAutoExercises(){
       const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      const rows=sheetData.workouts||[];
+      let rows=sheetData.workouts||[];
+      if(rows.length===0){
+        try{
+          const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
+          const text=await res.text();
+          const json=JSON.parse(text.substring(47).slice(0,-2));
+          rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+          setSheetData(p=>({...p,workouts:rows}));
+          setSheetLoaded(true);
+        }catch(e){console.error(e);}
+      }
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
@@ -2708,7 +2718,7 @@ if(groupExs.length===0){
         </div>
         <button onClick={()=>{
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
-          const list=buildAutoExercises();
+         const list=await buildAutoExercises(); 
           setProgExercises(list);
           setProgSessionWeights({});
           setProgSwapIdx(null);
