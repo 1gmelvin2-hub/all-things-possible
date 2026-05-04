@@ -2606,15 +2606,31 @@ if(groupExs.length===0){
 
     function buildAutoExercises(){
       const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+      const rows=sheetData.workouts||[];
+
+      function getFromSheet(group,count){
+        const cats=GYM_CAT_MAP[group]||[];
+        const matches=rows.slice(1).filter(row=>
+          cats.some(c=>(row[1]||"").toLowerCase().includes(c))
+        ).map(row=>({
+          name:row[0]||"",
+          muscles:row[6]||group,
+          instructions:row[5]||"",
+        })).filter(e=>e.name);
+        if(matches.length>=3) return shuffle(matches).slice(0,count);
+        // Fall back to hardcoded pool
+        return shuffle(EXERCISE_POOL[group]||[]).slice(0,count);
+      }
+
       let list=[];
       if(selectedGroups.length===2){
         const perGroup=Math.ceil(exCount/2);
-        const g1=shuffle(EXERCISE_POOL[selectedGroups[0]]||[]).slice(0,perGroup);
-        const g2=shuffle(EXERCISE_POOL[selectedGroups[1]]||[]).slice(0,perGroup);
+        const g1=getFromSheet(selectedGroups[0],perGroup);
+        const g2=getFromSheet(selectedGroups[1],perGroup);
         const max=Math.max(g1.length,g2.length);
         for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
       } else {
-        list=shuffle(EXERCISE_POOL[selectedGroups[0]]||[]).slice(0,exCount);
+        list=getFromSheet(selectedGroups[0],exCount);
       }
       if(progAddAbs) list.push(...ABS_POOL);
       return list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
