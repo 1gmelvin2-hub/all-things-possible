@@ -5383,7 +5383,42 @@ const BLAST_GROUPS={
       ]
     },
   };
-
+const MACHINE_CIRCUITS={
+  upper:{name:"Upper Body",emoji:"💪",color:"#3b82f6",exercises:[
+    {name:"Chest Press Machine",muscles:"Chest, Shoulders, Triceps",instructions:"Sit with back flat. Push handles forward until arms nearly straight. Return slowly.",sets:3,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Lat Pulldown",muscles:"Back, Biceps",instructions:"Grip bar wide. Pull down to upper chest squeezing shoulder blades. Return with control.",sets:3,reps:12,startingWeight:50,restBetweenSets:45,restAfterExercise:60},
+    {name:"Seated Cable Row",muscles:"Mid Back, Biceps",instructions:"Sit tall, pull handle to lower chest elbows back. Squeeze at top. Return slowly.",sets:3,reps:12,startingWeight:45,restBetweenSets:45,restAfterExercise:60},
+    {name:"Shoulder Press Machine",muscles:"Shoulders, Triceps",instructions:"Grip handles at shoulder height. Press up until arms nearly straight. Lower slowly.",sets:3,reps:12,startingWeight:30,restBetweenSets:45,restAfterExercise:60},
+    {name:"Pec Deck Fly",muscles:"Chest",instructions:"Arms on pads at shoulder height. Bring together in front of chest. Return with control.",sets:3,reps:12,startingWeight:35,restBetweenSets:45,restAfterExercise:60},
+    {name:"Tricep Pushdown",muscles:"Triceps",instructions:"Push cable handle down until arms fully extended. Keep elbows tucked. Return slowly.",sets:3,reps:12,startingWeight:25,restBetweenSets:45,restAfterExercise:60},
+  ]},
+  lower:{name:"Lower Body",emoji:"🦵",color:"#10b981",exercises:[
+    {name:"Leg Press",muscles:"Quads, Glutes, Hamstrings",instructions:"Feet hip-width on platform. Lower until knees at 90 degrees. Press through heels to extend.",sets:3,reps:12,startingWeight:80,restBetweenSets:60,restAfterExercise:75},
+    {name:"Leg Extension",muscles:"Quadriceps",instructions:"Pad just above ankles. Extend legs until straight, hold 1 sec. Lower slowly.",sets:3,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Seated Leg Curl",muscles:"Hamstrings",instructions:"Pad behind lower leg. Curl down as far as comfortable. Return slowly.",sets:3,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Hip Abductor Machine",muscles:"Glutes, Hip Abductors",instructions:"Pads on outer thighs. Press legs outward. Return slowly.",sets:3,reps:15,startingWeight:50,restBetweenSets:45,restAfterExercise:60},
+    {name:"Hip Adductor Machine",muscles:"Inner Thighs",instructions:"Pads on inner thighs. Press legs inward. Return slowly.",sets:3,reps:15,startingWeight:50,restBetweenSets:45,restAfterExercise:60},
+    {name:"Calf Raise Machine",muscles:"Calves",instructions:"Balls of feet on platform. Rise on toes, hold 1 sec. Lower slowly.",sets:3,reps:15,startingWeight:60,restBetweenSets:30,restAfterExercise:45},
+  ]},
+  full:{name:"Full Body",emoji:"🔥",color:"#f59e0b",exercises:[
+    {name:"Chest Press Machine",muscles:"Chest, Shoulders, Triceps",instructions:"Push handles forward until arms nearly straight. Return slowly.",sets:2,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Leg Press",muscles:"Quads, Glutes, Hamstrings",instructions:"Feet hip-width. Lower until 90 degrees. Press through heels.",sets:2,reps:12,startingWeight:80,restBetweenSets:60,restAfterExercise:75},
+    {name:"Lat Pulldown",muscles:"Back, Biceps",instructions:"Pull to upper chest squeezing shoulder blades.",sets:2,reps:12,startingWeight:50,restBetweenSets:45,restAfterExercise:60},
+    {name:"Leg Extension",muscles:"Quadriceps",instructions:"Extend legs until straight, hold 1 sec. Lower slowly.",sets:2,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Shoulder Press Machine",muscles:"Shoulders, Triceps",instructions:"Press up until arms nearly straight. Lower slowly.",sets:2,reps:12,startingWeight:30,restBetweenSets:45,restAfterExercise:60},
+    {name:"Seated Leg Curl",muscles:"Hamstrings",instructions:"Curl down as far as comfortable. Return slowly.",sets:2,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Seated Cable Row",muscles:"Mid Back, Biceps",instructions:"Pull to lower chest elbows back. Squeeze at top.",sets:2,reps:12,startingWeight:45,restBetweenSets:45,restAfterExercise:60},
+    {name:"Calf Raise Machine",muscles:"Calves",instructions:"Rise on toes, hold 1 sec. Lower slowly.",sets:2,reps:15,startingWeight:60,restBetweenSets:30,restAfterExercise:45},
+  ]},
+  glutes:{name:"Glutes & Legs",emoji:"🍑",color:"#ec4899",exercises:[
+    {name:"Hip Thrust Machine",muscles:"Glutes, Hamstrings",instructions:"Pad across hips. Drive hips up until body straight. Squeeze glutes at top. Lower slowly.",sets:3,reps:12,startingWeight:45,restBetweenSets:60,restAfterExercise:75},
+    {name:"Glute Kickback Machine",muscles:"Glutes",instructions:"Place foot on pad. Kick back and up squeezing glute. Complete all reps then switch sides.",sets:3,reps:12,startingWeight:30,restBetweenSets:45,restAfterExercise:60},
+    {name:"Hip Abductor Machine",muscles:"Glutes, Hip Abductors",instructions:"Press legs outward. Squeeze glutes. Return slowly.",sets:3,reps:15,startingWeight:50,restBetweenSets:45,restAfterExercise:60},
+    {name:"Leg Press High Foot",muscles:"Glutes, Hamstrings",instructions:"Feet HIGH on platform hip-width. Lower to 90 degrees. Press through heels targeting glutes more.",sets:3,reps:12,startingWeight:70,restBetweenSets:60,restAfterExercise:75},
+    {name:"Seated Leg Curl",muscles:"Hamstrings, Glutes",instructions:"Curl down as far as comfortable. Squeeze hamstrings. Return slowly.",sets:3,reps:12,startingWeight:40,restBetweenSets:45,restAfterExercise:60},
+    {name:"Calf Raise Machine",muscles:"Calves",instructions:"Rise on toes, hold 1 sec. Lower below platform for full stretch.",sets:3,reps:15,startingWeight:60,restBetweenSets:30,restAfterExercise:45},
+  ]},
+};
   function buildBlastSession(group, weightInputs){
     const g=BLAST_GROUPS[group];
     if(!g) return null;
