@@ -2246,8 +2246,9 @@ const MACHINE_CIRCUITS={
     const weekNum=getCurrentWeek();
     const exercises=[];
     selectedGroups.forEach(group=>{
-      const cats=GYM_CAT_MAP[group]||[];
-      const groupExs=workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
+     const cats=GYM_CAT_MAP[group]||[];
+            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            const sheetPool=activeRows.slice(1).filter(row=> cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
      exercises.push(...groupExs);
 // FALLBACK if sheet returned nothing
 if(groupExs.length===0){
@@ -3764,8 +3765,9 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-        setSheetData(p=>({...p,workouts:rows}));
-        setSheetLoaded(true);
+              setSheetData(p=>({...p,workouts:rows}));
+              setSheetLoaded(true);
+              loadedRowsRef.current=rows;
         sheetAbs=rows.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("abs")||(row[1]||"").toLowerCase().includes("core")).map(row=>({
           name:row[0]||"",instructions:row[5]||"",level:row[2]||"Beginning",duration:30
         })).filter(e=>e.name);
