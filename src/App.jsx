@@ -2718,7 +2718,40 @@ if(groupExs.length===0){
         </div>
         <button onClick={async()=>{
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
-         const list=await buildAutoExercises(); 
+          // Always load sheet first
+          let rows=sheetData.workouts||[];
+          if(rows.length===0){
+            try{
+              const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
+              const text=await res.text();
+              const json=JSON.parse(text.substring(47).slice(0,-2));
+              rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+              setSheetData(p=>({...p,workouts:rows}));
+              setSheetLoaded(true);
+            }catch(e){console.error(e);}
+          }
+          // Build initial exercise list
+          const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+          function getFromRows(group,count){
+            const cats=GYM_CAT_MAP[group]||[];
+            const matches=rows.slice(1).filter(row=>
+              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
+            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
+            if(matches.length>=3) return shuffle(matches).slice(0,count);
+            return shuffle(EXERCISE_POOL[group]||[]).slice(0,count);
+          }
+          let list=[];
+          if(selectedGroups.length===2){
+            const perGroup=Math.ceil(exCount/2);
+            const g1=getFromRows(selectedGroups[0],perGroup);
+            const g2=getFromRows(selectedGroups[1],perGroup);
+            const max=Math.max(g1.length,g2.length);
+            for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
+          } else {
+            list=getFromRows(selectedGroups[0],exCount);
+          }
+          if(progAddAbs) list.push(...ABS_POOL);
+          list=list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
           setProgExercises(list);
           setProgSessionWeights({});
           setProgSwapIdx(null);
@@ -2743,15 +2776,10 @@ if(groupExs.length===0){
           {progExercises.map((ex,i)=>{
             const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
             const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
-            const sheetRows=sheetData.workouts||[];
             const cats=GYM_CAT_MAP[group]||[];
-            const sheetPool=sheetRows.slice(1).filter(row=>
+            const sheetPool=(sheetData.workouts||[]).slice(1).filter(row=>
               cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-            ).map(row=>({
-              name:row[0]||"",
-              muscles:row[6]||group,
-              instructions:row[5]||"",
-            })).filter(e=>e.name);
+            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
             const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);
             const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
             return(
