@@ -4880,7 +4880,10 @@ export default function AllThingsPossible(){
   const [dayRating,setDayRating]               = useState(null);
   const [ratingSubmitted,setRatingSubmitted]   = useState(false);
   const [adjustMsg,setAdjustMsg]               = useState("");
-
+  const [weeklyGoals,setWeeklyGoals] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-goals-"+currentClient?.id)||"null");}catch{return null;}});
+     const [weeklyLog,setWeeklyLog] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-log-"+currentClient?.id)||"{}");}catch{return{};}});
+    const [editingGoals,setEditingGoals] = useState(false);
+    const [goalForm,setGoalForm] = useState({gym:0,hiit:0,run:0,cals:0,trx:0,bounce:0});
   // coach
   const [msgDraft,setMsgDraft]     = useState({});
   const [selectedClientCoach,setSelectedClientCoach] = useState(null);
@@ -5947,7 +5950,28 @@ Return ONLY valid JSON array (no markdown):
     persist(null,null,null,null,{...deskLog,[cid]:{...(deskLog[cid]||{}),[today]:{...existing,[moveId]:(existing[moveId]||0)+amt}}},null,null,null);
   }
 
-  function logSet(di,ei){ const k=`${di}-${ei}`; setLoggedSets(p=>({...p,[k]:(p[k]||0)+1})); }
+  function getWeekKey(){
+    const d=new Date();
+    const day=d.getDay();
+    const diff=d.getDate()-day+(day===0?-6:1);
+    const monday=new Date(d.setDate(diff));
+    return monday.toISOString().split("T")[0];
+  }
+
+  function logWeeklySession(type){
+    const key=getWeekKey();
+    const cid=currentClient.id;
+    const existing=weeklyLog[key]||{};
+    const updated={...weeklyLog,[key]:{...existing,[type]:(existing[type]||0)+1}};
+    setWeeklyLog(updated);
+    try{localStorage.setItem("atp-weekly-log-"+cid,JSON.stringify(updated));}catch{}
+  }
+
+  function getWeekProgress(){
+    const key=getWeekKey();
+    return weeklyLog[key]||{};
+  }
+function logSet(di,ei){ const k=`${di}-${ei}`; setLoggedSets(p=>({...p,[k]:(p[k]||0)+1})); }
 
   function sendCoachMessage(cid,text){
     if(!text.trim())return;
@@ -6203,7 +6227,8 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   function MacroBar({label,value,target,isLow=false,unit="g"}){
     const color=trafficLight(value,target,isLow);
     const pct=Math.min(100,Math.round((value/target)*100));
-    return(<div><div style={{display:"flex",justifyContent:"space-between",fontSize:"0.66rem",marginBottom:2}}><span style={{color:G.textSoft,fontWeight:600}}>{label}</span><span style={{color,fontWeight:700}}>{value}{unit} <span style={{color:G.textSoft,fontWeight:400}}>/ {target}{unit}</span></span></div><div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:3,transition:"width .4s"}}/></div></div>);
+    return(const cid=currentClient.id;
+          const clientProgram=program[cid];<div><div style={{display:"flex",justifyContent:"space-between",fontSize:"0.66rem",marginBottom:2}}><span style={{color:G.textSoft,fontWeight:600}}>{label}</span><span style={{color,fontWeight:700}}>{value}{unit} <span style={{color:G.textSoft,fontWeight:400}}>/ {target}{unit}</span></span></div><div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:3,transition:"width .4s"}}/></div></div>);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -6683,8 +6708,109 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
           const currentWeekNum=clientProgram?.currentWeek||1;
           const currentWeekPlan=clientProgram?.weeks[currentWeekNum];
           const phase=getPhase(currentWeekNum);
+          const weekProgress=getWeekProgress();
+          const weekKey=getWeekKey();
+          const allGoalsMet=weeklyGoals&&Object.entries(weeklyGoals).filter(([,v])=>v>0).every(([k,v])=>(weekProgress[k]||0)>=v);
+
           return(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* ── WEEKLY GOALS ── */}
+            {!editingGoals&&weeklyGoals&&!allGoalsMet&&(
+              <div style={{...card,border:`1.5px solid ${G.greenMid}44`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div style={{fontSize:"0.78rem",fontWeight:700,color:G.green}}>🎯 This Week's Goals</div>
+                  <button onClick={()=>{
+                    setGoalForm({...weeklyGoals});
+                    setEditingGoals(true);
+                  }} style={{fontSize:"0.62rem",padding:"3px 9px",borderRadius:20,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {[
+                    {id:"gym",icon:"🏋️",label:"Gym"},
+                    {id:"hiit",icon:"🥊",label:"HIIT"},
+                    {id:"run",icon:"🏃",label:"Running"},
+                    {id:"cals",icon:"🤸",label:"Calisthenics"},
+                    {id:"trx",icon:"🔗",label:"TRX"},
+                    {id:"bounce",icon:"🦘",label:"Bounce"},
+                  ].filter(t=>(weeklyGoals[t.id]||0)>0).map(t=>{
+                    const done=weekProgress[t.id]||0;
+                    const goal=weeklyGoals[t.id]||0;
+                    const pct=Math.min(100,Math.round((done/goal)*100));
+                    const complete=done>=goal;
+                    return(
+                      <div key={t.id}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{fontSize:"1rem"}}>{t.icon}</span>
+                            <span style={{fontSize:"0.74rem",fontWeight:600,color:complete?G.green:G.text}}>{t.label}</span>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{fontSize:"0.7rem",color:complete?G.green:G.textSoft,fontWeight:700}}>{done}/{goal}</span>
+                            <button onClick={()=>logWeeklySession(t.id)} style={{padding:"3px 9px",borderRadius:20,border:"none",background:complete?G.greenLight:G.green,color:complete?G.green:G.white,fontSize:"0.62rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                              {complete?"✓ Done":"+1"}
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${pct}%`,background:complete?G.greenMid:G.green,borderRadius:3,transition:"width .4s"}}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* All goals met celebration */}
+            {allGoalsMet&&!editingGoals&&(
+              <div style={{...card,background:`linear-gradient(135deg,${G.green},${G.greenMid})`,border:"none",textAlign:"center",padding:"20px"}}>
+                <div style={{fontSize:"2.5rem",marginBottom:6}}>🏆</div>
+                <div style={{fontSize:"0.92rem",fontWeight:900,color:G.white,marginBottom:4}}>Weekly Goals Complete!</div>
+                <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)",lineHeight:1.7,marginBottom:10}}>Amazing work {currentClient.name.split(" ")[0]}! You crushed all your goals this week. All things are possible! 🙏</div>
+                <button onClick={()=>{setEditingGoals(true);setGoalForm({...weeklyGoals});}} style={{padding:"8px 18px",borderRadius:20,border:"none",background:"rgba(255,255,255,.2)",color:G.white,fontSize:"0.72rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Set Next Week's Goals</button>
+              </div>
+            )}
+
+            {/* Goal setup / edit */}
+            {(!weeklyGoals||editingGoals)&&(
+              <div style={{...card,border:`1.5px solid ${G.green}44`}}>
+                <div style={{fontSize:"0.78rem",fontWeight:700,color:G.green,marginBottom:4}}>🎯 Set Your Weekly Goals</div>
+                <div style={{fontSize:"0.66rem",color:G.textSoft,marginBottom:12,lineHeight:1.6}}>How many times do you want to work out this week? Set 0 to skip a type.</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
+                  {[
+                    {id:"gym",icon:"🏋️",label:"Gym sessions"},
+                    {id:"hiit",icon:"🥊",label:"HIIT sessions"},
+                    {id:"run",icon:"🏃",label:"Running sessions"},
+                    {id:"cals",icon:"🤸",label:"Calisthenics sessions"},
+                    {id:"trx",icon:"🔗",label:"TRX sessions"},
+                    {id:"bounce",icon:"🦘",label:"Bounce sessions"},
+                  ].map(t=>(
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,justifyContent:"space-between"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontSize:"1rem"}}>{t.icon}</span>
+                        <span style={{fontSize:"0.74rem",color:G.text}}>{t.label}</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <button onClick={()=>setGoalForm(p=>({...p,[t.id]:Math.max(0,(p[t.id]||0)-1)}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>-</button>
+                        <div style={{width:24,textAlign:"center",fontSize:"0.9rem",fontWeight:700,color:G.text}}>{goalForm[t.id]||0}</div>
+                        <button onClick={()=>setGoalForm(p=>({...p,[t.id]:(p[t.id]||0)+1}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>{
+                  const cid=currentClient.id;
+                  setWeeklyGoals(goalForm);
+                  try{localStorage.setItem("atp-weekly-goals-"+cid,JSON.stringify(goalForm));}catch{}
+                  setEditingGoals(false);
+                }} style={{...btnGreen,padding:"10px",fontSize:"0.78rem"}}>
+                  ✅ Save My Weekly Goals
+                </button>
+                {weeklyGoals&&<button onClick={()=>setEditingGoals(false)} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center",marginTop:6,width:"100%"}}>← Cancel</button>}
+              </div>
+            )}
+
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
               <div style={{fontSize:"0.85rem",fontWeight:700,color:G.green}}>💪 12-Week Program</div>
