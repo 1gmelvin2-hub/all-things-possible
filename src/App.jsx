@@ -2716,7 +2716,7 @@ if(groupExs.length===0){
         <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.72rem",color:"#0369a1",lineHeight:1.8}}>
           <strong>Your session:</strong> {exCount} exercises{progAddAbs?" + 3 abs":""} × 6 sets · 60s lift · 30s rest · 60s transition
         </div>
-        <button onClick={()=>{
+        <button onClick={async()=>{
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
          const list=await buildAutoExercises(); 
           setProgExercises(list);
