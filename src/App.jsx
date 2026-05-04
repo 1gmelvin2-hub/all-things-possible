@@ -4235,15 +4235,28 @@ function advanceHiit(){
         {...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},
         {...(bagExs3[2]||bagExs3[0]||{}),name:`Power: ${bagExs3[2]?.name||"Power Shots"}`,duration:60},
       ]},
-      {name:"⚡ Speed Round",color:"#dc2626",restBetween:15,exercises:[
-        {name:"Speed Jab-Cross",instructions:"Max speed! As many jabs and crosses as possible. Don't stop!",duration:60},
-        {name:"Speed Hooks",instructions:"Rapid fire hooks both hands — full speed!",duration:60},
-        {name:"Speed Uppercuts",instructions:"Fast uppercuts alternating hands. Push your pace!",duration:60},
-        {name:"Full Combo Speed Burst",instructions:"Jab-Cross-Hook-Uppercut at maximum speed. Empty the tank!",duration:60},
-        {name:"Speed Jab-Cross",instructions:"Last speed round — everything you have left!",duration:60},
-        {name:"All Out Punch Burst",instructions:"30 seconds max effort — every punch you have!",duration:60},
-        {name:"Recovery Shadowbox",instructions:"Slow it down — keep moving, breathe, stay loose",duration:60},
-      ]},
+      {name:"⚡ Speed Round",color:"#dc2626",restBetween:15,exercises:(()=>{
+        const speedExs=getExercises(["speed punching"],7);
+        const LOCKED_FINALE=[
+          {name:"Speed Jab",instructions:"Single jab at maximum speed. Snap it out and pull it back fast.",duration:60},
+          {name:"Speed Jab-Cross",instructions:"Jab then cross at full speed. Reset immediately and repeat.",duration:60},
+          {name:"Speed Jab-Cross-Hook-Lead Body Hook",instructions:"Jab-Cross-Hook then drop and lead body hook. Build to full speed.",duration:60},
+          {name:"Speed Jab-Cross-Hook-Lead Body Hook-Rear Body Hook",instructions:"Full 5-punch speed combo. Master the sequence then go full speed!",duration:60},
+        ];
+        if(speedExs.length>=5){
+          const randomExs=speedExs.filter(e=>!LOCKED_FINALE.some(f=>f.name===e.name)).slice(0,3).map(e=>({...e,duration:60}));
+          return [...randomExs,...LOCKED_FINALE];
+        }
+       return [
+          {name:"Speed Hooks",instructions:"Rapid fire hooks both hands. Keep elbows tight, rotate hips fast.",duration:60},
+          {name:"Speed Cross",instructions:"Fast straight right hand at maximum speed. Reset and repeat.",duration:60},
+          {name:"Jab-Jab-Cross-Cross",instructions:"Double jab double cross at full speed. Reset and go again.",duration:60},
+          {name:"Speed Jab",instructions:"Single jab at maximum speed. Snap it out and pull it back fast.",duration:60},
+          {name:"Speed Jab-Cross",instructions:"Jab then cross at full speed. Reset immediately and repeat.",duration:60},
+          {name:"Speed Jab-Cross-Hook-Lead Body Hook",instructions:"Jab-Cross-Hook then drop and lead body hook. Build to full speed.",duration:60},
+          {name:"Speed Jab-Cross-Hook-Lead Body Hook-Rear Body Hook",instructions:"Full 5-punch speed combo. Jab-Cross-Hook-Lead Body-Rear Body. Full speed!",duration:60},
+        ];
+      })()},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 5 — Power Finish",color:G.mangoDeep,restBetween:20,exercises:[
         {...(bagExs1[0]||{}),name:`Power 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},
