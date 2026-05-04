@@ -6227,8 +6227,7 @@ const nc={id:"c"+Date.now(),name:onboard.name,age:parseInt(onboard.age)||0,weigh
   function MacroBar({label,value,target,isLow=false,unit="g"}){
     const color=trafficLight(value,target,isLow);
     const pct=Math.min(100,Math.round((value/target)*100));
-    return(const cid=currentClient.id;
-          const clientProgram=program[cid];<div><div style={{display:"flex",justifyContent:"space-between",fontSize:"0.66rem",marginBottom:2}}><span style={{color:G.textSoft,fontWeight:600}}>{label}</span><span style={{color,fontWeight:700}}>{value}{unit} <span style={{color:G.textSoft,fontWeight:400}}>/ {target}{unit}</span></span></div><div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:3,transition:"width .4s"}}/></div></div>);
+    return(<div><div style={{display:"flex",justifyContent:"space-between",fontSize:"0.66rem",marginBottom:2}}><span style={{color:G.textSoft,fontWeight:600}}>{label}</span><span style={{color,fontWeight:700}}>{value}{unit} <span style={{color:G.textSoft,fontWeight:400}}>/ {target}{unit}</span></span></div><div style={{height:6,background:G.creamDark,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:color,borderRadius:3,transition:"width .4s"}}/></div></div>);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
