@@ -4927,8 +4927,8 @@ export default function AllThingsPossible(){
   const [dayRating,setDayRating]               = useState(null);
   const [ratingSubmitted,setRatingSubmitted]   = useState(false);
   const [adjustMsg,setAdjustMsg]               = useState("");
-  const [weeklyGoals,setWeeklyGoals] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-goals-"+currentClient?.id)||"null");}catch{return null;}});
-     const [weeklyLog,setWeeklyLog] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-log-"+currentClient?.id)||"{}");}catch{return{};}});
+  const [weeklyGoals,setWeeklyGoals] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-goals-"+(currentClient?.id||"guest"))||"null");}catch{return null;}});
+  const [weeklyLog,setWeeklyLog] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-log-"+(currentClient?.id||"guest"))||"{}");}catch{return{};}});
     const [editingGoals,setEditingGoals] = useState(false);
     const [goalForm,setGoalForm] = useState({gym:0,hiit:0,run:0,cals:0,trx:0,bounce:0});
   // coach
@@ -5996,7 +5996,15 @@ Return ONLY valid JSON array (no markdown):
     const existing=(deskLog[cid]||{})[today]||{};
     persist(null,null,null,null,{...deskLog,[cid]:{...(deskLog[cid]||{}),[today]:{...existing,[moveId]:(existing[moveId]||0)+amt}}},null,null,null);
   }
-
+useEffect(()=>{
+    if(!currentClient?.id) return;
+    try{
+      const goals=JSON.parse(localStorage.getItem("atp-weekly-goals-"+currentClient.id)||"null");
+      const log=JSON.parse(localStorage.getItem("atp-weekly-log-"+currentClient.id)||"{}");
+      setWeeklyGoals(goals);
+      setWeeklyLog(log);
+    }catch{}
+  },[currentClient?.id]);
   function getWeekKey(){
     const d=new Date();
     const day=d.getDay();
