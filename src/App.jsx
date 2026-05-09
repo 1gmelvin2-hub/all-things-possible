@@ -2773,7 +2773,7 @@ if(groupExs.length===0){
 
     async function buildAutoExercises(){
       const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      let rows=sheetData.workouts||[];
+      let rows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
       if(rows.length===0){
         try{
           const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
@@ -2787,11 +2787,12 @@ if(groupExs.length===0){
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
-            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
-            const sheetPool=activeRows.slice(1).filter(row=>
+          const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            const sheetPool=activeRows.length>1?activeRows.slice(1).filter(row=>
               cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
-            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);
+            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name):[];
+            console.log("Sheet pool for",group,":",sheetPool.length,"exercises. ActiveRows:",activeRows.length);
+            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);  
       }
 
       let list=[];
