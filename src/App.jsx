@@ -2749,10 +2749,11 @@ if(groupExs.length===0){
             const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
             const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
             function getExs(group,count){
-              const cats=GYM_CAT_MAP[group]||[];
-              const matches=rows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||"",group})).filter(e=>e.name);
-              return shuffle(matches).slice(0,count);
-            }
+            const cats=GYM_CAT_MAP[group]||[];
+            const matches=rows.filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||"",group})).filter(e=>e.name);
+            console.log("getExs",group,cats,"found:",matches.length);
+            return shuffle(matches).slice(0,count);
+          }
             let list=[];
             if(selectedGroups.length===2){
               const perGroup=Math.ceil(exCount/2);
@@ -2801,6 +2802,14 @@ if(groupExs.length===0){
     // ── PICK ──
     if(progPhase==="pick"){
       const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
+      // Safety — if exercises empty, go back to setup
+      if(progExercises.length===0) return(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
+          <div style={{fontSize:"2rem"}}>⚠️</div>
+          <div style={{fontSize:"0.82rem",fontWeight:700,color:G.brown,textAlign:"center"}}>No exercises found for {selectedGroups.join(" + ")}</div>
+          <button onClick={()=>setProgPhase("control")} style={{...btnGreen}}>← Try Again</button>
+        </div>
+      );
       return(
         <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
           <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
