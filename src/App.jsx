@@ -822,7 +822,7 @@ Set any field not visible to null.`}
     if(workoutRows.length===0){
       try{
         const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -1389,7 +1389,7 @@ function TRXTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
     if(!sheetLoaded){
       try{
         const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -1793,7 +1793,7 @@ function TrampolineTab({currentClient,sheetData,sheetLoaded,setSheetData,setShee
     if(!sheetLoaded){
       try{
         const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -2342,7 +2342,7 @@ const MACHINE_CIRCUITS={
     let workoutRows=sheetData.workouts||[];
     if(workoutRows.length===0){
       try{
-        const res=await fetch(gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")});
+        const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -2740,7 +2740,7 @@ if(groupExs.length===0){
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
           setProgPhase("loading");
           try{
-            const res=await fetch(gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")});
+            const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
             const text=await res.text();
             const json=JSON.parse(text.substring(47).slice(0,-2));
             const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -3805,8 +3805,8 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
       })).filter(e=>e.name);
     } else {
       try{
-        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+       const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`); 
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -4202,8 +4202,8 @@ function advanceHiit(){
     let workoutRows=sheetData.workouts||[];
     if(workoutRows.length===0){
       try{
-        const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+       const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
+        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`); 
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -7161,7 +7161,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
                             if(workoutRows.length===0){
                               try{
                                 const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-                                const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+                                const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
                                 const text=await res.text();
                                 const json=JSON.parse(text.substring(47).slice(0,-2));
                                 workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
