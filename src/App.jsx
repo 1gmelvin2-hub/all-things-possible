@@ -2693,160 +2693,16 @@ if(groupExs.length===0){
     }
   }
    
-
-  // ── FULL PROGRAM ──
+// ── FULL PROGRAM ──
   if(gymMode==="program"){
-    const EXERCISE_POOL={
-      "Chest":[
-        {name:"Dumbbell Chest Press",muscles:"Chest, Triceps",instructions:"Lie on bench. Press dumbbells up from chest, lower slowly."},
-        {name:"Incline Dumbbell Press",muscles:"Upper Chest",instructions:"45 degree incline. Press up and slightly inward. Full stretch at bottom."},
-        {name:"Dumbbell Fly",muscles:"Chest",instructions:"Arms wide, slight bend. Open chest fully, squeeze hard at top."},
-        {name:"Cable Crossover",muscles:"Chest",instructions:"Cables at shoulder height. Pull down and across, squeeze chest at center."},
-        {name:"Push-Ups",muscles:"Chest, Triceps",instructions:"Hands shoulder width. Lower chest to floor, explode up."},
-        {name:"Incline Dumbbell Fly",muscles:"Upper Chest",instructions:"Incline bench, arms wide. Deep stretch, squeeze at top."},
-      ],
-      "Back":[
-        {name:"Bent-Over Barbell Row",muscles:"Back, Biceps",instructions:"Hinge at hips, back flat. Pull bar to lower chest. Squeeze shoulder blades."},
-        {name:"Dumbbell Row",muscles:"Back, Biceps",instructions:"One knee on bench. Pull dumbbell to hip, lead with elbow."},
-        {name:"Lat Pulldown",muscles:"Lats, Biceps",instructions:"Wide grip. Pull bar to upper chest, lean back slightly."},
-        {name:"Seated Cable Row",muscles:"Mid Back",instructions:"Sit tall. Pull handle to abdomen, squeeze shoulder blades at end."},
-        {name:"Face Pull",muscles:"Rear Delts",instructions:"Cable at face height. Pull to forehead, elbows high and wide."},
-        {name:"Straight Arm Pulldown",muscles:"Lats",instructions:"Arms straight. Pull cable from overhead to hips. Slow and controlled."},
-      ],
-      "Shoulders":[
-        {name:"Dumbbell Shoulder Press",muscles:"Shoulders, Triceps",instructions:"Press dumbbells overhead. Lock out at top. Lower to ear level."},
-        {name:"Lateral Raise",muscles:"Side Delts",instructions:"Slight bend in elbows. Raise arms to shoulder height. Lead with elbows."},
-        {name:"Arnold Press",muscles:"Full Shoulder",instructions:"Start palms facing you, rotate outward as you press overhead."},
-        {name:"Front Raise",muscles:"Front Delts",instructions:"Alternating arms. Raise to eye level, keep slight bend."},
-        {name:"Rear Delt Fly",muscles:"Rear Delts",instructions:"Bent over. Raise elbows out and up, squeeze rear delts."},
-        {name:"Upright Row",muscles:"Shoulders, Traps",instructions:"Narrow grip. Pull bar to chin, elbows flare high and wide."},
-      ],
-      "Arms (Biceps/Triceps)":[
-        {name:"Barbell Curl",muscles:"Biceps",instructions:"Stand. Curl bar from hips to shoulders. Squeeze hard at top."},
-        {name:"Hammer Curl",muscles:"Biceps, Forearms",instructions:"Neutral grip, thumbs up. Curl alternating. Control descent fully."},
-        {name:"Incline Dumbbell Curl",muscles:"Biceps",instructions:"Incline bench, arms hang. Curl up slowly squeezing at top."},
-        {name:"Cable Pushdown",muscles:"Triceps",instructions:"Push cable down, lock out. Keep elbows pinned to sides."},
-        {name:"Overhead Tricep Extension",muscles:"Triceps",instructions:"Hold dumbbell overhead. Lower behind head slowly, extend fully."},
-        {name:"Skull Crushers",muscles:"Triceps",instructions:"Lie on bench. Lower bar to forehead, extend arms fully."},
-      ],
-      "Legs":[
-        {name:"Barbell Squat",muscles:"Quads, Glutes",instructions:"Bar on traps. Sit back and down, chest up. Drive through heels."},
-        {name:"Romanian Deadlift",muscles:"Hamstrings, Glutes",instructions:"Slight knee bend. Hinge at hips, bar drags down legs."},
-        {name:"Walking Lunges",muscles:"Quads, Glutes",instructions:"Step forward, lower back knee near floor. Drive front heel to stand."},
-        {name:"Leg Press",muscles:"Quads, Glutes",instructions:"Feet shoulder width. Lower to 90 degrees, press through heels."},
-        {name:"Leg Curl",muscles:"Hamstrings",instructions:"Lie on machine. Curl heels to glutes, squeeze at top."},
-        {name:"Calf Raises",muscles:"Calves",instructions:"Stand on edge. Rise to toes, hold 1 sec, lower fully."},
-      ],
-      "Core/Abs":[
-        {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line head to heels. Core tight, breathe steady."},
-        {name:"Crunches",muscles:"Abs",instructions:"Lie on back, knees bent. Curl shoulders toward knees, squeeze at top."},
-        {name:"Leg Raises",muscles:"Lower Abs",instructions:"Lie flat. Raise legs to 90 degrees slowly, lower without touching floor."},
-        {name:"Russian Twists",muscles:"Obliques",instructions:"Sit at 45 degrees, feet raised. Rotate side to side touching floor."},
-        {name:"Bicycle Crunches",muscles:"Abs, Obliques",instructions:"Alternate elbow to opposite knee. Slow and controlled."},
-        {name:"Ab Wheel Rollout",muscles:"Full Core",instructions:"Kneel with ab wheel. Roll forward slowly, engage core, pull back."},
-      ],
-    };
-    const ABS_POOL=[
-      {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line head to heels. Core tight."},
-      {name:"Crunches",muscles:"Abs",instructions:"Curl shoulders toward knees, squeeze at top."},
-      {name:"Leg Raises",muscles:"Lower Abs",instructions:"Raise legs to 90 degrees, lower without touching floor."},
-    ];
-    const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
-    const phaseColor=progWorkPhase==="work"?"#6366f1":progWorkPhase==="rest"?"#f59e0b":"#10b981";
-    const phaseBg=progWorkPhase==="work"?"#f8f7ff":progWorkPhase==="rest"?"#fffbeb":"#f0fdf4";
-    const phaseLabel=progWorkPhase==="work"?"LIFT!":progWorkPhase==="rest"?"REST":"NEXT UP";
-    const timerProg=progTimerTotal>0?progTimer/progTimerTotal:0;
-    const circ=2*Math.PI*52;
 
-    // Always keep advance function fresh (avoids stale closure)
-    progAdvanceRef.current=()=>{
-      setProgTimerActive(false);
-      const totalEx=progExercises.length;
-      if(progWorkPhase==="work"){
-        if(progSetIdx<5){setProgWorkPhase("rest");setProgTimer(30);setProgTimerTotal(30);setProgTimerActive(true);}
-        else if(progExIdx<totalEx-1){setProgWorkPhase("transition");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);}
-        else{setProgPhase("complete");}
-      } else if(progWorkPhase==="rest"){
-        setProgSetIdx(s=>s+1);setProgWorkPhase("work");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
-      } else if(progWorkPhase==="transition"){
-        setProgExIdx(i=>i+1);setProgSetIdx(0);setProgWorkPhase("work");setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
-      }
-    };
-
-    async function buildAutoExercises(){
-      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      let rows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
-      if(rows.length===0){
-        try{
-          const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
-          const text=await res.text();
-          const json=JSON.parse(text.substring(47).slice(0,-2));
-          rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-          setSheetData(p=>({...p,workouts:rows}));
-              setSheetLoaded(true);
-              loadedRowsRef.current=rows;
-            }catch(e){console.error(e);}
-      }
-
-      function getFromSheet(group,count){
-        const cats=GYM_CAT_MAP[group]||[];
-          const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
-            console.log("ActiveRows length:",activeRows.length,"group:",group,"cats:",cats);
-            const sheetPool=activeRows.length>1?activeRows.slice(1).filter(row=>
-              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name):[];
-            console.log("Sheet pool for",group,":",sheetPool.length,"exercises. ActiveRows:",activeRows.length);
-            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);  
-      }
-
-      let list=[];
-      if(selectedGroups.length===2){
-        const perGroup=Math.ceil(exCount/2);
-        const g1=getFromSheet(selectedGroups[0],perGroup);
-        const g2=getFromSheet(selectedGroups[1],perGroup);
-        const max=Math.max(g1.length,g2.length);
-        for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
-      } else {
-        list=getFromSheet(selectedGroups[0],exCount);
-      }
-      if(progAddAbs) list.push(...ABS_POOL);
-      return list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
-    }
-
-    // ── CONTROL LEVEL ──
-    if(progPhase==="control") return(
+    // ── SETUP ──
+    if(progPhase==="control"||progPhase==="setup") return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
           <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>📈 Full Program</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>How much control do you want?</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Choose your style for today's session</div>
-        </div>
-        {[
-          {id:"ai",icon:"🤖",label:"Full AI",desc:"App picks the best exercises. Just show up and lift.",color:"#6366f1"},
-          {id:"half",icon:"🔀",label:"Half & Half",desc:"AI suggests exercises — you can swap any you don't want.",color:"#8b5cf6"},
-          {id:"manual",icon:"✋",label:"I Pick Everything",desc:"You choose every exercise. Full control.",color:"#06b6d4"},
-        ].map(opt=>(
-          <button key={opt.id} onClick={()=>{setProgControlLevel(opt.id);setProgPhase("setup");}} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid ${opt.color}33`,background:`${opt.color}08`}}>
-            <div style={{display:"flex",alignItems:"center",gap:12}}>
-              <div style={{width:52,height:52,borderRadius:"50%",background:opt.color+"22",border:`2px solid ${opt.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.6rem",flexShrink:0}}>{opt.icon}</div>
-              <div>
-                <div style={{fontSize:"0.88rem",fontWeight:700,color:opt.color}}>{opt.label}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3,lineHeight:1.5}}>{opt.desc}</div>
-              </div>
-            </div>
-          </button>
-        ))}
-        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
-      </div>
-    );
-
-    // ── SETUP ──
-    if(progPhase==="setup") return(
-      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-        <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
-          <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>📈 Full Program</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Set Up Your Session</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · 6 sets · 60s on · 30s rest · 60s transition</div>
+          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Build Your Session</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · You pick every exercise · Rep timer included</div>
         </div>
         <div style={card}>
           <div style={lbl}>⏱ How long do you have?</div>
@@ -2854,7 +2710,7 @@ if(groupExs.length===0){
             {["45 min","60 min","90 min"].map(t=>(
               <button key={t} onClick={()=>setGymDuration(t)} style={{flex:1,padding:"10px 0",borderRadius:10,border:`2px solid ${gymDuration===t?"#6366f1":G.border}`,background:gymDuration===t?"#eef2ff":G.cream,color:gymDuration===t?"#6366f1":G.textSoft,fontSize:"0.72rem",fontWeight:gymDuration===t?700:400,cursor:"pointer",fontFamily:"inherit"}}>
                 {t}
-                <div style={{fontSize:"0.56rem",marginTop:2,color:gymDuration===t?"#6366f1":G.textSoft}}>{t==="45 min"?"4 exercises":t==="60 min"?"6 exercises":"9 exercises"}</div>
+                <div style={{fontSize:"0.56rem",marginTop:2}}>{t==="45 min"?"4 exercises":t==="60 min"?"6 exercises":"9 exercises"}</div>
               </button>
             ))}
           </div>
@@ -2863,9 +2719,9 @@ if(groupExs.length===0){
           <div style={lbl}>💪 Muscle Groups (pick 1 or 2)</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {GYM_MUSCLE_GROUPS.filter(g=>g!=="Core/Abs").map(g=>{
-              const selected=selectedGroups.includes(g);
-              return(<button key={g} onClick={()=>{if(selected){setSelectedGroups(p=>p.filter(x=>x!==g));}else if(selectedGroups.length<2){setSelectedGroups(p=>([...p,g]));}}} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${selected?"#6366f1":G.border}`,background:selected?"#eef2ff":G.cream,color:selected?"#6366f1":G.text,fontSize:"0.74rem",fontWeight:selected?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
-                {selected?"✓ ":""}{g}
+              const sel=selectedGroups.includes(g);
+              return(<button key={g} onClick={()=>{if(sel){setSelectedGroups(p=>p.filter(x=>x!==g));}else if(selectedGroups.length<2){setSelectedGroups(p=>([...p,g]));}}} style={{padding:"10px 8px",borderRadius:10,border:`2px solid ${sel?"#6366f1":G.border}`,background:sel?"#eef2ff":G.cream,color:sel?"#6366f1":G.text,fontSize:"0.74rem",fontWeight:sel?700:400,cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>
+                {sel?"✓ ":""}{g}
               </button>);
             })}
           </div>
@@ -2880,107 +2736,120 @@ if(groupExs.length===0){
             </div>
           </div>
         </div>
-        <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.72rem",color:"#0369a1",lineHeight:1.8}}>
-          <strong>Your session:</strong> {exCount} exercises{progAddAbs?" + 3 abs":""} × 6 sets · 60s lift · 30s rest · 60s transition
-        </div>
         <button onClick={async()=>{
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
-          // Always load sheet first
-          let rows=sheetData.workouts||[];
-          loadedRowsRef.current=rows.length>0?rows:loadedRowsRef.current;
-          if(rows.length===0){
-            try{
-              const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
-              const text=await res.text();
-              const json=JSON.parse(text.substring(47).slice(0,-2));
-              rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-              setSheetData(p=>({...p,workouts:rows}));
-              setSheetLoaded(true);
-              loadedRowsRef.current=rows;
-              setProgLoadedRows(rows);
-            }catch(e){console.error(e);}
+          setProgPhase("loading");
+          try{
+            const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
+            const text=await res.text();
+            const json=JSON.parse(text.substring(47).slice(0,-2));
+            const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
+            setSheetData(p=>({...p,workouts:rows}));
+            setSheetLoaded(true);
+            const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
+            const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+            function getExs(group,count){
+              const cats=GYM_CAT_MAP[group]||[];
+              const matches=rows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||"",group})).filter(e=>e.name);
+              return shuffle(matches).slice(0,count);
+            }
+            let list=[];
+            if(selectedGroups.length===2){
+              const perGroup=Math.ceil(exCount/2);
+              const g1=getExs(selectedGroups[0],perGroup);
+              const g2=getExs(selectedGroups[1],perGroup);
+              const max=Math.max(g1.length,g2.length);
+              for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
+            } else {
+              list=getExs(selectedGroups[0],exCount);
+            }
+            if(progAddAbs){
+              list.push(
+                {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line, core tight.",group:"Core/Abs"},
+                {name:"Crunches",muscles:"Abs",instructions:"Curl shoulders toward knees, squeeze at top.",group:"Core/Abs"},
+                {name:"Leg Raises",muscles:"Lower Abs",instructions:"Raise legs to 90 degrees, lower without touching floor.",group:"Core/Abs"},
+              );
+            }
+            list=list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
+            setProgExercises(list);
+            setProgSessionWeights({});
+            setProgPhase("pick");
+          }catch(e){
+            console.error(e);
+            setProgPhase("setup");
+            alert("Could not load exercises. Check your connection and try again.");
           }
-          if(sheetData.workouts?.length>0&&progLoadedRows.length===0){
-            setProgLoadedRows(sheetData.workouts);
-            loadedRowsRef.current=sheetData.workouts;
-          }
-          // Build initial exercise list
-          const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-          function getFromRows(group,count){
-            const cats=GYM_CAT_MAP[group]||[];
-            const matches=rows.slice(1).filter(row=>
-              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
-            if(matches.length>=3) return shuffle(matches).slice(0,count);
-            return shuffle(EXERCISE_POOL[group]||[]).slice(0,count);
-          }
-          let list=[];
-          if(selectedGroups.length===2){
-            const perGroup=Math.ceil(exCount/2);
-            const g1=getFromRows(selectedGroups[0],perGroup);
-            const g2=getFromRows(selectedGroups[1],perGroup);
-            const max=Math.max(g1.length,g2.length);
-            for(let i=0;i<max;i++){if(i<g1.length)list.push(g1[i]);if(i<g2.length)list.push(g2[i]);}
-          } else {
-            list=getFromRows(selectedGroups[0],exCount);
-          }
-          if(progAddAbs) list.push(...ABS_POOL);
-          list=list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
-         loadedRowsRef.current=rows;
-          setProgExercises(list);
-          setProgSessionWeights({});
-          setProgSwapIdx(null);
-          setProgPhase(progControlLevel==="ai"?"preview":"pick"); 
         }} disabled={!selectedGroups.length} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",opacity:selectedGroups.length>0?1:0.5}}>
-          {progControlLevel==="ai"?"🤖 Build My Session":progControlLevel==="half"?"🔀 See Suggestions":"✋ Pick Exercises"}
+          ✋ Load Exercises & Pick
         </button>
-        <button onClick={()=>setProgPhase("control")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
+        <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
       </div>
     );
 
-    // ── PICK / PREVIEW ──
-    if(progPhase==="pick"||progPhase==="preview"){
-      const canSwap=progControlLevel!=="ai";
-      if(progControlLevel==="manual"||progControlLevel==="half") return(
+    // ── LOADING ──
+    if(progPhase==="loading") return(
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,padding:24}}>
+        <div style={{fontSize:"3rem"}}>💪</div>
+        <div style={{fontSize:"0.88rem",fontWeight:700,color:"#4f46e5"}}>Loading exercises...</div>
+        <div style={{fontSize:"0.72rem",color:G.textSoft}}>Fetching your {selectedGroups.join(" + ")} library</div>
+        <div style={{width:200,height:6,background:"#e0e7ff",borderRadius:3,overflow:"hidden"}}>
+          <div style={{height:"100%",width:"60%",background:"linear-gradient(90deg,#4f46e5,#6366f1)",borderRadius:3,animation:"pulse 1s ease-in-out infinite"}}/>
+        </div>
+      </div>
+    );
+
+    // ── PICK ──
+    if(progPhase==="pick"){
+      const exCount=gymDuration==="45 min"?4:gymDuration==="60 min"?6:9;
+      return(
         <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
           <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
             <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>📈 Pick Your Exercises</div>
             <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{selectedGroups.join(" + ")}{progAddAbs?" + Abs":""}</div>
             <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{progExercises.length} exercises · {gymDuration} · 6 sets each</div>
           </div>
+          <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.72rem",color:"#0369a1"}}>
+            ✅ {sheetData.workouts?.length||0} exercises loaded from your library. Pick from the dropdowns below!
+          </div>
           {progExercises.map((ex,i)=>{
-            const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
-            const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
+            const isAbs=progAddAbs&&i>=progExercises.length-3;
+            const group=isAbs?"Core/Abs":ex.group||(selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0]);
             const cats=GYM_CAT_MAP[group]||[];
-            const sheetPool=(sheetData.workouts||[]).slice(1).filter(row=>
-              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
-            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);
+            const pool=isAbs?[
+              {name:"Plank Hold",muscles:"Core",instructions:"Hold straight line, core tight."},
+              {name:"Crunches",muscles:"Abs",instructions:"Curl shoulders toward knees."},
+              {name:"Leg Raises",muscles:"Lower Abs",instructions:"Raise legs to 90 degrees."},
+              {name:"Russian Twists",muscles:"Obliques",instructions:"Rotate side to side."},
+              {name:"Bicycle Crunches",muscles:"Abs",instructions:"Alternate elbow to knee."},
+            ]:(sheetData.workouts||[]).slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
             const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
+            const currentEx=pool.find(p=>p.name===ex.name)||pool[0]||ex;
             return(
               <div key={i} style={{...card,border:`2px solid ${isAbs?"#14b8a644":"#6366f133"}`}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <div style={{width:28,height:28,borderRadius:"50%",background:isAbs?"#14b8a6":"#6366f1",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
                   <div style={{fontSize:"0.72rem",fontWeight:700,color:G.textSoft}}>{isAbs?"Core/Abs":group}</div>
+                  <div style={{marginLeft:"auto",fontSize:"0.62rem",color:"#6366f1"}}>{pool.length} options</div>
                 </div>
                 <select value={ex.name} onChange={e=>{
-                  const selected=pool.find(p=>p.name===e.target.value)||pool[0];
+                  const picked=pool.find(p=>p.name===e.target.value);
+                  if(!picked) return;
                   const updated=[...progExercises];
-                  updated[i]={...selected,weight:progSavedWeights[selected.name]||0};
+                  updated[i]={...picked,group,weight:progSavedWeights[picked.name]||0};
                   setProgExercises(updated);
-                }} style={{...iStyle,marginBottom:10,fontWeight:600,color:"#4f46e5",border:"2px solid #6366f1"}}>
+                }} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`2px solid #6366f1`,background:"#f8f7ff",color:"#4f46e5",fontSize:"0.82rem",fontWeight:600,marginBottom:8,fontFamily:"inherit",cursor:"pointer"}}>
                   {pool.map(p=>(
                     <option key={p.name} value={p.name}>{p.name}</option>
                   ))}
                 </select>
-                <div style={{fontSize:"0.62rem",color:G.textSoft,fontStyle:"italic",marginBottom:10}}>{ex.instructions}</div>
+                {currentEx.instructions&&<div style={{fontSize:"0.62rem",color:G.textSoft,fontStyle:"italic",marginBottom:10}}>{currentEx.instructions}</div>}
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:"0.64rem",color:G.textSoft}}>Weight:</span>
-                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>-</button>
-                  <input type="number" value={weight} onChange={e=>setProgSessionWeights(w=>({...w,[ex.name]:parseInt(e.target.value)||0}))} style={{width:60,textAlign:"center",border:`2px solid #6366f1`,borderRadius:7,padding:"4px",fontSize:"0.9rem",fontWeight:700,color:G.text}}/>
-                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text}}>+</button>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:0)-5)}))} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.1rem",color:G.text}}>-</button>
+                  <input type="number" value={weight} onChange={e=>setProgSessionWeights(w=>({...w,[ex.name]:parseInt(e.target.value)||0}))} style={{width:64,textAlign:"center",border:`2px solid #6366f1`,borderRadius:8,padding:"5px",fontSize:"1rem",fontWeight:700,color:G.text}}/>
+                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:0)+5}))} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.1rem",color:G.text}}>+</button>
                   <span style={{fontSize:"0.6rem",color:G.textSoft}}>lbs</span>
-                  {progSavedWeights[ex.name]>0&&<span style={{fontSize:"0.58rem",color:"#6366f1",marginLeft:4}}>Last: {progSavedWeights[ex.name]}lbs</span>}
+                  {progSavedWeights[ex.name]>0&&<span style={{fontSize:"0.6rem",color:"#6366f1",marginLeft:4}}>Last: {progSavedWeights[ex.name]}lbs</span>}
                 </div>
               </div>
             );
@@ -2989,88 +2858,12 @@ if(groupExs.length===0){
             const withWeights=progExercises.map(ex=>({...ex,weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}));
             setProgExercises(withWeights);
             setProgExIdx(0);setProgSetIdx(0);setProgWorkPhase("work");
-            setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
+            setProgTimer(0);setProgTimerTotal(0);setProgTimerActive(false);
             setProgPhase("active");
           }} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>
             ▶ Start Session
           </button>
-          <button onClick={()=>setProgPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
-        </div>
-      );
-      return(
-        <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{...card,background:`linear-gradient(135deg,#4f46e5,#6366f1)`,border:"none"}}>
-            <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>
-              📈 {progControlLevel==="manual"?"Pick Your Exercises":progControlLevel==="half"?"Review and Swap":"Your Session"}
-            </div>
-            <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{selectedGroups.join(" + ")}{progAddAbs?" + Abs":""}</div>
-            <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{progExercises.length} exercises · {gymDuration} · 6 sets each</div>
-          </div>
-          {canSwap&&(
-            <div style={{...card,background:"#f0f9ff",border:"1px solid #bae6fd",fontSize:"0.7rem",color:"#0369a1"}}>
-              {progControlLevel==="manual"?"Tap Swap on any exercise to pick a different one.":"AI picked these — tap Swap on any you want to change."}
-            </div>
-          )}
-          {progExercises.map((ex,i)=>{
-            const isAbs=progAddAbs&&i>=progExercises.length-ABS_POOL.length;
-            const group=isAbs?"Core/Abs":selectedGroups.length===2?(i%2===0?selectedGroups[0]:selectedGroups[1]):selectedGroups[0];
-            const pool=(EXERCISE_POOL[group]||[]).filter(p=>p.name!==ex.name&&!progExercises.some((e,ei)=>ei!==i&&e.name===p.name));
-            const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
-            const isSwapping=progSwapIdx===i;
-            return(
-              <div key={i} style={{...card,border:`2px solid ${isAbs?"#14b8a644":"#6366f133"}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <div style={{width:22,height:22,borderRadius:"50%",background:isAbs?"#14b8a6":"#6366f1",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.62rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
-                      <div style={{fontSize:"0.84rem",fontWeight:700,color:G.text}}>{ex.name}</div>
-                    </div>
-                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginLeft:28}}>{ex.muscles}</div>
-                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginLeft:28,fontStyle:"italic",marginTop:2}}>{ex.instructions}</div>
-                  </div>
-                  {canSwap&&!isAbs&&(
-                    <button onClick={()=>setProgSwapIdx(isSwapping?null:i)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${isSwapping?"#ef4444":"#6366f1"}`,background:isSwapping?"#fee2e2":"#eef2ff",color:isSwapping?"#ef4444":"#6366f1",fontSize:"0.62rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0,marginLeft:8}}>
-                      {isSwapping?"Close":"Swap"}
-                    </button>
-                  )}
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8}}>
-                  <div style={{fontSize:"0.62rem",color:G.textSoft}}>Weight:</div>
-                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text,lineHeight:1}}>-</button>
-                  <input type="number" value={weight} onChange={e=>setProgSessionWeights(w=>({...w,[ex.name]:parseInt(e.target.value)||0}))} style={{width:56,textAlign:"center",border:`2px solid #6366f1`,borderRadius:7,padding:"4px",fontSize:"0.9rem",fontWeight:700,color:G.text}}/>
-                  <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1rem",color:G.text,lineHeight:1}}>+</button>
-                  <span style={{fontSize:"0.6rem",color:G.textSoft}}>lbs</span>
-                  {progSavedWeights[ex.name]>0&&<span style={{fontSize:"0.58rem",color:"#6366f1",marginLeft:4}}>Last: {progSavedWeights[ex.name]}lbs</span>}
-                </div>
-                {isSwapping&&(
-                  <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${G.border}`}}>
-                    <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:6,fontWeight:600}}>Pick a replacement:</div>
-                    {pool.length===0?<div style={{fontSize:"0.68rem",color:G.textSoft}}>No other exercises available.</div>:
-                    pool.map((alt,ai)=>(
-                      <button key={ai} onClick={()=>{
-                        const updated=[...progExercises];
-                        updated[i]={...alt,weight:progSavedWeights[alt.name]||0};
-                        setProgExercises(updated);
-                        setProgSwapIdx(null);
-                      }} style={{display:"block",width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${G.border}`,background:G.creamDark,color:G.text,fontSize:"0.72rem",cursor:"pointer",textAlign:"left",fontFamily:"inherit",marginBottom:4}}>
-                        <strong>{alt.name}</strong> <span style={{color:G.textSoft}}>— {alt.muscles}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          <button onClick={()=>{
-            const withWeights=progExercises.map(ex=>({...ex,weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}));
-            setProgExercises(withWeights);
-            setProgExIdx(0);setProgSetIdx(0);setProgWorkPhase("work");
-            setProgTimer(60);setProgTimerTotal(60);setProgTimerActive(true);
-            setProgPhase("active");
-          }} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",boxShadow:"0 4px 14px rgba(99,102,241,.3)"}}>
-            ▶ Start Session
-          </button>
-          <button onClick={()=>setProgPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
+          <button onClick={()=>setProgPhase("control")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Change Settings</button>
         </div>
       );
     }
@@ -3081,59 +2874,126 @@ if(groupExs.length===0){
       if(!ex) return null;
       const weight=progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0);
       const nextEx=progExercises[progExIdx+1];
+      const totalSets=6;
+      const allSetsThisExDone=Array.from({length:totalSets}).every((_,si)=>completedSets[`${progExIdx}-${si}`]);
+
+      function speakRep(repNum,totalReps){
+        if(!window.speechSynthesis) return;
+        const utterances=[
+          new SpeechSynthesisUtterance(`Rep ${repNum}`),
+          new SpeechSynthesisUtterance("Up!"),
+          new SpeechSynthesisUtterance("Hold"),
+          new SpeechSynthesisUtterance("Down"),
+          new SpeechSynthesisUtterance("3"),
+          new SpeechSynthesisUtterance("2"),
+          new SpeechSynthesisUtterance("1"),
+        ];
+        const rates=[1,1.2,0.9,0.8,0.8,0.8,0.8];
+        utterances.forEach((u,i)=>{u.rate=rates[i];u.pitch=i===1?1.3:1;u.volume=1;});
+        if(repNum===totalReps){
+          const done=new SpeechSynthesisUtterance("Set complete! Rest.");
+          done.rate=1;done.pitch=1.2;
+          utterances.push(done);
+        }
+        window.speechSynthesis.cancel();
+        let idx=0;
+        function next(){
+          if(idx<utterances.length){
+            const u=utterances[idx++];
+            u.onend=next;
+            window.speechSynthesis.speak(u);
+          }
+        }
+        next();
+      }
+
       return(
-        <div style={{flex:1,display:"flex",flexDirection:"column",background:phaseBg}}>
+        <div style={{flex:1,display:"flex",flexDirection:"column",background:"#f8f7ff"}}>
           <div style={{height:6,background:"#e0e7ff"}}>
             <div style={{height:"100%",width:`${(progExIdx/progExercises.length)*100}%`,background:"linear-gradient(90deg,#4f46e5,#6366f1)",transition:"width .5s"}}/>
           </div>
-          <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:10}}>
+          <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12,overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{fontSize:"0.68rem",color:"#6366f1",fontWeight:700}}>Exercise {progExIdx+1}/{progExercises.length}</div>
-              <div style={{fontSize:"0.68rem",color:G.textSoft}}>Set {progSetIdx+1} of 6</div>
+              <div style={{fontSize:"0.68rem",color:G.textSoft}}>Set {progSetIdx+1} of {totalSets}</div>
             </div>
-            <div style={{...card,border:`2px solid ${phaseColor}`,textAlign:"center",padding:16}}>
+            <div style={{...card,border:`2px solid #6366f1`,textAlign:"center",padding:16}}>
               <div style={{fontSize:"1.2rem",fontWeight:900,color:"#4f46e5",marginBottom:4}}>{ex.name}</div>
               <div style={{fontSize:"0.64rem",color:G.textSoft,fontStyle:"italic"}}>{ex.instructions}</div>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-              <div style={{position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
-                <svg width="160" height="160" style={{transform:"rotate(-90deg)"}}>
-                  <circle cx="80" cy="80" r="52" fill="none" stroke="#e5e7eb" strokeWidth="10"/>
-                  <circle cx="80" cy="80" r="52" fill="none" stroke={phaseColor} strokeWidth="10"
-                    strokeDasharray={`${circ*timerProg} ${circ}`} strokeLinecap="round"/>
-                </svg>
-                <div style={{position:"absolute",textAlign:"center"}}>
-                  <div style={{fontSize:"2.8rem",fontWeight:900,color:progTimer<=5?"#ef4444":phaseColor,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{progTimer}</div>
-                  <div style={{fontSize:"0.68rem",fontWeight:700,color:phaseColor,letterSpacing:"0.08em"}}>{phaseLabel}</div>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:6}}>
-                {Array.from({length:6}).map((_,si)=>(
-                  <div key={si} style={{width:10,height:10,borderRadius:"50%",background:si<progSetIdx?"#6366f1":si===progSetIdx&&progWorkPhase==="work"?"#6366f1":"#e5e7eb",border:`2px solid ${si<=progSetIdx?"#6366f1":"#e5e7eb"}`}}/>
-                ))}
-              </div>
-            </div>
-            <div style={{...card,padding:"10px 14px"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+            <div style={{...card,padding:"12px 14px"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
                 <span style={{fontSize:"0.64rem",color:G.textSoft}}>Weight:</span>
-                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)-5)}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>-</button>
+                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]||0)-5)}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>-</button>
                 <div style={{fontSize:"2rem",fontWeight:900,color:"#4f46e5",minWidth:64,textAlign:"center"}}>{weight}</div>
-                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]!=null?w[ex.name]:progSavedWeights[ex.name]||0)+5}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>+</button>
+                <button onClick={()=>setProgSessionWeights(w=>({...w,[ex.name]:(w[ex.name]||0)+5}))} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.2rem",color:G.text}}>+</button>
                 <span style={{fontSize:"0.64rem",color:G.textSoft}}>lbs</span>
               </div>
+              <div style={{fontSize:"0.7rem",fontWeight:700,color:G.textSoft,marginBottom:8,textAlign:"center"}}>Sets — tap when done, then use rep timer</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+                {Array.from({length:totalSets}).map((_,si)=>{
+                  const done=completedSets[`${progExIdx}-${si}`];
+                  const isCurrent=si===progSetIdx;
+                  return(
+                    <button key={si} onClick={()=>{
+                      if(done) return;
+                      setCompletedSets(p=>({...p,[`${progExIdx}-${si}`]:true}));
+                      if(si<totalSets-1) setProgSetIdx(si+1);
+                      setRestTimerSec(60);setRestRunning(true);
+                    }} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${done?"#6366f1":isCurrent?"#6366f1":G.border}`,background:done?"#6366f1":isCurrent?"#eef2ff":G.cream,color:done?"#fff":isCurrent?"#6366f1":G.textSoft,fontSize:"0.72rem",fontWeight:700,cursor:done?"default":"pointer",minWidth:40}}>
+                      {done?"✓":`S${si+1}`}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{...card,background:"#f0faf4",border:`1px solid ${G.greenLight}`,padding:"10px 12px"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{fontSize:"0.7rem",fontWeight:700,color:G.green}}>⏱ Rest Timer</div>
+                  <div style={{fontSize:"1.4rem",fontWeight:900,color:restRunning?G.green:restTimerSec>0?"#f87171":G.textSoft,fontVariantNumeric:"tabular-nums"}}>{Math.floor(restTimerSec/60).toString().padStart(2,"0")}:{(restTimerSec%60).toString().padStart(2,"0")}</div>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {[30,45,60,90].map(s=>(
+                    <button key={s} onClick={()=>{setRestTimerSec(s);setRestRunning(true);}} style={{flex:1,padding:"6px 0",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.64rem",cursor:"pointer"}}>{s}s</button>
+                  ))}
+                  <button onClick={()=>{setRestRunning(false);setRestTimerSec(0);}} style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.64rem",cursor:"pointer"}}>↺</button>
+                </div>
+                {restTimerSec===0&&!restRunning&&<div style={{fontSize:"0.64rem",color:G.greenMid,fontWeight:600,textAlign:"center",marginTop:4}}>✅ Rest done — next set!</div>}
+              </div>
             </div>
-            {progWorkPhase==="transition"&&nextEx&&(
+            <div style={{...card,background:"#fdf4ff",border:"1px solid #e9d5ff",padding:"12px 14px"}}>
+              <div style={{fontSize:"0.72rem",fontWeight:700,color:"#7c3aed",marginBottom:8}}>🎙 Rep Timer — Talking Coach</div>
+              <div style={{fontSize:"0.64rem",color:G.textSoft,marginBottom:10,lineHeight:1.6}}>Up fast · Hold 1s · Down 3-2-1 · Tap to start rep count</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {[6,8,10,12,15].map(reps=>(
+                  <button key={reps} onClick={()=>{
+                    window.speechSynthesis?.cancel();
+                    let rep=1;
+                    function doRep(){
+                      if(rep>reps) return;
+                      speakRep(rep,reps);
+                      rep++;
+                      setTimeout(doRep,6000);
+                    }
+                    doRep();
+                  }} style={{flex:1,padding:"10px 0",borderRadius:10,border:"2px solid #7c3aed",background:"#fdf4ff",color:"#7c3aed",fontSize:"0.72rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{reps} reps</button>
+                ))}
+              </div>
+              <button onClick={()=>window.speechSynthesis?.cancel()} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:10,border:"1px solid #e9d5ff",background:"#f5f3ff",color:"#7c3aed",fontSize:"0.68rem",cursor:"pointer",fontFamily:"inherit"}}>⏹ Stop Timer</button>
+            </div>
+            {nextEx&&allSetsThisExDone&&(
               <div style={{...card,background:"#f0fdf4",border:"1px solid #bbf7d0",textAlign:"center",padding:"10px 14px"}}>
                 <div style={{fontSize:"0.62rem",color:G.textSoft,marginBottom:3}}>Next up:</div>
                 <div style={{fontSize:"1rem",fontWeight:700,color:"#059669"}}>{nextEx.name}</div>
-                <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:2}}>{nextEx.muscles}</div>
+                <div style={{fontSize:"0.62rem",color:G.textSoft}}>{nextEx.muscles}</div>
               </div>
             )}
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>setProgTimerActive(a=>!a)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:progTimerActive?phaseColor:"#6b7280",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>
-                {progTimerActive?"⏸ Pause":"▶ Resume"}
-              </button>
-              <button onClick={()=>progAdvanceRef.current?.()} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
+              {progExIdx>0&&<button onClick={()=>{setProgExIdx(i=>i-1);setProgSetIdx(0);setRestRunning(false);setRestTimerSec(0);window.speechSynthesis?.cancel();}} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>← Back</button>}
+              {progExIdx<progExercises.length-1?(
+                <button onClick={()=>{setProgExIdx(i=>i+1);setProgSetIdx(0);setRestRunning(false);setRestTimerSec(0);window.speechSynthesis?.cancel();}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f46e5,#6366f1)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>Next Exercise →</button>
+              ):(
+                <button onClick={()=>{window.speechSynthesis?.cancel();setProgPhase("complete");}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#4f46e5,#6366f1)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>✅ Finish Session</button>
+              )}
             </div>
           </div>
         </div>
@@ -3147,23 +3007,24 @@ if(groupExs.length===0){
         progExercises.forEach(ex=>{if(progSessionWeights[ex.name]!=null)newWeights[ex.name]=progSessionWeights[ex.name];});
         setProgSavedWeights(newWeights);
         try{localStorage.setItem("atp-pw-"+currentClient.id,JSON.stringify(newWeights));}catch{}
-        const entry={date:todayStr(),groups:selectedGroups,duration:gymDuration,weekNum,exercises:progExercises.map(ex=>({name:ex.name,sets:6,reps:"60s",weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)})),rating:progRating,clientId:currentClient.id,ts:new Date().toISOString()};
+        const entry={date:todayStr(),groups:selectedGroups,duration:gymDuration,weekNum,exercises:progExercises.map(ex=>({name:ex.name,sets:6,reps:8,weight:progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)})),rating:progRating,clientId:currentClient.id,ts:new Date().toISOString()};
         const newHist=[...gymHistory,entry];
         setGymHistory(newHist);
         try{localStorage.setItem("atp-gym",JSON.stringify(newHist));await sbSetGlobal("atp-gym-"+currentClient.id,newHist);}catch{}
+        try{logWeeklySession("gym");}catch{}
         setProgPhase("control");setProgExercises([]);setProgSessionWeights({});setProgRating(0);setSelectedGroups([]);setGymMode("");
       };
       return(
         <div style={{flex:1,overflowY:"auto",padding:20,display:"flex",flexDirection:"column",gap:16,alignItems:"center",textAlign:"center"}}>
           <div style={{fontSize:"4rem"}}>🏆</div>
           <div style={{fontSize:"1.3rem",fontWeight:900,color:"#4f46e5"}}>Session Complete!</div>
-          <div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7}}>Outstanding work {currentClient.name.split(" ")[0]}! {progExercises.length} exercises, 6 sets each. All things are possible! 🙏</div>
+          <div style={{fontSize:"0.78rem",color:G.textSoft,lineHeight:1.7}}>Outstanding work {currentClient.name.split(" ")[0]}! {progExercises.length} exercises done. All things are possible! 🙏</div>
           <div style={{width:"100%",background:"#f9fafb",borderRadius:12,padding:16,textAlign:"left"}}>
             <div style={{fontSize:"0.68rem",fontWeight:700,color:G.textSoft,marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>Session Summary</div>
             {progExercises.map((ex,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:i<progExercises.length-1?"1px solid #e5e7eb":"none",fontSize:"0.72rem"}}>
                 <span style={{color:G.text}}>{ex.name}</span>
-                <span style={{color:"#6366f1",fontWeight:700}}>6x60s @ {progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}lbs</span>
+                <span style={{color:"#6366f1",fontWeight:700}}>6 sets @ {progSessionWeights[ex.name]!=null?progSessionWeights[ex.name]:(progSavedWeights[ex.name]||0)}lbs</span>
               </div>
             ))}
           </div>
@@ -3171,7 +3032,7 @@ if(groupExs.length===0){
             <div style={{fontSize:"0.8rem",fontWeight:700,color:G.brown,marginBottom:10}}>How was your workout?</div>
             <div style={{display:"flex",gap:8,justifyContent:"center"}}>
               {[1,2,3,4,5].map(s=>(
-                <button key={s} onClick={()=>setProgRating(s)} style={{fontSize:"2rem",background:"none",border:"none",cursor:"pointer",opacity:progRating>=s?1:0.25,transition:"opacity 0.15s"}}>⭐</button>
+                <button key={s} onClick={()=>setProgRating(s)} style={{fontSize:"2rem",background:"none",border:"none",cursor:"pointer",opacity:progRating>=s?1:0.25}}>⭐</button>
               ))}
             </div>
           </div>
@@ -3184,6 +3045,7 @@ if(groupExs.length===0){
 
     return null;
   }
+  
 const renderMachineCircuit=()=>{
     const circuit=machineCircuitKey?MACHINE_CIRCUITS[machineCircuitKey]:null;
     const getProgramWeek=()=>{try{const d=JSON.parse(localStorage.getItem('atp-program-'+currentClient.id)||'{}');if(d.startDate){const diff=Math.floor((Date.now()-new Date(d.startDate))/86400000);return Math.min(Math.max(Math.floor(diff/7)+1,1),12);}return 1;}catch{return 1;}};
