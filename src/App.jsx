@@ -2077,6 +2077,15 @@ const MACHINE_CIRCUITS={
   const [showAddon,setShowAddon]=useState(false);
   const [blastHistory,setBlastHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem("atp-blast-new")||"[]");}catch(e){return[];}});
   const swapRef=useRef(null);
+  const blastAdvRef=useRef(null);
+  const [blastSuperIdx,setBlastSuperIdx]=useState(0);
+  const [blastRoundIdx,setBlastRoundIdx]=useState(0);
+  const [blastExInBlock,setBlastExInBlock]=useState(0);
+  const [blastWorkTimer,setBlastWorkTimer]=useState(0);
+  const [blastWorkTotal,setBlastWorkTotal]=useState(0);
+  const [blastTimerOn,setBlastTimerOn]=useState(false);
+  const [blastTimerMode,setBlastTimerMode]=useState("work");
+  const [blastSessionWeights,setBlastSessionWeights]=useState({});
 
   // Full program state
   const [gymPhase,setGymPhase]=useState(()=>{try{const s=localStorage.getItem("atp-gymstarts");return s?"session":"baseline";}catch(e){return"baseline";}});
@@ -2126,12 +2135,24 @@ const MACHINE_CIRCUITS={
   const [progSwapIdx,setProgSwapIdx]=useState(null);
   const progAdvanceRef=useRef(null);
 
-  // Swap timer effect
+ // Swap timer effect
   useEffect(()=>{
     if(swapRunning&&swapTimer>0){swapRef.current=setTimeout(()=>setSwapTimer(s=>s-1),1000);}
     else if(swapRunning&&swapTimer===0){setSwapRunning(false);}
     return()=>clearTimeout(swapRef.current);
   },[swapRunning,swapTimer]);
+
+  // Blast timer countdown
+  useEffect(()=>{
+    if(!blastTimerOn||blastWorkTimer<=0) return;
+    const id=setTimeout(()=>setBlastWorkTimer(t=>t-1),1000);
+    return()=>clearTimeout(id);
+  },[blastTimerOn,blastWorkTimer]);
+
+  // Blast timer advance on zero
+  useEffect(()=>{
+    if(blastTimerOn&&blastWorkTimer===0) blastAdvRef.current?.();
+  },[blastTimerOn,blastWorkTimer]);
 
   // Rest timer effect
   useEffect(()=>{
@@ -2174,6 +2195,10 @@ const MACHINE_CIRCUITS={
 
   async function generateBlastSession(group){
     const weekNum=getCurrentWeek();
+    const phase=weekNum<=4?"volume":weekNum<=8?"intensity":"density";
+    const workSec=phase==="volume"?38:phase==="intensity"?42:47;
+    const restSec=phase==="volume"?52:phase==="intensity"?45:37;
+    const switchSec=10;
     let workoutRows=sheetData.workouts||[];
     if(workoutRows.length===0){
       try{
@@ -2181,31 +2206,109 @@ const MACHINE_CIRCUITS={
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-        setSheetData(p=>({...p,workouts:workoutRows}));
-        setSheetLoaded(true);
+        setSheetData(p=>({...p,workouts:workoutRows}));setSheetLoaded(true);
       }catch(e){}
     }
-    const groups=group==="Shoulders + Arms"?["Shoulders","Arms (Biceps/Triceps)"]:[group];
-    const exercises=[];
-    groups.forEach(g=>{
-      const cats=GYM_CAT_MAP[g]||[];
-      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      const exs=shuffle(workoutRows.slice(1).filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c)))).slice(0,3).map(row=>({
-        name:row[0]||"",muscles:row[6]||g,instructions:row[5]||"",group:g,
-        sets:6,reps:15,
-        weight:getBlastWeight(baselineWeights[row[0]]||45,weekNum),
-      }));
-      exercises.push(...exs);
-    });
-    const interleaved=[];
-    if(groups.length===2){
-      const g1=exercises.filter(e=>e.group===groups[0]);
-      const g2=exercises.filter(e=>e.group===groups[1]);
-      const max=Math.max(g1.length,g2.length);
-      for(let i=0;i<max;i++){if(i<g1.length)interleaved.push(g1[i]);if(i<g2.length)interleaved.push(g2[i]);}
-    } else {interleaved.push(...exercises);}
-    setBlastSession({group,groups,weekNum,exercises:interleaved,generatedAt:todayStr()});
-    setBlastExIdx(0);setBlastSets({});setBlastComplete(false);setBlastRating(null);setShowAddon(false);
+    const w=(name,base)=>getBlastWeight(baselineWeights[name]||base||45,weekNum);
+    const extraRound=phase==="intensity"?1:0;
+    const programs={
+      "Chest":{blocks:[
+        {name:"Superset 1",rounds:5+extraRound,exercises:[
+          {name:"Dumbbell Chest Press",weight:w("Dumbbell Chest Press",50),muscles:"Chest, Triceps",instructions:"Press dumbbells up from chest. Squeeze at top."},
+          {name:"Dumbbell Chest Fly",weight:w("Dumbbell Chest Fly",30),muscles:"Chest",instructions:"Arms wide, slight bend. Open fully, squeeze hard at top."},
+        ]},
+        {name:"Finisher 1",rounds:3,isFinisher:true,exercises:[
+          {name:"Cable Crossover",weight:w("Cable Crossover",25),muscles:"Chest",instructions:"Cross arms in front. Squeeze chest hard. Slow negative."},
+        ]},
+        {name:"Superset 2",rounds:4,exercises:[
+          {name:"Incline Dumbbell Press",weight:w("Incline Dumbbell Press",40),muscles:"Upper Chest",instructions:"Press on incline, elbows at 45 degrees. Full stretch at bottom."},
+          {name:"Incline Dumbbell Fly",weight:w("Incline Dumbbell Fly",25),muscles:"Upper Chest",instructions:"Open wide on incline. Deep stretch. Squeeze at top."},
+        ]},
+        {name:"🔥 Finisher 2 — To Failure",rounds:1,isFinisher:true,isFailure:true,exercises:[
+          {name:"Push-Ups to Failure",weight:0,muscles:"Chest",instructions:"Full range every rep. Don't stop until you physically cannot do another!"},
+        ]},
+      ]},
+      "Back":{blocks:[
+        {name:"Superset 1",rounds:4+extraRound,exercises:[
+          {name:"Chest-Supported Row",weight:w("Chest-Supported Row",40),muscles:"Back",instructions:"Chest on bench. Pull to hips, squeeze shoulder blades hard."},
+          {name:"Single-Arm Row Right",weight:w("Single-Arm Row",45),muscles:"Back",instructions:"Right side. Pull to hip, lead with elbow. Full stretch at bottom."},
+          {name:"Single-Arm Row Left",weight:w("Single-Arm Row",45),muscles:"Back",instructions:"Left side. Same form — pull to hip, lead with elbow."},
+        ]},
+        {name:"Finisher 1",rounds:3,isFinisher:true,exercises:[
+          {name:"Neutral-Grip Lat Pulldown",weight:w("Lat Pulldown",50),muscles:"Lats",instructions:"Pull to upper chest. Slow negative. Feel the lats stretch."},
+        ]},
+        {name:"Superset 2",rounds:3,exercises:[
+          {name:"Wide-Grip Seated Row",weight:w("Seated Cable Row",45),muscles:"Back",instructions:"Wide grip. Pull to chest, squeeze shoulder blades at end."},
+          {name:"Face Pull High Angle",weight:w("Face Pull",20),muscles:"Rear Delts",instructions:"Rope at face height. Pull to forehead, elbows high and wide."},
+        ]},
+        {name:"🔥 Finisher 2 — Burnout",rounds:1,isFinisher:true,isFailure:true,exercises:[
+          {name:"Straight-Arm Pulldown",weight:w("Straight Arm Pulldown",25),muscles:"Lats",instructions:"Arms straight. Pull from overhead to hips. Go til failure — lats on fire!"},
+        ]},
+      ]},
+      "Shoulders":{blocks:[
+        {name:"Superset 1",rounds:4+extraRound,exercises:[
+          {name:"Lateral Raise",weight:w("Lateral Raise",15),muscles:"Side Delts",instructions:"Raise arms to shoulder height. Lead with elbows. Control the descent."},
+          {name:"Front Raise",weight:w("Front Raise",15),muscles:"Front Delts",instructions:"Alternating arms. Raise to eye level. Slow on the way down."},
+        ]},
+        {name:"Finisher 1",rounds:2,isFinisher:true,exercises:[
+          {name:"Single-Arm Cable Lateral Raise",weight:w("Cable Lateral Raise",10),muscles:"Side Delts",instructions:"Full stretch at bottom. Slow raise to shoulder height. Squeeze at top."},
+        ]},
+        {name:"Superset 2",rounds:3,exercises:[
+          {name:"Seated Dumbbell Shoulder Press",weight:w("Dumbbell Shoulder Press",35),muscles:"Shoulders",instructions:"Press overhead. Lock out at top. Lower slowly to ears."},
+          {name:"Rear Delt Fly",weight:w("Rear Delt Fly",15),muscles:"Rear Delts",instructions:"Bent over. Raise elbows out and up. Squeeze rear delts hard."},
+        ]},
+        {name:"🔥 Finisher 2 — Burnout",rounds:1,isFinisher:true,isFailure:true,exercises:[
+          {name:"Face Pull Mid-Angle — To Failure",weight:w("Face Pull",20),muscles:"Rear Delts",instructions:"Cable at mid chest. Pull to chin. Keep going til arms give out!"},
+        ]},
+      ]},
+      "Arms (Biceps/Triceps)":{blocks:[
+        {name:"Superset 1",rounds:4+extraRound,exercises:[
+          {name:"Straight Bar Curl",weight:w("Barbell Curl",40),muscles:"Biceps",instructions:"Strict curl. No swinging. Squeeze hard at top."},
+          {name:"Cable Pushdown",weight:w("Cable Pushdown",35),muscles:"Triceps",instructions:"Push down. Lock out fully. Elbows pinned to sides."},
+        ]},
+        {name:"Superset 2",rounds:3,exercises:[
+          {name:"Incline Dumbbell Curl",weight:w("Incline Dumbbell Curl",20),muscles:"Biceps",instructions:"Arms hang on incline. Full stretch. Curl slowly — feel every inch."},
+          {name:"Overhead Cable Extension",weight:w("Overhead Cable Extension",30),muscles:"Triceps",instructions:"Arms overhead. Extend fully. Slow 3-second negative."},
+        ]},
+        {name:"Superset 3",rounds:2,exercises:[
+          {name:"Hammer Curl",weight:w("Hammer Curl",25),muscles:"Biceps, Forearms",instructions:"Neutral grip. Alternate arms. Control the descent."},
+          {name:"Skull Crushers",weight:w("Skull Crushers",35),muscles:"Triceps",instructions:"Lower bar to forehead slowly. Extend arms fully."},
+        ]},
+        {name:"🔥 Finisher — Total Burnout",rounds:1,isFinisher:true,isFailure:true,exercises:[
+          {name:"21s Bicep Curl",weight:w("Barbell Curl",30),muscles:"Biceps",instructions:"7 lower half + 7 upper half + 7 full reps. Arms should be cooked after this!"},
+          {name:"Rope Pushdowns to Failure",weight:w("Cable Pushdown",25),muscles:"Triceps",instructions:"Every last rep. Triceps should be completely on fire!"},
+        ]},
+      ]},
+      "Legs":{blocks:[
+        {name:"🏋️ Heavy Squat Block",rounds:4,isHeavy:true,exercises:[
+          {name:"Barbell Back Squat",weight:getBlastWeight(baselineWeights["Barbell Back Squat"]||95,weekNum)+((weekNum>1?Math.floor((weekNum-1)/2):0)*5),muscles:"Quads, Glutes",instructions:"Bar on traps. Sit back and down, chest up. Drive through heels."},
+        ]},
+        {name:"Superset 1",rounds:4,exercises:[
+          {name:"Walking Lunges",weight:w("Walking Lunges",25),muscles:"Quads, Glutes",instructions:"Step forward, lower back knee near floor. Drive front heel to stand."},
+          {name:"Leg Extension",weight:w("Leg Extension",50),muscles:"Quads",instructions:"Extend legs until straight. Hold 1 sec at top. Lower slowly."},
+        ]},
+        {name:"Finisher 1",rounds:2,isFinisher:true,exercises:[
+          {name:"Leg Press",weight:w("Leg Press",90),muscles:"Quads, Glutes",instructions:"Feet hip-width. Lower to 90 degrees. Press through heels."},
+        ]},
+        {name:"Posterior Chain Superset",rounds:3,exercises:[
+          {name:"Romanian Deadlift",weight:w("Romanian Deadlift",60),muscles:"Hamstrings, Glutes",instructions:"Hinge at hips. Bar drags down legs. Feel the hamstring stretch."},
+          {name:"Leg Curl",weight:w("Leg Curl",45),muscles:"Hamstrings",instructions:"Curl heels to glutes. Squeeze hard at top."},
+        ]},
+        {name:"🔥 Finisher 2 — Calves Burnout",rounds:2,isFinisher:true,exercises:[
+          {name:"Standing Calf Raise",weight:w("Calf Raise",60),muscles:"Calves",instructions:"Rise to toes, hold 1 sec. Lower below platform for full stretch."},
+          {name:"Seated Calf Raise",weight:w("Seated Calf Raise",50),muscles:"Calves",instructions:"Full range. Feel the burn. Go til they give out!"},
+        ]},
+      ]},
+    };
+    const dayKey=group==="Shoulders + Arms"?"Shoulders":group==="Chest/Arms"?"Chest":group;
+    const dayProgram=programs[dayKey]||programs["Chest"];
+    const initWeights={};
+    dayProgram.blocks.forEach(b=>b.exercises.forEach(ex=>{initWeights[ex.name]=ex.weight;}));
+    setBlastSessionWeights(initWeights);
+    setBlastSession({group,weekNum,phase,workSec,restSec,switchSec,blocks:dayProgram.blocks,generatedAt:todayStr()});
+    setBlastSuperIdx(0);setBlastRoundIdx(0);setBlastExInBlock(0);
+    setBlastTimerMode("work");setBlastWorkTimer(workSec);setBlastWorkTotal(workSec);
+    setBlastTimerOn(false);setBlastComplete(false);setBlastRating(null);setShowAddon(false);
     setBlastPhase("preview");
   }
 
@@ -2399,43 +2502,94 @@ if(groupExs.length===0){
         <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
       </div>
     );
-
-    // Blast preview
+// Blast preview
     if(blastPhase==="preview"&&blastSession) return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
           <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💥 Quick Blast</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{blastSession.group} Day</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>{blastSession.exercises.length} exercises · 6 sets × 15 reps · Week {blastSession.weekNum}</div>
+          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{blastSession.group} — {blastSession.phase==="volume"?"Volume Phase":blastSession.phase==="intensity"?"Intensity Phase":"Density Phase"}</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Week {blastSession.weekNum} · {blastSession.workSec}s work · {blastSession.restSec}s rest · {blastSession.switchSec}s switch</div>
         </div>
-        {blastSession.exercises.map((ex,i)=>(
-          <div key={i} style={{...card,borderLeft:`4px solid #ef4444`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:"0.8rem",fontWeight:700,color:G.text}}>{ex.name}</div>
-                <div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:2}}>{ex.muscles}</div>
+        {blastSession.blocks.map((block,bi)=>(
+          <div key={bi} style={{...card,borderLeft:`4px solid ${block.isFinisher?"#f59e0b":block.isHeavy?"#8b5cf6":"#ef4444"}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:"0.78rem",fontWeight:700,color:G.text}}>{block.name}</div>
+              <div style={{fontSize:"0.62rem",color:G.textSoft,padding:"2px 8px",borderRadius:20,background:block.isFinisher?"#fef3c7":block.isHeavy?"#ede9fe":"#fff5f5",color:block.isFinisher?"#92400e":block.isHeavy?"#6d28d9":"#ef4444",fontWeight:700}}>
+                {block.isHeavy?"6-10 reps":block.isFailure?"To Failure":`${block.rounds} rounds`}
               </div>
-              <div style={{fontSize:"0.78rem",fontWeight:700,color:"#ef4444"}}>6×15 @ {ex.weight}lbs</div>
             </div>
-            {ex.instructions&&<div style={{fontSize:"0.64rem",color:G.textSoft,marginTop:5,fontStyle:"italic"}}>💡 {ex.instructions}</div>}
+            {block.exercises.map((ex,ei)=>(
+              <div key={ei} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderTop:ei>0?`1px solid ${G.border}`:"none"}}>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    {block.exercises.length>1&&<div style={{width:18,height:18,borderRadius:"50%",background:"#ef4444",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.58rem",fontWeight:700,flexShrink:0}}>{String.fromCharCode(65+ei)}</div>}
+                    <div style={{fontSize:"0.76rem",fontWeight:600,color:G.text}}>{ex.name}</div>
+                  </div>
+                  <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:2,marginLeft:block.exercises.length>1?24:0}}>{ex.muscles}</div>
+                </div>
+                {ex.weight>0&&<div style={{fontSize:"0.76rem",fontWeight:700,color:"#ef4444"}}>{blastSessionWeights[ex.name]||ex.weight} lbs</div>}
+              </div>
+            ))}
           </div>
         ))}
-        <button onClick={()=>setBlastPhase("active")} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>▶ Start Blast!</button>
+        <button onClick={()=>{
+          setBlastSuperIdx(0);setBlastRoundIdx(0);setBlastExInBlock(0);
+          setBlastTimerMode("work");
+          setBlastWorkTimer(blastSession.workSec);
+          setBlastWorkTotal(blastSession.workSec);
+          setBlastTimerOn(true);
+          setBlastPhase("active");
+        }} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>▶ Start Blast!</button>
         <button onClick={()=>setBlastPhase("setup")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.74rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back</button>
       </div>
     );
-
-    // Blast active
+    
+// Blast active
     if(blastPhase==="active"&&blastSession){
-      const ex=blastSession.exercises[blastExIdx];
-      if(!ex) return null;
-      const totalSets=6;
-      const allDone=blastSession.exercises.every((_,ei)=>Array.from({length:totalSets}).every((_,si)=>blastSets[`${ei}-${si}`]));
+      const block=blastSession.blocks[blastSuperIdx];
+      const ex=block?.exercises[blastExInBlock];
+      const circ=2*Math.PI*52;
+      const timerProg=blastWorkTotal>0?blastWorkTimer/blastWorkTotal:0;
+      const modeColor=blastTimerMode==="work"?"#ef4444":blastTimerMode==="switch"?"#f59e0b":"#10b981";
+      const modeBg=blastTimerMode==="work"?"#fff5f5":blastTimerMode==="switch"?"#fffbeb":"#f0fdf4";
+      const modeLabel=blastTimerMode==="work"?"LIFT!":blastTimerMode==="switch"?"SWITCH":"REST";
+
+      blastAdvRef.current=()=>{
+        setBlastTimerOn(false);
+        if(!blastSession||!block) return;
+        const totalEx=block.exercises.length;
+        const totalRounds=block.rounds;
+        if(blastTimerMode==="work"){
+          if(blastExInBlock<totalEx-1){
+            setBlastTimerMode("switch");
+            setBlastWorkTimer(blastSession.switchSec);
+            setBlastWorkTotal(blastSession.switchSec);
+            setBlastTimerOn(true);
+          } else if(blastRoundIdx<totalRounds-1){
+            setBlastTimerMode("rest");
+            setBlastWorkTimer(blastSession.restSec);
+            setBlastWorkTotal(blastSession.restSec);
+            setBlastTimerOn(true);
+          } else {
+            const nextBlock=blastSuperIdx+1;
+            if(nextBlock<blastSession.blocks.length){
+              setBlastSuperIdx(nextBlock);setBlastRoundIdx(0);setBlastExInBlock(0);
+              setBlastTimerMode("work");setBlastWorkTimer(blastSession.workSec);setBlastWorkTotal(blastSession.workSec);setBlastTimerOn(true);
+            } else {setBlastComplete(true);}
+          }
+        } else if(blastTimerMode==="switch"){
+          setBlastExInBlock(e=>e+1);
+          setBlastTimerMode("work");setBlastWorkTimer(blastSession.workSec);setBlastWorkTotal(blastSession.workSec);setBlastTimerOn(true);
+        } else if(blastTimerMode==="rest"){
+          setBlastRoundIdx(r=>r+1);setBlastExInBlock(0);
+          setBlastTimerMode("work");setBlastWorkTimer(blastSession.workSec);setBlastWorkTotal(blastSession.workSec);setBlastTimerOn(true);
+        }
+      };
 
       return(
-        <div style={{flex:1,display:"flex",flexDirection:"column",background:"#fff5f5"}}>
+        <div style={{flex:1,display:"flex",flexDirection:"column",background:modeBg}}>
           <div style={{height:6,background:"#fecaca"}}>
-            <div style={{height:"100%",width:`${Math.round((blastExIdx/blastSession.exercises.length)*100)}%`,background:"linear-gradient(90deg,#7f1d1d,#ef4444)",transition:"width .5s"}}/>
+            <div style={{height:"100%",width:`${(blastSuperIdx/blastSession.blocks.length)*100}%`,background:"linear-gradient(90deg,#7f1d1d,#ef4444)",transition:"width .5s"}}/>
           </div>
           {blastComplete?(
             showAddon?(
@@ -2447,12 +2601,10 @@ if(groupExs.length===0){
                   <button onClick={()=>{if(setTab)setTab("cals");}} style={{...card,cursor:"pointer",textAlign:"center",border:`2px solid #7c3aed`,background:"#f5f3ff",padding:"14px"}}>
                     <div style={{fontSize:"1.2rem",marginBottom:4}}>🤸</div>
                     <div style={{fontSize:"0.82rem",fontWeight:700,color:"#7c3aed"}}>Add Abs Session</div>
-                    <div style={{fontSize:"0.66rem",color:G.textSoft}}>Head to the Cals tab for core work</div>
                   </button>
                   <button onClick={async()=>{await generateBlastSession("Legs");setBlastComplete(false);setShowAddon(false);}} style={{...card,cursor:"pointer",textAlign:"center",border:`2px solid ${G.green}`,background:"#f0faf4",padding:"14px"}}>
                     <div style={{fontSize:"1.2rem",marginBottom:4}}>🦵</div>
                     <div style={{fontSize:"0.82rem",fontWeight:700,color:G.green}}>Add Legs Session</div>
-                    <div style={{fontSize:"0.66rem",color:G.textSoft}}>Legs & glutes workout</div>
                   </button>
                   <button onClick={()=>{setBlastPhase("setup");setBlastComplete(false);setBlastSession(null);setGymMode("");}} style={{...btnGreen,padding:"12px"}}>✅ I'm Done — Great Workout!</button>
                 </div>
@@ -2475,51 +2627,62 @@ if(groupExs.length===0){
               </div>
             )
           ):(
-            <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:12}}>
+            <div style={{flex:1,display:"flex",flexDirection:"column",padding:16,gap:10}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:"0.68rem",color:"#ef4444",fontWeight:700}}>Exercise {blastExIdx+1} of {blastSession.exercises.length}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft}}>{ex.group}</div>
+                <div style={{fontSize:"0.68rem",color:"#ef4444",fontWeight:700}}>{block?.name}</div>
+                <div style={{fontSize:"0.68rem",color:G.textSoft}}>Round {blastRoundIdx+1}/{block?.rounds}</div>
               </div>
-              <div style={{...card,border:`2px solid #ef4444`,background:"#fff5f5",padding:20,textAlign:"center"}}>
-                <div style={{fontSize:"1.3rem",fontWeight:900,color:"#ef4444",marginBottom:8}}>{ex.name}</div>
-                <div style={{fontSize:"1rem",fontWeight:700,color:"#dc2626",marginBottom:4}}>6 sets × 15 reps @ {ex.weight} lbs</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,fontStyle:"italic",marginTop:6}}>{ex.instructions}</div>
+              <div style={{display:"flex",gap:4}}>
+                {blastSession.blocks.map((_,i)=>(
+                  <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<blastSuperIdx?"#ef4444":i===blastSuperIdx?"#ef4444":"#fecaca",opacity:i===blastSuperIdx?1:i<blastSuperIdx?0.8:0.3}}/>
+                ))}
               </div>
-              <div style={card}>
-                <div style={lbl}>Sets (6 × 15 reps)</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {Array.from({length:totalSets}).map((_,si)=>{
-                    const done=blastSets[`${blastExIdx}-${si}`];
-                    return(
-                      <button key={si} onClick={()=>{
-                        if(done)return;
-                        setBlastSets(p=>({...p,[`${blastExIdx}-${si}`]:true}));
-                        setSwapTimer(5);setSwapRunning(true);
-                      }} style={{flex:1,padding:"12px 0",borderRadius:10,border:`2px solid ${done?"#ef4444":G.border}`,background:done?"#ef4444":G.cream,color:done?"#fff":G.textSoft,fontSize:"0.72rem",fontWeight:700,cursor:done?"default":"pointer",minWidth:44}}>
-                        {done?"✓":`S${si+1}`}
-                      </button>
-                    );
-                  })}
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                <div style={{position:"relative",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+                  <svg width="160" height="160" style={{transform:"rotate(-90deg)"}}>
+                    <circle cx="80" cy="80" r="52" fill="none" stroke="#fecaca" strokeWidth="10"/>
+                    <circle cx="80" cy="80" r="52" fill="none" stroke={modeColor} strokeWidth="10"
+                      strokeDasharray={`${circ*timerProg} ${circ}`} strokeLinecap="round"/>
+                  </svg>
+                  <div style={{position:"absolute",textAlign:"center"}}>
+                    <div style={{fontSize:"2.8rem",fontWeight:900,color:blastWorkTimer<=5&&blastTimerMode==="work"?"#7f1d1d":modeColor,fontVariantNumeric:"tabular-nums",lineHeight:1}}>{blastWorkTimer}</div>
+                    <div style={{fontSize:"0.68rem",fontWeight:700,color:modeColor,letterSpacing:"0.1em"}}>{modeLabel}</div>
+                  </div>
                 </div>
+                {blastTimerMode==="switch"&&block&&(
+                  <div style={{textAlign:"center",fontSize:"0.82rem",fontWeight:700,color:"#f59e0b"}}>
+                    ➡ Next: {block.exercises[blastExInBlock+1]?.name||""}
+                  </div>
+                )}
               </div>
-              {(swapRunning||swapTimer>0)&&(
-                <div style={{...card,background:"#fff3e0",border:`1px solid ${G.mango}`,textAlign:"center",padding:"12px"}}>
-                  <div style={{fontSize:"0.7rem",fontWeight:700,color:G.mangoDeep,marginBottom:4}}>🔄 Swap Weights</div>
-                  <div style={{fontSize:"2rem",fontWeight:900,color:G.mangoDeep,fontVariantNumeric:"tabular-nums"}}>{swapTimer}</div>
-                  <div style={{fontSize:"0.62rem",color:G.textSoft,marginTop:2}}>seconds to grab next weight</div>
+              {ex&&blastTimerMode!=="rest"&&(
+                <div style={{...card,border:`2px solid ${modeColor}`,textAlign:"center",padding:"14px 16px"}}>
+                  {block.exercises.length>1&&(
+                    <div style={{fontSize:"0.62rem",fontWeight:700,color:modeColor,marginBottom:4,letterSpacing:"0.1em"}}>EXERCISE {String.fromCharCode(65+blastExInBlock)}</div>
+                  )}
+                  <div style={{fontSize:"1.2rem",fontWeight:900,color:"#ef4444",marginBottom:6}}>{ex.name}</div>
+                  <div style={{fontSize:"0.68rem",color:G.textSoft,fontStyle:"italic",marginBottom:10}}>{ex.instructions}</div>
+                  {ex.weight>0&&(
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                      <button onClick={()=>setBlastSessionWeights(w=>({...w,[ex.name]:Math.max(0,(w[ex.name]||ex.weight)-5)}))} style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.1rem"}}>-</button>
+                      <div style={{fontSize:"1.8rem",fontWeight:900,color:"#ef4444",minWidth:60,textAlign:"center"}}>{blastSessionWeights[ex.name]||ex.weight}</div>
+                      <button onClick={()=>setBlastSessionWeights(w=>({...w,[ex.name]:(w[ex.name]||ex.weight)+5}))} style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${G.border}`,background:G.cream,cursor:"pointer",fontSize:"1.1rem"}}>+</button>
+                      <span style={{fontSize:"0.64rem",color:G.textSoft}}>lbs</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {blastTimerMode==="rest"&&block&&(
+                <div style={{...card,background:"#f0fdf4",border:"1px solid #bbf7d0",textAlign:"center",padding:"14px"}}>
+                  <div style={{fontSize:"0.72rem",fontWeight:700,color:G.green,marginBottom:4}}>Rest up! 💚</div>
+                  <div style={{fontSize:"0.8rem",color:G.textSoft}}>Next round: {block.exercises[0]?.name}</div>
                 </div>
               )}
               <div style={{display:"flex",gap:8}}>
-                {blastExIdx>0&&<button onClick={()=>setBlastExIdx(i=>i-1)} style={{padding:"12px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.8rem",cursor:"pointer"}}>← Back</button>}
-                {blastExIdx<blastSession.exercises.length-1?(
-                  <button onClick={()=>{setBlastExIdx(i=>i+1);setSwapRunning(false);setSwapTimer(0);}} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#7f1d1d,#ef4444)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>Next Exercise →</button>
-                ):(
-                  allDone?(
-                    <button onClick={()=>setBlastComplete(true)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#7f1d1d,#ef4444)",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>✅ Complete Blast!</button>
-                  ):(
-                    <button style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#ccc",color:"#fff",fontSize:"0.8rem",fontWeight:700,cursor:"not-allowed"}}>Finish all sets first</button>
-                  )
-                )}
+                <button onClick={()=>setBlastTimerOn(a=>!a)} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:blastTimerOn?modeColor:"#6b7280",color:"#fff",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>
+                  {blastTimerOn?"⏸ Pause":"▶ Resume"}
+                </button>
+                <button onClick={()=>blastAdvRef.current?.()} style={{padding:"14px 16px",borderRadius:12,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,fontSize:"0.85rem",cursor:"pointer"}}>⏭ Skip</button>
               </div>
             </div>
           )}
@@ -2527,6 +2690,7 @@ if(groupExs.length===0){
       );
     }
   }
+   
 
   // ── FULL PROGRAM ──
   if(gymMode==="program"){
