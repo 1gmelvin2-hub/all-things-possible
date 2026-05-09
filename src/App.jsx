@@ -2134,7 +2134,7 @@ const MACHINE_CIRCUITS={
   const [progRating,setProgRating]=useState(0);
   const [progSwapIdx,setProgSwapIdx]=useState(null);
   const progAdvanceRef=useRef(null);
-
+  const loadedRowsRef=useRef([]);
  // Swap timer effect
   useEffect(()=>{
     if(swapRunning&&swapTimer>0){swapRef.current=setTimeout(()=>setSwapTimer(s=>s-1),1000);}
@@ -2781,8 +2781,9 @@ if(groupExs.length===0){
           const json=JSON.parse(text.substring(47).slice(0,-2));
           rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
           setSheetData(p=>({...p,workouts:rows}));
-          setSheetLoaded(true);
-        }catch(e){console.error(e);}
+              setSheetLoaded(true);
+              loadedRowsRef.current=rows;
+            }catch(e){console.error(e);}
       }
 
       function getFromSheet(group,count){
