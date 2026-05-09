@@ -2354,10 +2354,10 @@ const MACHINE_CIRCUITS={
      const cats=GYM_CAT_MAP[group]||[];
             const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
             console.log("PICK SCREEN - activeRows:",activeRows.length,"group:",group,"cats:",cats);
-            const sheetPool=activeRows.slice(1).filter(row=> cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
-     exercises.push(...groupExs);
+           const sheetPool=activeRows.filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
+     exercises.push(...sheetPool);
 // FALLBACK if sheet returned nothing
-if(groupExs.length===0){
+if(sheetPool.length===0){ 
   const FALLBACKS={
     "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
     "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
@@ -3284,7 +3284,7 @@ const renderMachineCircuit=()=>{
   if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
-   
+
 function GroceryTab({currentClient,G,card,iStyle,btnGreen,lbl,nutrition}){
   const GROCERY_KEY="atp-grocery";
   const API_KEY=import.meta.env.VITE_API_KEY||"";
