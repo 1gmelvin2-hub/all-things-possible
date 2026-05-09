@@ -2354,6 +2354,7 @@ const MACHINE_CIRCUITS={
     selectedGroups.forEach(group=>{
      const cats=GYM_CAT_MAP[group]||[];
             const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            console.log("PICK SCREEN - activeRows:",activeRows.length,"group:",group,"cats:",cats);
             const sheetPool=activeRows.slice(1).filter(row=> cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
      exercises.push(...groupExs);
 // FALLBACK if sheet returned nothing
@@ -2886,6 +2887,7 @@ if(groupExs.length===0){
           if(!selectedGroups.length){alert("Pick at least one muscle group!");return;}
           // Always load sheet first
           let rows=sheetData.workouts||[];
+          loadedRowsRef.current=rows.length>0?rows:loadedRowsRef.current;
           if(rows.length===0){
             try{
               const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}`);
