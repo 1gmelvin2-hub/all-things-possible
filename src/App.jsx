@@ -2788,7 +2788,9 @@ if(groupExs.length===0){
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
-          const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+          const sheetRows=sheetData.workouts||[];
+            if(sheetRows.length>0&&loadedRowsRef.current.length===0) loadedRowsRef.current=sheetRows;
+            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:sheetRows;
             const sheetPool=activeRows.length>1?activeRows.slice(1).filter(row=>
               cats.some(c=>(row[1]||"").toLowerCase().includes(c))
             ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name):[];
