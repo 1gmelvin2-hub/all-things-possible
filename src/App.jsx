@@ -2134,6 +2134,7 @@ const MACHINE_CIRCUITS={
   const [progRating,setProgRating]=useState(0);
   const [progSwapIdx,setProgSwapIdx]=useState(null);
   const progAdvanceRef=useRef(null);
+  const [progLoadedRows,setProgLoadedRows]=useState([]);
   const loadedRowsRef=useRef([]);
  // Swap timer effect
   useEffect(()=>{
@@ -2788,9 +2789,8 @@ if(groupExs.length===0){
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
-          const sheetRows=sheetData.workouts||[];
-            if(sheetRows.length>0&&loadedRowsRef.current.length===0) loadedRowsRef.current=sheetRows;
-            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:sheetRows;
+          const activeRows=progLoadedRows.length>0?progLoadedRows:(sheetData.workouts||[]);
+            console.log("ActiveRows:",activeRows.length,"for group:",group);
             const sheetPool=activeRows.length>1?activeRows.slice(1).filter(row=>
               cats.some(c=>(row[1]||"").toLowerCase().includes(c))
             ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name):[];
@@ -2892,12 +2892,17 @@ if(groupExs.length===0){
               const text=await res.text();
               const json=JSON.parse(text.substring(47).slice(0,-2));
               rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-             setSheetData(p=>({...p,workouts:rows}));
+              setSheetData(p=>({...p,workouts:rows}));
               setSheetLoaded(true);
               loadedRowsRef.current=rows;
+              setProgLoadedRows(rows);
             }catch(e){console.error(e);}
           }
-          // Build initial exercise list 
+          if(sheetData.workouts?.length>0&&progLoadedRows.length===0){
+            setProgLoadedRows(sheetData.workouts);
+            loadedRowsRef.current=sheetData.workouts;
+          }
+          // Build initial exercise list
           const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
           function getFromRows(group,count){
             const cats=GYM_CAT_MAP[group]||[];
