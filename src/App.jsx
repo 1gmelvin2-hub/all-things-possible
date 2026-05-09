@@ -461,7 +461,6 @@ Set any field not visible to null. For splits include as many as visible.`}
       await sbSetGlobal("atp-running-"+currentClient.id, newHistory);
     }catch(e){}
     setRunRating(rating);
-    try{logWeeklySession("run");}catch{}
   }
 
   const plan=selectedPlan?PLANS[selectedPlan]:null;
@@ -2215,7 +2214,6 @@ const MACHINE_CIRCUITS={
     setBlastHistory(newHistory);
     try{localStorage.setItem("atp-blast-new",JSON.stringify(newHistory));await sbSetGlobal("atp-blast-"+currentClient.id,newHistory);}catch(e){}
     setBlastRating(rating);setShowAddon(true);
-    try{logWeeklySession("gym");}catch{}
   }
 
   function getWeekPrescription(exerciseName,weekNum){
@@ -2254,7 +2252,7 @@ const MACHINE_CIRCUITS={
      exercises.push(...groupExs);
 // FALLBACK if sheet returned nothing
 if(groupExs.length===0){
-const FALLBACKS={
+  const FALLBACKS={
     "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
     "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
     "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders"},{name:"Front Raise",muscles:"Shoulders"}],
@@ -2264,7 +2262,7 @@ const FALLBACKS={
   };
   const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
   exercises.push(...fb);
-}
+} 
     });
     const interleaved=[];
     if(selectedGroups.length===2){
@@ -4084,7 +4082,6 @@ If any field is not visible set it to null.`}
       await sbSetGlobal("atp-hiit-"+currentClient.id, newHistory);
     }catch(e){}
     setHiitRating(rating);
-    try{logWeeklySession("hiit");}catch{}
   }
 
  useEffect(()=>{
@@ -4214,60 +4211,16 @@ function advanceHiit(){
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
-      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,5)},
-      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[
-        {...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},
-        {...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs1[2]||bagExs1[0]||{}),name:`Power: ${bagExs1[2]?.name||"Power Shots"}`,duration:60},
-      ]},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[
-        {...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},
-        {...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs2[2]||bagExs2[0]||{}),name:`Power: ${bagExs2[2]?.name||"Power Shots"}`,duration:60},
-      ]},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[
-        {...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},
-        {...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},
-        {...(bagExs3[2]||bagExs3[0]||{}),name:`Power: ${bagExs3[2]?.name||"Power Shots"}`,duration:60},
-      ]},
-      {name:"⚡ Speed Round",color:"#dc2626",restBetween:15,exercises:(()=>{
-        const speedExs=getExercises(["speed punching"],7);
-        const LOCKED_FINALE=[
-          {name:"Speed Jab",instructions:"Single jab at maximum speed. Snap it out and pull it back fast.",duration:60},
-          {name:"Speed Jab-Cross",instructions:"Jab then cross at full speed. Reset immediately and repeat.",duration:60},
-          {name:"Speed Jab-Cross-Hook-Lead Body Hook",instructions:"Jab-Cross-Hook then drop and lead body hook. Build to full speed.",duration:60},
-          {name:"Speed Jab-Cross-Hook-Lead Body Hook-Rear Body Hook",instructions:"Full 5-punch speed combo. Master the sequence then go full speed!",duration:60},
-        ];
-        if(speedExs.length>=5){
-          const randomExs=speedExs.filter(e=>!LOCKED_FINALE.some(f=>f.name===e.name)).slice(0,3).map(e=>({...e,duration:60}));
-          return [...randomExs,...LOCKED_FINALE];
-        }
-       return [
-          {name:"Speed Hooks",instructions:"Rapid fire hooks both hands. Keep elbows tight, rotate hips fast.",duration:60},
-          {name:"Speed Cross",instructions:"Fast straight right hand at maximum speed. Reset and repeat.",duration:60},
-          {name:"Jab-Jab-Cross-Cross",instructions:"Double jab double cross at full speed. Reset and go again.",duration:60},
-          {name:"Speed Jab",instructions:"Single jab at maximum speed. Snap it out and pull it back fast.",duration:60},
-          {name:"Speed Jab-Cross",instructions:"Jab then cross at full speed. Reset immediately and repeat.",duration:60},
-          {name:"Speed Jab-Cross-Hook-Lead Body Hook",instructions:"Jab-Cross-Hook then drop and lead body hook. Build to full speed.",duration:60},
-          {name:"Speed Jab-Cross-Hook-Lead Body Hook-Rear Body Hook",instructions:"Full 5-punch speed combo. Jab-Cross-Hook-Lead Body-Rear Body. Full speed!",duration:60},
-        ];
-      })()},
-      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
-      {name:"💥 Heavy Bag Round 5 — Power Finish",color:G.mangoDeep,restBetween:20,exercises:[
-        {...(bagExs1[0]||{}),name:`Power 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},
-        {...(bagExs2[0]||{}),name:`Power 2: ${bagExs2[0]?.name||"Hook"}`,duration:60},
-        {...(bagExs3[0]||{}),name:`Power Finish: ${bagExs3[0]?.name||"Final Combo"}`,duration:60},
-        {name:"Last Round — Everything Left",instructions:"Dig deep — give everything you have left in the tank!",duration:60},
-      ]},
-      {name:"🤸 Warm Down",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,5)},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
+      {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
     ]:mins<=60?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
-      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,5)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
@@ -4927,8 +4880,8 @@ export default function AllThingsPossible(){
   const [dayRating,setDayRating]               = useState(null);
   const [ratingSubmitted,setRatingSubmitted]   = useState(false);
   const [adjustMsg,setAdjustMsg]               = useState("");
-  const [weeklyGoals,setWeeklyGoals] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-goals-"+(currentClient?.id||"guest"))||"null");}catch{return null;}});
-  const [weeklyLog,setWeeklyLog] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-log-"+(currentClient?.id||"guest"))||"{}");}catch{return{};}});
+  const [weeklyGoals,setWeeklyGoals] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-goals-"+currentClient?.id)||"null");}catch{return null;}});
+     const [weeklyLog,setWeeklyLog] = useState(()=>{try{return JSON.parse(localStorage.getItem("atp-weekly-log-"+currentClient?.id)||"{}");}catch{return{};}});
     const [editingGoals,setEditingGoals] = useState(false);
     const [goalForm,setGoalForm] = useState({gym:0,hiit:0,run:0,cals:0,trx:0,bounce:0});
   // coach
@@ -5996,15 +5949,7 @@ Return ONLY valid JSON array (no markdown):
     const existing=(deskLog[cid]||{})[today]||{};
     persist(null,null,null,null,{...deskLog,[cid]:{...(deskLog[cid]||{}),[today]:{...existing,[moveId]:(existing[moveId]||0)+amt}}},null,null,null);
   }
-useEffect(()=>{
-    if(!currentClient?.id) return;
-    try{
-      const goals=JSON.parse(localStorage.getItem("atp-weekly-goals-"+currentClient.id)||"null");
-      const log=JSON.parse(localStorage.getItem("atp-weekly-log-"+currentClient.id)||"{}");
-      setWeeklyGoals(goals);
-      setWeeklyLog(log);
-    }catch{}
-  },[currentClient?.id]);
+
   function getWeekKey(){
     const d=new Date();
     const day=d.getDay();
@@ -6025,49 +5970,6 @@ useEffect(()=>{
   function getWeekProgress(){
     const key=getWeekKey();
     return weeklyLog[key]||{};
-  }
-function logWeeklySession(type){
-    const cid=currentClient.id;
-    const key=getWeekKey();
-    const existing=weeklyLog[key]||{};
-    const updated={...weeklyLog,[key]:{...existing,[type]:(existing[type]||0)+1}};
-    setWeeklyLog(updated);
-    try{localStorage.setItem("atp-weekly-log-"+cid,JSON.stringify(updated));}catch{}
-    // Track streak
-    try{
-      const streakKey="atp-weekly-streak-"+cid;
-      const streaks=JSON.parse(localStorage.getItem(streakKey)||"{}");
-      const thisWeekGoal=(weeklyGoals||{})[type]||0;
-      const thisWeekDone=(updated[key]||{})[type]||0;
-      if(thisWeekGoal>0&&thisWeekDone>=thisWeekGoal){
-        streaks[type]=(streaks[type]||0)+1;
-        localStorage.setItem(streakKey,JSON.stringify(streaks));
-      }
-    }catch{}
-  }
-
-  function getProgressionSuggestion(){
-    const cid=currentClient.id;
-    try{
-      const streaks=JSON.parse(localStorage.getItem("atp-weekly-streak-"+cid)||"{}");
-      const suggestions=[];
-      if((streaks.gym||0)>=2) suggestions.push({type:"gym",icon:"🏋️",msg:"You hit your Gym goal 2 weeks straight! Try adding +5 lbs this week.",action:"addweight"});
-      if((streaks.hiit||0)>=2){
-        const lastHiit=JSON.parse(localStorage.getItem("atp-hiit")||"[]").slice(-1)[0];
-        const cur=lastHiit?.duration||"30 min";
-        const next=cur==="30 min"?"45 min":cur==="45 min"?"60 min":cur==="60 min"?"90 min":null;
-        if(next) suggestions.push({type:"hiit",icon:"🥊",msg:`You crushed HIIT ${streaks.hiit} weeks straight! Ready to level up to ${next}?`,action:"hiitduration",next});
-      }
-      if((streaks.run||0)>=2){
-        const lastRun=JSON.parse(localStorage.getItem("atp-running")||"[]").slice(-1)[0];
-        const planMap={"c25k":"5kto10k","5kto10k":"half","half":"full"};
-        const nextPlan=planMap[lastRun?.plan];
-        if(nextPlan) suggestions.push({type:"run",icon:"🏃",msg:`Amazing running consistency! Ready to move up to the next plan?`,action:"runplan",next:nextPlan});
-      }
-      if((streaks.cals||0)>=2) suggestions.push({type:"cals",icon:"🤸",msg:"Calisthenics streak! Your difficulty level is advancing next session.",action:"calslevel"});
-      if((streaks.bounce||0)>=2) suggestions.push({type:"bounce",icon:"🦘",msg:"Bounce streak! Ready to move up a level?",action:"bouncelevel"});
-      return suggestions;
-    }catch{return[];}
   }
 function logSet(di,ei){ const k=`${di}-${ei}`; setLoggedSets(p=>({...p,[k]:(p[k]||0)+1})); }
 
@@ -6811,39 +6713,7 @@ const MAIN_TABS=[["prayer","🙏","Prayer"],["checkin","📋","Check-In"],["work
 
           return(
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
-{/* ── PROGRESSION SUGGESTIONS ── */}
-            {(()=>{
-              const suggestions=getProgressionSuggestion();
-              if(suggestions.length===0) return null;
-              return suggestions.map((s,i)=>(
-                <div key={i} style={{...card,background:`linear-gradient(135deg,${G.mango},${G.mangoDeep})`,border:"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <div style={{fontSize:"2rem"}}>{s.icon}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:"0.72rem",fontWeight:700,color:"#fff",marginBottom:3}}>🔥 Level Up Time!</div>
-                      <div style={{fontSize:"0.68rem",color:"rgba(255,255,255,.9)",lineHeight:1.6}}>{s.msg}</div>
-                    </div>
-                    <button onClick={()=>{
-                      // Clear streak so suggestion doesn't keep showing
-                      try{
-                        const streakKey="atp-weekly-streak-"+currentClient.id;
-                        const streaks=JSON.parse(localStorage.getItem(streakKey)||"{}");
-                        streaks[s.type]=0;
-                        localStorage.setItem(streakKey,JSON.stringify(streaks));
-                      }catch{}
-                      // Navigate to relevant tab
-                      if(s.type==="hiit") setTab("hiit");
-                      if(s.type==="run") setTab("running");
-                      if(s.type==="gym") setTab("gym");
-                      if(s.type==="cals") setTab("cals");
-                      if(s.type==="bounce") setTab("trampoline");
-                    }} style={{padding:"6px 12px",borderRadius:20,border:"none",background:"rgba(255,255,255,.25)",color:"#fff",fontSize:"0.68rem",fontWeight:700,cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                      Let's Go!
-                    </button>
-                  </div>
-                </div>
-              ));
-            })()}
+
             {/* ── WEEKLY GOALS ── */}
             {!editingGoals&&weeklyGoals&&!allGoalsMet&&(
               <div style={{...card,border:`1.5px solid ${G.greenMid}44`}}>
