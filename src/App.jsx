@@ -2787,16 +2787,11 @@ if(groupExs.length===0){
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
-        const matches=rows.slice(1).filter(row=>
-          cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-        ).map(row=>({
-          name:row[0]||"",
-          muscles:row[6]||group,
-          instructions:row[5]||"",
-        })).filter(e=>e.name);
-        if(matches.length>=3) return shuffle(matches).slice(0,count);
-        // Fall back to hardcoded pool
-        return shuffle(EXERCISE_POOL[group]||[]).slice(0,count);
+            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            const sheetPool=activeRows.slice(1).filter(row=>
+              cats.some(c=>(row[1]||"").toLowerCase().includes(c))
+            ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name);
+            const pool=sheetPool.length>=3?sheetPool:(EXERCISE_POOL[group]||[]);
       }
 
       let list=[];
@@ -2893,11 +2888,12 @@ if(groupExs.length===0){
               const text=await res.text();
               const json=JSON.parse(text.substring(47).slice(0,-2));
               rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
-              setSheetData(p=>({...p,workouts:rows}));
+             setSheetData(p=>({...p,workouts:rows}));
               setSheetLoaded(true);
+              loadedRowsRef.current=rows;
             }catch(e){console.error(e);}
           }
-          // Build initial exercise list
+          // Build initial exercise list 
           const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
           function getFromRows(group,count){
             const cats=GYM_CAT_MAP[group]||[];
