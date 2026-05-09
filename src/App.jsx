@@ -2358,7 +2358,7 @@ const MACHINE_CIRCUITS={
      exercises.push(...sheetPool);
 // FALLBACK if sheet returned nothing
 if(sheetPool.length===0){ 
-  const FALLBACKS={
+ const FALLBACKS={
     "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
     "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
     "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders"},{name:"Front Raise",muscles:"Shoulders"}],
@@ -2368,7 +2368,7 @@ if(sheetPool.length===0){
   };
   const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
   exercises.push(...fb);
-} 
+}
     });
     const interleaved=[];
     if(selectedGroups.length===2){
