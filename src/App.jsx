@@ -2254,7 +2254,18 @@ const MACHINE_CIRCUITS={
      exercises.push(...groupExs);
 // FALLBACK if sheet returned nothing
 if(groupExs.length===0){
-
+const FALLBACKS={
+    "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
+    "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
+    "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders"},{name:"Front Raise",muscles:"Shoulders"}],
+    "Arms (Biceps/Triceps)":[{name:"Bicep Curl",muscles:"Biceps",instructions:"Curl dumbbells to shoulders."},{name:"Tricep Extension",muscles:"Triceps"},{name:"Hammer Curl",muscles:"Biceps"}],
+    "Legs":[{name:"Barbell Squat",muscles:"Legs",instructions:"Squat to 90 degrees."},{name:"Leg Press",muscles:"Legs"},{name:"Romanian Deadlift",muscles:"Hamstrings"}],
+    "Core/Abs":[{name:"Plank",muscles:"Core",instructions:"Hold 60 sec."},{name:"Crunches",muscles:"Abs"},{name:"Leg Raises",muscles:"Abs"}],
+  };
+  const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
+  exercises.push(...fb);
+}
+    });
     const interleaved=[];
     if(selectedGroups.length===2){
       const group1=exercises.filter(e=>e.group===selectedGroups[0]);
