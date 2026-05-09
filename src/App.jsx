@@ -2751,7 +2751,7 @@ if(groupExs.length===0){
             function getExs(group,count){
             const cats=GYM_CAT_MAP[group]||[];
             const matches=rows.filter(row=>cats.some(c=>(row[1]||"").toLowerCase().includes(c))).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||"",group})).filter(e=>e.name);
-            console.log("getExs",group,cats,"found:",matches.length);
+            console.log("getExs",group,cats,"found:",matches.length,"first 3 rows:",rows.slice(0,3).map(r=>r[1]));
             return shuffle(matches).slice(0,count);
           }
             let list=[];
