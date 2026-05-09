@@ -2201,7 +2201,7 @@ const MACHINE_CIRCUITS={
     const restSec=phase==="volume"?52:phase==="intensity"?45:37;
     const switchSec=10;
     let workoutRows=sheetData.workouts||[];
-    if(workoutRows.length===0){
+    if(workoutRows.length<200){
       try{
         const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent("Workout Suggestions")}&tq=${encodeURIComponent("select * limit 2000")}`);
         const text=await res.text();
