@@ -2789,8 +2789,8 @@ if(groupExs.length===0){
 
       function getFromSheet(group,count){
         const cats=GYM_CAT_MAP[group]||[];
-          const activeRows=progLoadedRows.length>0?progLoadedRows:(sheetData.workouts||[]);
-            console.log("ActiveRows:",activeRows.length,"for group:",group);
+          const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            console.log("ActiveRows length:",activeRows.length,"group:",group,"cats:",cats);
             const sheetPool=activeRows.length>1?activeRows.slice(1).filter(row=>
               cats.some(c=>(row[1]||"").toLowerCase().includes(c))
             ).map(row=>({name:row[0]||"",muscles:row[6]||group,instructions:row[5]||""})).filter(e=>e.name):[];
@@ -2924,10 +2924,11 @@ if(groupExs.length===0){
           }
           if(progAddAbs) list.push(...ABS_POOL);
           list=list.map(ex=>({...ex,weight:progSavedWeights[ex.name]||0}));
+         loadedRowsRef.current=rows;
           setProgExercises(list);
           setProgSessionWeights({});
           setProgSwapIdx(null);
-          setProgPhase(progControlLevel==="ai"?"preview":"pick");
+          setProgPhase(progControlLevel==="ai"?"preview":"pick"); 
         }} disabled={!selectedGroups.length} style={{...btnGreen,background:"linear-gradient(135deg,#4f46e5,#6366f1)",opacity:selectedGroups.length>0?1:0.5}}>
           {progControlLevel==="ai"?"🤖 Build My Session":progControlLevel==="half"?"🔀 See Suggestions":"✋ Pick Exercises"}
         </button>
