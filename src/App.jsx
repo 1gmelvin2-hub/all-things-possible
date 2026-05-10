@@ -16,7 +16,7 @@ const GFIT_KEY       = "atp-googlefit";
 const GYM_KEY        = "atp-gym";
 const GYM_STARTS_KEY = "atp-gymstarts";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID||"";
-const SHEETS_ID = "1MQn0i-QXvMAOSLsvnBrtycQK9KFdLrvtNAToM10qC-0";
+const SHEETS_ID = "1BWvoUPJNpeQ1TCrpeBDvUIXRv8YAy7GP05eLvcaoh5w";
 const COACH_PASS     = "ATP2026coach";
 const API_KEY       = import.meta.env.VITE_API_KEY||"";
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL||"";
@@ -4319,7 +4319,7 @@ function advanceHiit(){
     if(workoutRows.length===0){
       try{
         const base=`https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&sheet=`;
-        const res=await fetch(`${base}${encodeURIComponent("Workout Suggestions")}`);
+        const res=await fetch(`${base}${encodeURIComponent("HIIT_Boxing")}`);
         const text=await res.text();
         const json=JSON.parse(text.substring(47).slice(0,-2));
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
@@ -4328,32 +4328,66 @@ function advanceHiit(){
       }catch(e){ console.error(e); }
     }
 
-  function getExercises(cats,count){
-      const matches=workoutRows.slice(1).filter(row=>cats.some(c=>(row[2]||"").toLowerCase().includes(c.toLowerCase()))).map(row=>({name:row[0],instructions:row[5]||"",duration:60,category:row[2]||row[1]}));
-      // Shuffle and pick random exercises so every session is different
-      const shuffled=[...matches].sort(()=>Math.random()-0.5);
-      return shuffled.slice(0,count);
+  // 🆕 NEW: filter by Category (col B) and optionally Level (col C)
+    function getByCategory(category, count, levelFilter=null){
+      const matches = workoutRows.slice(1).filter(row => {
+        const cat = (row[1]||"").toLowerCase().trim();
+        const lvl = (row[2]||"").toLowerCase().trim();
+        if (cat !== category.toLowerCase()) return false;
+        if (levelFilter) return lvl === levelFilter.toLowerCase();
+        return true;
+      }).map(row => ({
+        name: row[0],
+        instructions: row[5] || "",
+        duration: 60,
+        category: row[1],
+        level: row[2]
+      }));
+      const shuffled = [...matches].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, count);
     }
 
-    const warmupExs=getExercises(["warm-up"],5);
+    // Warm-up: 5 random Warm-Up Boxing exercises
+    const warmupExs = getByCategory("Warm-Up Boxing", 5);
     if(warmupExs.length<5) for(let i=warmupExs.length;i<5;i++) warmupExs.push({name:["Jumping Jacks","High Knees","Arm Circles","Hip Rotations","Light Jog in Place"][i]||"Warm-up",instructions:"Keep it light and easy",duration:60});
 
-   const shadowExs=getExercises(["basic shadow boxing","defensive footwork"],6);
+    // Shadow Boxing: combos + defensive footwork
+    const shadowCombos = getByCategory("Shadow Boxing", 4).filter(e => 
+      (e.level||"").toLowerCase() !== "defensive footwork"
+    );
+    const shadowFootwork = getByCategory("Shadow Boxing", 2, "Defensive Footwork");
+    const shadowExs = [...shadowCombos, ...shadowFootwork].slice(0, 6);
     if(shadowExs.length<6) for(let i=shadowExs.length;i<6;i++) shadowExs.push({name:["Jab-Cross","Slip Left","Slip Right","Bob and Weave","Jab-Cross-Hook","Footwork Drill"][i]||"Shadow Box",instructions:"Stay light on your feet",duration:60});
 
-    const bagExs1=hiitType==="kickboxing"?getExercises(["kickboxing combo"],4):hiitType==="mixed"?getExercises(["kickboxing combo","boxing only"],4):getExercises(["boxing only"],4);
+    // Heavy Bag Round 1: based on workout type
+    const bagExs1 = hiitType==="kickboxing" 
+      ? getByCategory("Kickboxing", 4)
+      : hiitType==="mixed"
+        ? [...getByCategory("Kickboxing", 2), ...getByCategory("Heavy Round", 2, "Combo 1")]
+        : getByCategory("Heavy Round", 4, "Combo 1");
     if(bagExs1.length<4) for(let i=bagExs1.length;i<4;i++) bagExs1.push({name:["Jab-Cross","Power Hook","Body Shots","Uppercut Combo"][i]||"Bag Work",instructions:"Full power!",duration:20});
 
-    const bagExs2=hiitType==="kickboxing"?getExercises(["kickboxing combo"],8).slice(2,6):hiitType==="mixed"?getExercises(["heavy bag combo","kickboxing combo"],8).slice(2,6):getExercises(["heavy bag combo"],8).slice(2,6);
+    // Heavy Bag Round 2: Combo 2 variants
+    const bagExs2 = hiitType==="kickboxing" 
+      ? getByCategory("Kickboxing", 4)
+      : hiitType==="mixed"
+        ? [...getByCategory("Heavy Round", 2, "Combo 2"), ...getByCategory("Kickboxing", 2)]
+        : getByCategory("Heavy Round", 4, "Combo 2");
     if(bagExs2.length<4) for(let i=bagExs2.length;i<4;i++) bagExs2.push({name:["Jab-Cross-Hook","Overhand Right","Left Hook Body","Combo Finish"][i]||"Bag Work",instructions:"Mix up your combinations",duration:20});
 
-    const bagExs3=hiitType==="kickboxing"?getExercises(["kickboxing combo"],12).slice(4,8):hiitType==="mixed"?getExercises(["kickboxing combo","power punching"],12).slice(4,8):getExercises(["boxing only","power punching"],12).slice(4,8);
+    // Heavy Bag Round 3: Speed Punching for power
+    const bagExs3 = hiitType==="kickboxing" 
+      ? getByCategory("Kickboxing", 4)
+      : hiitType==="mixed"
+        ? [...getByCategory("Kickboxing", 2), ...getByCategory("Speed Punching", 2)]
+        : getByCategory("Speed Punching", 4);
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:20});
 
     const cals1=[{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60}];
     const cals2=[{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60}];
 
-    const warmdownExs=getExercises(["beginning stretch","intermediate stretch"],5);
+    // Warm down: pull from Warm Down category
+    const warmdownExs = getByCategory("Warm Down", 5);
     const abExs=[
       {name:"Plank",instructions:"Hold strong — core tight",duration:60},
       {name:"Crunches",instructions:"Focus on the squeeze",duration:60},
