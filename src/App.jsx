@@ -4422,7 +4422,7 @@ function advanceHiit(){
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
-{name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Hydrate & Catch Your Breath",instructions:"Take a sip of water, shake out your arms, and reset for the second half!",duration:60}]}
+      {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Hydrate & Catch Your Breath",instructions:"Take a sip of water, shake out your arms, and reset for the second half!",duration:60}]},
       {name:"⚡ Speed Round",color:"#fbbf24",restBetween:15,exercises:speedExs.slice(0,4)},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
