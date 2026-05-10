@@ -2401,9 +2401,26 @@ selectedGroups.forEach(group=>{
   const weekNum=getCurrentWeek();
   const allSetsComplete=gymSession&&gymSession.exercises.every((ex,ei)=>Array.from({length:ex.sets||1}).every((_,si)=>completedSets[`${ei}-${si}`]));
 
-  // ── MODE SELECTOR ──
+ // ── MODE SELECTOR ──
   if(!gymMode) return(
     <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
+      
+      {/* 🐛 TEMPORARY DEBUG BUTTON — REMOVE LATER */}
+      <button onClick={()=>{
+        console.log("=== SHEET DEBUG ===");
+        console.log("sheetLoaded:",sheetLoaded);
+        console.log("Total rows:",sheetData.workouts?.length||0);
+        console.log("First 3 rows:",sheetData.workouts?.slice(0,3));
+        console.log("All unique categories (Col B):",[...new Set((sheetData.workouts||[]).slice(1).map(r=>r[1]))]);
+        console.log("All unique levels (Col C):",[...new Set((sheetData.workouts||[]).slice(1).map(r=>r[2]))]);
+        const cats=[...new Set((sheetData.workouts||[]).slice(1).map(r=>r[1]))];
+        const lvls=[...new Set((sheetData.workouts||[]).slice(1).map(r=>r[2]))];
+        alert(`Loaded: ${sheetLoaded}\nRows: ${sheetData.workouts?.length||0}\n\nCategories found:\n${cats.join("\n")}\n\nLevels found:\n${lvls.join("\n")}`);
+      }} style={{padding:10,background:"#dc2626",color:"#fff",borderRadius:8,border:"none",fontWeight:700,cursor:"pointer",marginBottom:8}}>
+        🐛 DEBUG: Show what's in the sheet
+      </button>
+      
+      <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
       <div style={{...card,background:`linear-gradient(135deg,#1a1a2e,#16213e)`,border:"none"}}>
         <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>🏋️ Gym</div>
         <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Choose Your Workout Style</div>
