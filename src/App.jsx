@@ -827,8 +827,20 @@ Set any field not visible to null.`}
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
         setSheetData(p=>({...p,workouts:workoutRows}));
         setSheetLoaded(true);
-      }catch(e){ console.error(e); }
-    }
+     }catch(e){ console.error(e); }
+  }
+  
+  // 🐛 DEBUG — DELETE LATER
+  console.log("=== CALS DEBUG ===");
+  console.log("workoutRows count:", workoutRows.length);
+  console.log("first 3 categories:", workoutRows.slice(1,4).map(r=>r[1]));
+  console.log("mix:", mix);
+  console.log("totalCount:", totalCount);
+  console.log("Calisthenics rows in sheet:", workoutRows.slice(1).filter(r=>(r[1]||"").toLowerCase()==="calisthenics").length);
+  console.log("Abs rows in sheet:", workoutRows.slice(1).filter(r=>(r[1]||"").toLowerCase()==="abs").length);
+
+  function getByLevelAndCat(cat,level,count){
+    return workoutRows.slice(1).filter(... 
 
     function getByLevelAndCat(cat,level,count){
       return workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).slice(0,count).map(row=>({
@@ -5285,12 +5297,7 @@ export default function AllThingsPossible(){
   useEffect(()=>{
     if(currentClient&&program[currentClient.id]&&tab==="workout"){ checkAndAdvanceWeek(); }
   },[tab,currentClient?.id]);
-// Auto-load Google Sheets data once when client logs in
-  useEffect(()=>{
-    if(screen==="client"&&!sheetLoaded&&!sheetLoading){
-      fetchSheets();
-    }
-  },[screen,sheetLoaded,sheetLoading]);
+
   useEffect(()=>{
     if(workoutTimerRunning){ workoutTimerRef.current=setTimeout(()=>setWorkoutTimerSec(s=>s+1),1000); }
     return()=>clearTimeout(workoutTimerRef.current);
