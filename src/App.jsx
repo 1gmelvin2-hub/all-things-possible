@@ -827,7 +827,8 @@ Set any field not visible to null.`}
         workoutRows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
         setSheetData(p=>({...p,workouts:workoutRows}));
         setSheetLoaded(true);
-      
+      }catch(e){ console.error(e); }
+    }
 
     function getByLevelAndCat(cat,level,count){
       return workoutRows.slice(1).filter(row=>(row[1]||"").toLowerCase()===cat.toLowerCase()&&(row[2]||"").toLowerCase()===level.toLowerCase()).slice(0,count).map(row=>({
@@ -2346,33 +2347,24 @@ const MACHINE_CIRCUITS={
     }
     const weekNum=getCurrentWeek();
     const exercises=[];
-selectedGroups.forEach(group=>{
-      const cats=GYM_CAT_MAP[group]||[];
-      const groupExs=workoutRows.slice(1).filter(row=>
-        cats.some(c=>(row[1]||"").toLowerCase().includes(c))
-      ).slice(0,exPerGroup).map(row=>({
-        name:row[0]||"",
-        category:row[1]||"",
-        muscles:row[6]||group,
-        instructions:row[5]||"",
-        progression:row[7]||"increase gym",
-        group
-      }));
-
-      if(groupExs.length===0){
-        const FALLBACKS={
-          "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest",instructions:"Lower chest to floor, push up."},{name:"Dumbbell Fly",muscles:"Chest",instructions:"Open arms wide, squeeze chest."}],
-          "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back",instructions:"Pull bar to upper chest."},{name:"Dumbbell Row",muscles:"Back",instructions:"Pull dumbbell to hip."}],
-          "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders",instructions:"Raise arms to shoulder height."},{name:"Front Raise",muscles:"Shoulders",instructions:"Raise arms to eye level."}],
-          "Arms (Biceps/Triceps)":[{name:"Bicep Curl",muscles:"Biceps",instructions:"Curl dumbbells to shoulders."},{name:"Tricep Extension",muscles:"Triceps",instructions:"Extend arms overhead."},{name:"Hammer Curl",muscles:"Biceps",instructions:"Neutral grip curl."}],
-          "Legs":[{name:"Barbell Squat",muscles:"Legs",instructions:"Squat to 90 degrees."},{name:"Leg Press",muscles:"Legs",instructions:"Press platform with legs."},{name:"Romanian Deadlift",muscles:"Hamstrings",instructions:"Hinge at hips."}],
-          "Core/Abs":[{name:"Plank",muscles:"Core",instructions:"Hold 60 sec."},{name:"Crunches",muscles:"Abs",instructions:"Curl shoulders to knees."},{name:"Leg Raises",muscles:"Abs",instructions:"Raise legs to 90 degrees."}],
-        };
-        const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
-        exercises.push(...fb);
-      } else {
-        exercises.push(...groupExs);
-      }
+    selectedGroups.forEach(group=>{
+     const cats=GYM_CAT_MAP[group]||[];
+            const activeRows=loadedRowsRef.current.length>0?loadedRowsRef.current:(sheetData.workouts||[]);
+            const sheetPool=activeRows.slice(1).filter(row=> cats.some(c=>(row[1]||"").toLowerCase().includes(c))).slice(0,exPerGroup).map(row=>({name:row[0]||"",category:row[1]||"",muscles:row[6]||group,instructions:row[5]||"",progression:row[7]||"increase gym",group}));
+     exercises.push(...groupExs);
+// FALLBACK if sheet returned nothing
+if(groupExs.length===0){
+  const FALLBACKS={
+    "Chest":[{name:"Dumbbell Chest Press",muscles:"Chest",instructions:"Press dumbbells up from chest level."},{name:"Push-Ups",muscles:"Chest"},{name:"Dumbbell Fly",muscles:"Chest"}],
+    "Back":[{name:"Bent-Over Row",muscles:"Back",instructions:"Hinge at hips, pull bar to chest."},{name:"Lat Pulldown",muscles:"Back"},{name:"Dumbbell Row",muscles:"Back"}],
+    "Shoulders":[{name:"Shoulder Press",muscles:"Shoulders",instructions:"Press dumbbells overhead."},{name:"Lateral Raise",muscles:"Shoulders"},{name:"Front Raise",muscles:"Shoulders"}],
+    "Arms (Biceps/Triceps)":[{name:"Bicep Curl",muscles:"Biceps",instructions:"Curl dumbbells to shoulders."},{name:"Tricep Extension",muscles:"Triceps"},{name:"Hammer Curl",muscles:"Biceps"}],
+    "Legs":[{name:"Barbell Squat",muscles:"Legs",instructions:"Squat to 90 degrees."},{name:"Leg Press",muscles:"Legs"},{name:"Romanian Deadlift",muscles:"Hamstrings"}],
+    "Core/Abs":[{name:"Plank",muscles:"Core",instructions:"Hold 60 sec."},{name:"Crunches",muscles:"Abs"},{name:"Leg Raises",muscles:"Abs"}],
+  };
+  const fb=(FALLBACKS[group]||[]).slice(0,exPerGroup).map(ex=>({...ex,category:"Gym",progression:"increase gym",group}));
+  exercises.push(...fb);
+} 
     });
     const interleaved=[];
     if(selectedGroups.length===2){
@@ -3937,7 +3929,7 @@ function AbsTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded
         const rows=json.table.rows.map(row=>row.c.map(cell=>cell?.v||cell?.f||""));
               setSheetData(p=>({...p,workouts:rows}));
               setSheetLoaded(true);
-              
+              loadedRowsRef.current=rows;
         sheetAbs=rows.slice(1).filter(row=>(row[1]||"").toLowerCase().includes("abs")||(row[1]||"").toLowerCase().includes("core")).map(row=>({
           name:row[0]||"",instructions:row[5]||"",level:row[2]||"Beginning",duration:30
         })).filter(e=>e.name);
