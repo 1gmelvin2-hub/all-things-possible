@@ -4388,14 +4388,14 @@ function advanceHiit(){
     if(bagExs3.length<4) for(let i=bagExs3.length;i<4;i++) bagExs3.push({name:["Power Jab","Cross-Hook-Cross","Uppercut-Hook","Final Combo"][i]||"Bag Work",instructions:"Push through — last round!",duration:20});
 
     
-// Pull random Calisthenics from sheet (3 per block, 6 total)
-    const allCals = getByCategory("Calisthenics", 6);
-    const cals1 = allCals.length >= 3 
-      ? allCals.slice(0, 3) 
-      : [{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60},{name:"Squat Jumps",instructions:"Land softly",duration:60}];
-    const cals2 = allCals.length >= 6 
-      ? allCals.slice(3, 6) 
-      : [{name:"Mountain Climbers",instructions:"Keep hips level",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60},{name:"Plank Shoulder Taps",instructions:"Tap shoulders without rocking",duration:60}];
+// Pull random Calisthenics from sheet (4 per block, 8 total)
+    const allCals = getByCategory("Calisthenics", 8);
+    const cals1 = allCals.length >= 4 
+      ? allCals.slice(0, 4) 
+      : [{name:"Push-Ups",instructions:"Full range of motion",duration:60},{name:"Burpees",instructions:"Explosive jump at the top",duration:60},{name:"Squat Jumps",instructions:"Land softly",duration:60},{name:"Mountain Climbers",instructions:"Keep hips level",duration:60}];
+    const cals2 = allCals.length >= 8 
+      ? allCals.slice(4, 8) 
+      : [{name:"Plank Shoulder Taps",instructions:"Tap shoulders without rocking",duration:60},{name:"Jump Squats",instructions:"Land softly",duration:60},{name:"High Knees",instructions:"Drive knees high",duration:60},{name:"Bicycle Crunches",instructions:"Slow and controlled",duration:60}];
     // Warm down: pull from Warm Down category
     const warmdownExs = getByCategory("Warm Down", 5);
     const abExs=[
@@ -4419,9 +4419,9 @@ function advanceHiit(){
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
-      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals1},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals2},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
-      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:30,exercises:cals2},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals1},
       {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Hydrate & Catch Your Breath",instructions:"Take a sip of water, shake out your arms, and reset for the second half!",duration:60}]},
       {name:"⚡ Speed Round",color:"#fbbf24",restBetween:15,exercises:speedExs.slice(0,4)},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
