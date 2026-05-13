@@ -2448,53 +2448,44 @@ if(groupExs.length===0){
       </div>
     );
 
-    const todayGroup=getTodayBlastGroup();
-    const isRestDay=!todayGroup||todayGroup==="Rest";
+    // Day 1-5 picker (no auto day-of-week)
+    const BLAST_DAYS=[
+      {num:1,group:"Chest",emoji:"💪",color:"#ef4444"},
+      {num:2,group:"Back",emoji:"🔙",color:"#8b5cf6"},
+      {num:3,group:"Shoulders",emoji:"🏋️",color:"#3b82f6"},
+      {num:4,group:"Arms (Biceps/Triceps)",emoji:"💪",color:"#f59e0b"},
+      {num:5,group:"Legs",emoji:"🦵",color:"#10b981"},
+    ];
 
     // Daily setup
     if(blastPhase==="setup") return(
       <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...card,background:`linear-gradient(135deg,#7f1d1d,#ef4444)`,border:"none"}}>
           <div style={{fontSize:"0.62rem",color:"rgba(255,255,255,.75)",letterSpacing:"2px",textTransform:"uppercase",marginBottom:4}}>💥 Quick Blast</div>
-          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>{isRestDay?"Rest Day 💤":`Today: ${todayGroup} 💪`}</div>
-          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>Structured weekly split · Tap to start today's workout</div>
+          <div style={{fontSize:"0.88rem",fontWeight:700,color:"#fff",marginBottom:4}}>Pick Your Workout Day</div>
+          <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.85)"}}>5-day split · Tap a day to start</div>
         </div>
 
-        {isRestDay?(
-          <div style={{...card,textAlign:"center",padding:"28px 20px"}}>
-            <div style={{fontSize:"2rem",marginBottom:8}}>😴</div>
-            <div style={{fontSize:"0.88rem",fontWeight:700,color:G.brown,marginBottom:6}}>Rest Day!</div>
-            <div style={{fontSize:"0.74rem",color:G.textSoft,lineHeight:1.7,marginBottom:16}}>Your muscles grow during rest. Enjoy today! Want to add a core session?</div>
-            <button onClick={()=>setTab&&setTab("cals")} style={{...btnGreen,padding:"10px 20px",width:"auto",margin:"0 auto"}}>💪 Optional Abs Session</button>
+        {blastHistory.length>0&&(
+          <div style={{...card,background:"#fff5f5",border:`1px solid #fecaca`}}>
+            <div style={lbl}>📊 Last Blast</div>
+            <div style={{fontSize:"0.74rem",color:G.text}}>{blastHistory[blastHistory.length-1].group} — {fmtDate(blastHistory[blastHistory.length-1].date)}</div>
+            <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {blastHistory[blastHistory.length-1].weekNum} · Rated {blastHistory[blastHistory.length-1].rating}/5</div>
           </div>
-        ):(
-          <>
-            <div style={{...card,background:"#fff5f5",border:`1px solid #fecaca`}}>
-              <div style={lbl}>📅 Your Week</div>
-              <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                {(blastLayout===1?[{day:"Mon",group:"Chest"},{day:"Tue",group:"Back"},{day:"Wed",group:"Rest"},{day:"Thu",group:"Shoulders + Arms"},{day:"Fri",group:"Chest/Arms"},{day:"Sat",group:"Rest"},{day:"Sun",group:"Rest"}]:[{day:"Mon",group:"Back"},{day:"Tue",group:"Chest"},{day:"Wed",group:"Rest"},{day:"Thu",group:"Shoulders + Arms"},{day:"Fri",group:"Rest"},{day:"Sat",group:"Chest/Arms"},{day:"Sun",group:"Rest"}]).map((s,i)=>{
-                  const dayNums=[1,2,3,4,5,6,0];
-                  const isToday=new Date().getDay()===dayNums[i];
-                  return(
-                    <div key={i} style={{display:"flex",gap:10,alignItems:"center",padding:"4px 8px",borderRadius:8,background:isToday?"#fee2e2":"transparent"}}>
-                      <div style={{width:32,fontSize:"0.68rem",fontWeight:isToday?700:400,color:isToday?"#ef4444":G.textSoft}}>{s.day}</div>
-                      <div style={{fontSize:"0.72rem",color:isToday?"#ef4444":s.group==="Rest"?G.textSoft:G.text,fontWeight:isToday?700:400}}>{s.group==="Rest"?"— Rest":s.group}</div>
-                      {isToday&&<div style={{marginLeft:"auto",fontSize:"0.6rem",padding:"2px 7px",borderRadius:20,background:"#ef4444",color:"#fff",fontWeight:700}}>TODAY</div>}
-                    </div>
-                  );
-                })}
+        )}
+
+        {BLAST_DAYS.map(d=>(
+          <button key={d.num} onClick={()=>generateBlastSession(d.group)} style={{...card,cursor:"pointer",textAlign:"left",width:"100%",border:`2px solid ${d.color}33`,background:`${d.color}08`,padding:"14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:48,height:48,borderRadius:"50%",background:d.color+"22",border:`2px solid ${d.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.4rem",flexShrink:0}}>{d.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"0.66rem",fontWeight:700,color:d.color,letterSpacing:"1px"}}>DAY {d.num}</div>
+                <div style={{fontSize:"0.88rem",fontWeight:700,color:G.text,marginTop:2}}>{d.group}</div>
               </div>
+              <div style={{fontSize:"1.2rem",color:d.color}}>▸</div>
             </div>
-            {blastHistory.length>0&&(
-              <div style={{...card,background:"#fff5f5",border:`1px solid #fecaca`}}>
-                <div style={lbl}>📊 Last Blast</div>
-                <div style={{fontSize:"0.74rem",color:G.text}}>{blastHistory[blastHistory.length-1].group} — {fmtDate(blastHistory[blastHistory.length-1].date)}</div>
-                <div style={{fontSize:"0.68rem",color:G.textSoft,marginTop:3}}>Week {blastHistory[blastHistory.length-1].weekNum} · Rated {blastHistory[blastHistory.length-1].rating}/5</div>
-              </div>
-            )}
-            <button onClick={()=>generateBlastSession(todayGroup)} style={{...btnGreen,background:"linear-gradient(135deg,#7f1d1d,#ef4444)",boxShadow:"0 4px 14px rgba(239,68,68,.3)"}}>💥 Start {todayGroup} Blast!</button>
-            <button onClick={()=>{setBlastLayout(0);try{localStorage.removeItem("atp-blast-layout");}catch(e){}}} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>⚙️ Change layout</button>
-          </>
+          </button>
+        ))}
         )}
         <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
       </div>
@@ -4417,7 +4408,7 @@ function advanceHiit(){
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,4)},
     ]:mins<=45?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
-      {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:10,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals2},
       {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs2[0]||{}),name:`Combo 1: ${bagExs2[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs2[1]||{}),name:`Combo 2: ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs2[0]||{}),name:`Combined: ${bagExs2[0]?.name||"Jab-Cross"} + ${bagExs2[1]?.name||"Hook-Uppercut"}`,duration:60}]},
