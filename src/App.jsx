@@ -2486,7 +2486,6 @@ if(groupExs.length===0){
             </div>
           </button>
         ))}
-        )}
         <button onClick={()=>setGymMode("")} style={{background:"transparent",border:"none",color:G.textSoft,fontSize:"0.72rem",cursor:"pointer",fontFamily:"inherit",textAlign:"center"}}>← Back to gym modes</button>
       </div>
     );
