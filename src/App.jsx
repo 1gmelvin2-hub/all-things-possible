@@ -2017,6 +2017,21 @@ function TrampolineTab({currentClient,sheetData,sheetLoaded,setSheetData,setShee
 
 function GymTab({currentClient,sheetData,sheetLoaded,setSheetData,setSheetLoaded,SHEETS_ID,G,card,iStyle,btnGreen,btnMango,lbl,todayStr,fmtDate,setTab}){
   const GYM_MUSCLE_GROUPS=["Chest","Back","Shoulders","Arms (Biceps/Triceps)","Legs","Core/Abs"];
+  function playBeep(type='mid'){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const o=ctx.createOscillator();
+      const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sine';
+      if(type==='up'){o.frequency.value=880;g.gain.value=0.3;}
+      else if(type==='hold'){o.frequency.value=660;g.gain.value=0.2;}
+      else if(type==='down'){o.frequency.value=440;g.gain.value=0.15;}
+      else if(type==='done'){o.frequency.value=1046;g.gain.value=0.3;}
+      o.start();g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.18);
+      o.stop(ctx.currentTime+0.18);
+    }catch(e){}
+  }
   const GYM_CAT_MAP={"Chest":["gym chest"],"Back":["gym back"],"Shoulders":["gym shoulders"],"Arms (Biceps/Triceps)":["gym biceps","gym triceps"],"Legs":["gym legs"],"Core/Abs":["gym core"]};
   const BASELINE_EXERCISES=["Bench Press","Squat","Bicep Curl","Shoulder Press"];
   const BLAST_LAYOUTS={
@@ -2972,14 +2987,21 @@ if(groupExs.length===0){
 
       progAdvanceRef.current=()=>{
         setProgTimerActive(false);
-        if(progWorkPhase==='rest'){setProgWorkPhase('idle');}
+        if(progWorkPhase==='rest'){setProgWorkPhase('idle');playBeep('up');}
         else if(progWorkPhase==='cadence'){
           const ns=fpCadenceStep+1;
-          if(ns<5){setFpCadenceStep(ns);setProgTimer(1);setProgTimerTotal(1);setProgTimerActive(true);}
-          else{
+          if(ns<5){
+            if(ns===1)playBeep('hold');
+            else playBeep('down');
+            setFpCadenceStep(ns);setProgTimer(1);setProgTimerTotal(1);setProgTimerActive(true);
+          } else {
             const nr=fpRepIdx+1;
-            if(nr<totalReps){setFpRepIdx(nr);setFpCadenceStep(0);setProgTimer(1);setProgTimerTotal(1);setProgTimerActive(true);}
-            else{doFinishSet();}
+            if(nr<totalReps){
+              playBeep('up');
+              setFpRepIdx(nr);setFpCadenceStep(0);setProgTimer(1);setProgTimerTotal(1);setProgTimerActive(true);
+            } else {
+              playBeep('done');doFinishSet();
+            }
           }
         }
       };
@@ -3624,22 +3646,25 @@ const renderMachineCircuit=()=>{
       pullupAdvRef.current=()=>{
         setPullupTimerActive(false);
         if(pullupTimerMode==='hang'){
-          doFinishSet();
+          playBeep('done');doFinishSet();
         } else if(pullupTimerMode==='cadence'){
           const ns=pullupCadenceStep+1;
           if(ns<5){
+            if(ns===1)playBeep('hold');
+            else playBeep('down');
             setPullupCadenceStep(ns);setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerActive(true);
           } else {
             const nr=pullupRepIdx+1;
             if(nr<totalReps){
+              playBeep('up');
               setPullupRepIdx(nr);setPullupCadenceStep(0);
               setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerActive(true);
             } else {
-              doFinishSet();
+              playBeep('done');doFinishSet();
             }
           }
         } else if(pullupTimerMode==='rest'){
-          setPullupTimerMode('idle');
+          playBeep('up');setPullupTimerMode('idle');
         }
       };
 
