@@ -2132,6 +2132,23 @@ const MACHINE_CIRCUITS={
   const [progRating,setProgRating]=useState(0);
   const [progSwapIdx,setProgSwapIdx]=useState(null);
   const progAdvanceRef=useRef(null);
+  // ── PULL-UP PROGRAM STATE ──
+  const [pullupPhase,setPullupPhase]=useState('');
+  const [pullupCalibForm,setPullupCalibForm]=useState({oneArmRowR:'',oneArmRowL:'',latPulldown:'',seatedRow:'',hammerCurls:'',facePulls:''});
+  const [pullupData,setPullupData]=useState(()=>{try{return JSON.parse(localStorage.getItem('atp-pullups-'+currentClient?.id)||'null')||null;}catch{return null;}});
+  const [pullupSessionNum,setPullupSessionNum]=useState(1);
+  const [pullupExIdx,setPullupExIdx]=useState(0);
+  const [pullupSetIdx,setPullupSetIdx]=useState(0);
+  const [pullupRepIdx,setPullupRepIdx]=useState(0);
+  const [pullupCadenceStep,setPullupCadenceStep]=useState(0);
+  const [pullupTimer,setPullupTimer]=useState(0);
+  const [pullupTimerActive,setPullupTimerActive]=useState(false);
+  const [pullupTimerTotal,setPullupTimerTotal]=useState(0);
+  const [pullupTimerMode,setPullupTimerMode]=useState('idle');
+  const [pullupSessionWeights,setPullupSessionWeights]=useState({});
+  const [pullupRating,setPullupRating]=useState('');
+  const [pullupMaxRepsInput,setPullupMaxRepsInput]=useState('');
+  const pullupAdvRef=useRef(null);
 
 // Swap timer effect
   useEffect(()=>{
@@ -2176,6 +2193,14 @@ const MACHINE_CIRCUITS={
     const id=setTimeout(()=>setMachineTimer(t=>t-1),1000);
     return()=>clearTimeout(id);
   },[machineTimerActive,machineTimer]);
+  useEffect(()=>{
+    if(!pullupTimerActive||pullupTimer<=0) return;
+    const id=setTimeout(()=>setPullupTimer(t=>t-1),1000);
+    return()=>clearTimeout(id);
+  },[pullupTimerActive,pullupTimer]);
+  useEffect(()=>{
+    if(pullupTimerActive&&pullupTimer===0) pullupAdvRef.current?.();
+  },[pullupTimerActive,pullupTimer]);
   function getCurrentWeek(){
     try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");return prog[currentClient.id]?.currentWeek||1;}catch(e){return 1;}
   }
@@ -2401,9 +2426,10 @@ if(groupExs.length===0){
         <div style={{fontSize:"0.72rem",color:"rgba(255,255,255,.8)"}}>Week {weekNum} · Pick how you want to train today</div>
       </div>
       {[
-        {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
+       {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
+        {id:"pullup",icon:"🔼",label:"Pull-Up Program",desc:"8 weeks · Zero to 10 pull-ups · 24 sessions · Gym + skill work",color:"#1d4ed8"},
         {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload",color:"#6366f1"},
-      {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},  
+        {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},   
       ].map(m=>(
         <button key={m.id} onClick={()=>!m.soon&&setGymMode(m.id)} style={{...card,cursor:m.soon?"default":"pointer",textAlign:"left",width:"100%",border:`2px solid ${m.color}33`,background:`${m.color}08`,opacity:m.soon?0.6:1}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -3389,6 +3415,478 @@ const renderMachineCircuit=()=>{
     }
    return null;
   };
+  if(gymMode==="pullup"){
+    const PULLUP_SCRIPTURES=[
+      {text:"Have I not commanded you? Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.",ref:"Joshua 1:9"},
+      {text:"The Lord is my strength and my shield; my heart trusts in him, and he helps me.",ref:"Psalm 28:7"},
+      {text:"So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you.",ref:"Isaiah 41:10"},
+      {text:"But those who hope in the Lord will renew their strength. They will soar on wings like eagles.",ref:"Isaiah 40:31"},
+      {text:"For we are God's handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do.",ref:"Ephesians 2:10"},
+      {text:"The Lord will give strength to His people; the Lord will bless His people with peace.",ref:"Psalm 29:11"},
+      {text:"Two are better than one, because they have a good return for their labor. If either of them falls down, one can help the other up.",ref:"Ecclesiastes 4:9-10"},
+      {text:"I lift up my eyes to the mountains — where does my help come from? My help comes from the Lord.",ref:"Psalm 121:1-2"},
+      {text:"Cast your cares on the Lord and he will sustain you; he will never let the righteous be shaken.",ref:"Psalm 55:22"},
+      {text:"Come to me, all you who are weary and burdened, and I will give you rest.",ref:"Matthew 11:28"},
+      {text:"God is our refuge and strength, an ever-present help in trouble.",ref:"Psalm 46:1"},
+      {text:"Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up.",ref:"Galatians 6:9"},
+      {text:"I press on toward the goal to win the prize for which God has called me heavenward in Christ Jesus.",ref:"Philippians 3:14"},
+      {text:"Be strong and courageous. Do not be afraid or terrified because of them, for the Lord your God goes with you.",ref:"Deuteronomy 31:6"},
+      {text:"I can do all this through him who gives me strength.",ref:"Philippians 4:13"},
+      {text:"For the Spirit God gave us does not make us timid, but gives us power, love and self-discipline.",ref:"2 Timothy 1:7"},
+      {text:"But as for you, be strong and do not give up, for your work will be rewarded.",ref:"2 Chronicles 15:7"},
+      {text:"Being confident of this, that he who began a good work in you will carry it on to completion.",ref:"Philippians 1:6"},
+      {text:"No, in all these things we are more than conquerors through him who loved us.",ref:"Romans 8:37"},
+      {text:"For nothing will be impossible with God.",ref:"Luke 1:37"},
+      {text:"The Lord himself goes before you and will be with you; he will never leave you nor forsake you.",ref:"Deuteronomy 31:8"},
+      {text:"I have fought the good fight, I have finished the race, I have kept the faith.",ref:"2 Timothy 4:7"},
+      {text:"With man this is impossible, but with God all things are possible.",ref:"Matthew 19:26"},
+      {text:"I sought the Lord, and he answered me; he delivered me from all my fears.",ref:"Psalm 34:4"},
+    ];
+    const REP_CADENCE=[
+      {label:'↑ UP!',sub:'Pull hard!',color:'#10b981',bg:'#f0fdf4'},
+      {label:'● HOLD',sub:'At the top',color:'#f59e0b',bg:'#fffbeb'},
+      {label:'3 ↓',sub:'Lower slowly',color:'#6366f1',bg:'#f8f7ff'},
+      {label:'2 ↓',sub:'Stay controlled',color:'#6366f1',bg:'#f8f7ff'},
+      {label:'1 ↓',sub:'All the way down',color:'#6366f1',bg:'#f8f7ff'},
+    ];
+    const SKILL_P1=[
+      {id:'deadhang',name:'Dead Hang',type:'hang',sets:3,duration:20,restSec:40,instructions:'Grip the bar with both hands, arms fully extended. Just hang and breathe. Squeeze the bar hard.'},
+      {id:'scap',name:'Scapular Pulls',type:'rep',sets:3,reps:8,restSec:40,instructions:'Hang from bar. Without bending elbows, pull shoulder blades DOWN and together. Hold 1 sec. Release slowly.'},
+    ];
+    const SKILL_P2=[
+      {id:'band',name:'Band-Assisted Pull-Ups',type:'rep',sets:3,reps:8,restSec:40,instructions:'Loop resistance band on bar. Step or knee in band. Pull up explosively. Lower in 3 counts.'},
+      {id:'neg',name:'Slow Negatives',type:'rep',sets:3,reps:5,restSec:40,instructions:'Jump to top position. Lower yourself SLOWLY counting 3-2-1. Feel every muscle working.'},
+      {id:'towel',name:'Towel Grip Hang',type:'hang',sets:2,duration:25,restSec:40,instructions:'Drape a towel over the bar. Grip the towel ends. Hang for the full time. Builds iron grip.'},
+      {id:'farmer',name:'Farmer Carries',type:'carry',sets:2,steps:40,restSec:40,instructions:'Pick up heavy dumbbells. Walk 40 steps with total control. Grip tight the whole time.'},
+    ];
+    const SKILL_P3=[
+      {id:'pullup',name:'Unassisted Pull-Ups',type:'maxrep',sets:3,restSec:40,instructions:'Jump to the bar. Pull up with everything you have. Max reps each attempt. Enter your count below.'},
+      {id:'neg',name:'Slow Negatives',type:'rep',sets:3,reps:5,restSec:40,instructions:'Jump to top position. Lower in 3-2-1. You are stronger every single session.'},
+      {id:'towel',name:'Towel Grip Hang',type:'hang',sets:2,duration:30,restSec:40,instructions:'Towel over bar. Grip the ends. Full 30 seconds. Breathe steady and hold.'},
+      {id:'farmer',name:'Farmer Carries',type:'carry',sets:2,steps:40,restSec:40,instructions:'Heaviest dumbbells you can handle with good form. 40 steps. No setting them down early.'},
+    ];
+    const SKILL_P4=[
+      {id:'groove',name:'Grease The Groove',type:'rep',sets:4,reps:5,restSec:120,instructions:'4 sets of 5 quality pull-ups. Rest 2 min between. These are clean reps — not max effort.'},
+      {id:'maxeffort',name:'Max Effort Set',type:'maxrep',sets:1,restSec:40,instructions:'ONE all-out set. Every rep you have in the tank. This is your moment. Enter your count.'},
+      {id:'towel',name:'Towel Grip Hang',type:'hang',sets:2,duration:35,restSec:40,instructions:'Towel grip. Final phase. 35 full seconds. This grip is what got you here.'},
+      {id:'farmer',name:'Farmer Carries',type:'carry',sets:2,steps:40,restSec:40,instructions:'Heaviest weight you can move. 40 steps. Phase 4 — nothing held back.'},
+    ];
+    const GYM_P12=[
+      {id:'rowR',name:'One-Arm Row (Right)',sets:4,reps:8,key:'oneArmRowR',restSec:20,instructions:'Brace on bench. Pull dumbbell to hip, lead with elbow. Explosive up, controlled 3-count down.'},
+      {id:'rowL',name:'One-Arm Row (Left)',sets:4,reps:8,key:'oneArmRowL',restSec:20,instructions:'Left side. Same form. Pull to hip. Full range every rep.'},
+      {id:'lat',name:'Lat Pulldown',sets:4,reps:8,key:'latPulldown',restSec:40,instructions:'Wide grip. Pull bar to upper chest. Squeeze shoulder blades. Slow controlled return.'},
+      {id:'seatedRow',name:'Seated Cable Row (Wide)',sets:4,reps:8,key:'seatedRow',restSec:40,instructions:'Wide grip handle. Sit tall. Pull to lower chest. Squeeze hard at top. Return with control.'},
+      {id:'hammer',name:'Hammer Curls',sets:4,reps:8,key:'hammerCurls',restSec:40,instructions:'Neutral grip, thumbs up. Alternate arms. Squeeze at top. Control the descent fully.'},
+      {id:'face',name:'Face Pulls',sets:4,reps:8,key:'facePulls',restSec:40,instructions:'Cable at face height. Pull to forehead. Elbows high and wide. Squeeze rear delts hard.'},
+    ];
+    const GYM_P34=[
+      {id:'rowR',name:'One-Arm Row (Right)',sets:4,reps:6,key:'oneArmRowR',restSec:20,instructions:'Heavier now. 6 powerful reps. Full range. Explosive up, 3-count down.'},
+      {id:'rowL',name:'One-Arm Row (Left)',sets:4,reps:6,key:'oneArmRowL',restSec:20,instructions:'Left side. Match the right. 6 strong reps with full range.'},
+      {id:'lat',name:'Lat Pulldown',sets:4,reps:6,key:'latPulldown',restSec:40,instructions:'Heavier than before. 6 reps. Squeeze hard at bottom. Slow controlled return.'},
+      {id:'seatedRow',name:'Seated Cable Row (Wide)',sets:4,reps:6,key:'seatedRow',restSec:40,instructions:'6 heavy reps. Pull to chest. Squeeze every single rep.'},
+      {id:'hammer',name:'Hammer Curls',sets:4,reps:6,key:'hammerCurls',restSec:40,instructions:'6 reps heavier. Full range. Control the negative.'},
+      {id:'face',name:'Face Pulls',sets:4,reps:6,key:'facePulls',restSec:40,instructions:'6 reps. Keep elbows high. Those rear delts are pulling you up.'},
+    ];
+    function getPUPhaseData(n){
+      if(n<=6) return {skill:SKILL_P1,gym:GYM_P12,phaseNum:1,label:'Foundation'};
+      if(n<=12) return {skill:SKILL_P2,gym:GYM_P12,phaseNum:2,label:'Assisted Pulling'};
+      if(n<=18) return {skill:SKILL_P3,gym:GYM_P34,phaseNum:3,label:'First Real Reps'};
+      return {skill:SKILL_P4,gym:GYM_P34,phaseNum:4,label:'Hit The Goal'};
+    }
+    function getPUWeekStr(d){
+      const dt=new Date(d);const jan1=new Date(dt.getFullYear(),0,1);
+      return dt.getFullYear()+'-W'+Math.ceil(((dt-jan1)/86400000+jan1.getDay()+1)/7);
+    }
+    function savePullupData(nd){
+      setPullupData(nd);
+      try{localStorage.setItem('atp-pullups-'+currentClient.id,JSON.stringify(nd));sbSetGlobal('atp-pullups-'+currentClient.id,nd);}catch{}
+    }
+
+    // ── CALIBRATION ──
+    if(!pullupData){
+      const CALIB_FIELDS=[
+        {key:'oneArmRowR',label:'One-Arm Row (Right)',hint:'8 reps × 4 sets — challenging but doable'},
+        {key:'oneArmRowL',label:'One-Arm Row (Left)',hint:'Often 5-10 lbs less than right'},
+        {key:'latPulldown',label:'Lat Pulldown',hint:'Wide grip — 8 strong reps × 4 sets'},
+        {key:'seatedRow',label:'Seated Cable Row (Wide)',hint:'Wide grip — pull to lower chest'},
+        {key:'hammerCurls',label:'Hammer Curls',hint:'Neutral grip — 8 clean reps each arm'},
+        {key:'facePulls',label:'Face Pulls',hint:'Cable at face height — 8 reps × 4 sets'},
+      ];
+      const allFilled=CALIB_FIELDS.every(f=>parseFloat(pullupCalibForm[f.key])>0);
+      return(
+        <div style={{flex:1,overflowY:'auto',padding:14,display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{...card,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',border:'none'}}>
+            <div style={{fontSize:'0.6rem',color:'rgba(255,255,255,.75)',letterSpacing:'2px',textTransform:'uppercase',marginBottom:6}}>🔼 Pull-Up Program</div>
+            <div style={{fontSize:'0.95rem',fontWeight:800,color:'#fff',marginBottom:8}}>Calibration Day</div>
+            <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,.9)',lineHeight:1.8}}>Before Session 1, head to the gym and test each exercise. Find the weight where <strong style={{color:'#93c5fd'}}>8 reps × 4 sets</strong> is genuinely challenging with perfect form. Enter those weights below.</div>
+          </div>
+          <div style={{...card,background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+            <div style={{fontSize:'0.72rem',fontWeight:700,color:'#1d4ed8',marginBottom:6}}>📋 How to Test Each Exercise</div>
+            <div style={{fontSize:'0.68rem',color:'#1e40af',lineHeight:1.9}}>1. Start lighter than you think · 2. Do 8 reps with perfect form · 3. Rest 2 min · 4. Repeat for 4 sets total · 5. If too easy — go heavier · 6. Enter the weight that genuinely challenged you</div>
+          </div>
+          {CALIB_FIELDS.map(f=>(
+            <div key={f.key} style={card}>
+              <div style={{fontSize:'0.76rem',fontWeight:700,color:G.text,marginBottom:3}}>{f.label}</div>
+              <div style={{fontSize:'0.62rem',color:G.textSoft,marginBottom:8}}>{f.hint}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <button onClick={()=>setPullupCalibForm(p=>({...p,[f.key]:String(Math.max(0,(parseFloat(p[f.key])||0)-5))}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem',flexShrink:0}}>-</button>
+                <input type="number" value={pullupCalibForm[f.key]||''} onChange={e=>setPullupCalibForm(p=>({...p,[f.key]:e.target.value}))} placeholder="0" style={{flex:1,textAlign:'center',border:'2px solid #1d4ed8',borderRadius:8,padding:'8px',fontSize:'1.1rem',fontWeight:800,color:G.text}}/>
+                <button onClick={()=>setPullupCalibForm(p=>({...p,[f.key]:String((parseFloat(p[f.key])||0)+5)}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem',flexShrink:0}}>+</button>
+                <span style={{fontSize:'0.62rem',color:G.textSoft}}>lbs</span>
+              </div>
+            </div>
+          ))}
+          <button onClick={()=>{
+            if(!allFilled){alert('Please enter a weight for all 6 exercises.');return;}
+            const w={};CALIB_FIELDS.forEach(f=>{w[f.key]=parseFloat(pullupCalibForm[f.key])||0;});
+            savePullupData({calibWeights:{...w},currentWeights:{...w},completedSessions:[]});
+          }} disabled={!allFilled} style={{...btnGreen,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',opacity:allFilled?1:0.5}}>
+            ✅ Save Weights — Start Program
+          </button>
+          <button onClick={()=>setGymMode('')} style={{background:'transparent',border:'none',color:G.textSoft,fontSize:'0.72rem',cursor:'pointer',fontFamily:'inherit',textAlign:'center'}}>← Back</button>
+        </div>
+      );
+    }
+
+    // ── SESSION LIST ──
+    if(!pullupPhase||pullupPhase==='sessions'){
+      const completedNums=(pullupData.completedSessions||[]).map(s=>s.sessionNum);
+      const nextNum=Math.min((completedNums.length||0)+1,24);
+      const weekCount=(pullupData.completedSessions||[]).filter(s=>s.weekOf===getPUWeekStr(new Date())).length;
+      const atLimit=weekCount>=3;
+      const phaseLabels=['Foundation','Assisted Pulling','First Real Reps','Hit The Goal'];
+      const phaseColors=['#1d4ed8','#7c3aed','#0891b2','#059669'];
+      return(
+        <div style={{flex:1,overflowY:'auto',padding:14,display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{...card,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',border:'none'}}>
+            <div style={{fontSize:'0.6rem',color:'rgba(255,255,255,.75)',letterSpacing:'2px',textTransform:'uppercase',marginBottom:6}}>🔼 Pull-Up Program</div>
+            <div style={{fontSize:'0.9rem',fontWeight:800,color:'#fff',marginBottom:8}}>Zero to 10 Pull-Ups</div>
+            <div style={{display:'flex',gap:20}}>
+              {[['Sessions Done',completedNums.length],['Remaining',24-completedNums.length],['This Week',weekCount+'/3']].map(([lbl,val])=>(
+                <div key={lbl} style={{textAlign:'center'}}>
+                  <div style={{fontSize:'1.3rem',fontWeight:900,color:lbl==='This Week'&&atLimit?'#fca5a5':'#93c5fd'}}>{val}</div>
+                  <div style={{fontSize:'0.56rem',color:'rgba(255,255,255,.7)'}}>{lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {atLimit&&<div style={{...card,background:'#fef2f2',border:'1px solid #fecaca'}}>
+            <div style={{fontSize:'0.76rem',fontWeight:700,color:'#dc2626'}}>🛑 3 Sessions Done This Week</div>
+            <div style={{fontSize:'0.68rem',color:'#7f1d1d',marginTop:4,lineHeight:1.6}}>Rest is when the muscle grows. Come back next week and keep going strong!</div>
+          </div>}
+          {[1,2,3,4].map(ph=>{
+            const nums=Array.from({length:6},(_,i)=>(ph-1)*6+i+1);
+            const color=phaseColors[ph-1];
+            return(
+              <div key={ph}>
+                <div style={{fontSize:'0.62rem',fontWeight:800,color:color,letterSpacing:'1px',textTransform:'uppercase',marginBottom:8,paddingLeft:2}}>Phase {ph} — {phaseLabels[ph-1]}</div>
+                {nums.map(num=>{
+                  const done=completedNums.includes(num);
+                  const isNext=num===nextNum&&!atLimit;
+                  const locked=!done&&num>nextNum;
+                  const sc=PULLUP_SCRIPTURES[num-1];
+                  return(
+                    <button key={num} disabled={locked||atLimit} onClick={()=>{
+                      const pd2=getPUPhaseData(num);
+                      const initW={...(pullupData.currentWeights||{})};
+                      pd2.gym.forEach(e=>{if(!initW[e.key])initW[e.key]=pullupData.calibWeights?.[e.key]||0;});
+                      setPullupSessionWeights(initW);
+                      setPullupSessionNum(num);setPullupExIdx(0);setPullupSetIdx(0);
+                      setPullupRepIdx(0);setPullupCadenceStep(0);
+                      setPullupTimerMode('idle');setPullupTimerActive(false);
+                      setPullupMaxRepsInput('');setPullupRating('');setPullupPhase('active');
+                    }} style={{...card,cursor:locked||atLimit?'default':'pointer',textAlign:'left',width:'100%',opacity:locked?0.4:1,border:`2px solid ${done?color+'55':isNext?color:G.border}`,background:done?color+'08':isNext?color+'11':G.cream,padding:'10px 12px',marginBottom:6}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{width:34,height:34,borderRadius:'50%',background:done?color:isNext?color+'22':'#f3f4f6',border:`2px solid ${done||isNext?color:G.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.75rem',fontWeight:800,color:done?'#fff':isNext?color:G.textSoft,flexShrink:0}}>{done?'✓':num}</div>
+                        <div style={{flex:1}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <span style={{fontSize:'0.78rem',fontWeight:700,color:done?G.textSoft:isNext?color:G.text}}>Session {num}</span>
+                            {isNext&&<span style={{fontSize:'0.56rem',background:color,color:'#fff',padding:'1px 7px',borderRadius:10,fontWeight:700}}>NEXT</span>}
+                          </div>
+                          <div style={{fontSize:'0.58rem',color:G.textSoft,marginTop:1,fontStyle:'italic'}}>{sc.ref}</div>
+                        </div>
+                        {!locked&&!done&&<span style={{color:color,fontSize:'0.8rem'}}>▸</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          <button onClick={()=>setGymMode('')} style={{background:'transparent',border:'none',color:G.textSoft,fontSize:'0.72rem',cursor:'pointer',fontFamily:'inherit',textAlign:'center',marginTop:4}}>← Back to gym modes</button>
+        </div>
+      );
+    }
+
+    // ── ACTIVE SESSION ──
+    if(pullupPhase==='active'){
+      const pd=getPUPhaseData(pullupSessionNum);
+      const allEx=[...pd.skill,...pd.gym];
+      const totalEx=allEx.length;
+      const safeIdx=Math.min(pullupExIdx,totalEx-1);
+      const ex=allEx[safeIdx];
+      const isGymEx=safeIdx>=pd.skill.length;
+      const scripture=PULLUP_SCRIPTURES[pullupSessionNum-1];
+      const totalSets=ex.sets||1;
+      const totalReps=ex.reps||5;
+      const isRow=ex.key==='oneArmRowR'||ex.key==='oneArmRowL';
+      const restSec=ex.restSec||(isRow?20:40);
+      const currentWeight=pullupSessionWeights[ex.key]||0;
+      const exColor=isGymEx?'#1d4ed8':'#7c3aed';
+      const cadStep=REP_CADENCE[Math.min(pullupCadenceStep,4)];
+      const puCirc=2*Math.PI*52;
+      const timerProg=pullupTimerTotal>0?pullupTimer/pullupTimerTotal:0;
+
+      function doFinishSet(){
+        if(pullupSetIdx+1<totalSets){
+          setPullupSetIdx(s=>s+1);setPullupRepIdx(0);setPullupCadenceStep(0);
+          setPullupTimer(restSec);setPullupTimerTotal(restSec);
+          setPullupTimerMode('rest');setPullupTimerActive(true);
+        } else {
+          if(safeIdx+1<totalEx){
+            setPullupExIdx(i=>i+1);setPullupSetIdx(0);
+            setPullupRepIdx(0);setPullupCadenceStep(0);
+            setPullupTimerMode('idle');setPullupTimerActive(false);
+          } else {
+            setPullupPhase('complete');
+          }
+        }
+      }
+
+      pullupAdvRef.current=()=>{
+        setPullupTimerActive(false);
+        if(pullupTimerMode==='hang'){
+          doFinishSet();
+        } else if(pullupTimerMode==='cadence'){
+          const ns=pullupCadenceStep+1;
+          if(ns<5){
+            setPullupCadenceStep(ns);setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerActive(true);
+          } else {
+            const nr=pullupRepIdx+1;
+            if(nr<totalReps){
+              setPullupRepIdx(nr);setPullupCadenceStep(0);
+              setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerActive(true);
+            } else {
+              doFinishSet();
+            }
+          }
+        } else if(pullupTimerMode==='rest'){
+          setPullupTimerMode('idle');
+        }
+      };
+
+      // REST SCREEN
+      if(pullupTimerMode==='rest') return(
+        <div style={{flex:1,display:'flex',flexDirection:'column',background:'#f0fdf4',alignItems:'center',justifyContent:'center',gap:16,padding:20}}>
+          <div style={{fontSize:'0.72rem',fontWeight:700,color:'#059669',letterSpacing:'1px',textTransform:'uppercase'}}>{isRow?'20s Row Rest 💚':'40s Rest 💚'}</div>
+          <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+            <svg width="160" height="160" style={{transform:'rotate(-90deg)'}}>
+              <circle cx="80" cy="80" r="52" fill="none" stroke="#bbf7d0" strokeWidth="10"/>
+              <circle cx="80" cy="80" r="52" fill="none" stroke="#059669" strokeWidth="10" strokeDasharray={`${puCirc*timerProg} ${puCirc}`} strokeLinecap="round"/>
+            </svg>
+            <div style={{position:'absolute',textAlign:'center'}}>
+              <div style={{fontSize:'2.8rem',fontWeight:900,color:'#059669',lineHeight:1}}>{pullupTimer}</div>
+              <div style={{fontSize:'0.62rem',fontWeight:700,color:'#059669'}}>REST</div>
+            </div>
+          </div>
+          <div style={{fontSize:'0.76rem',color:'#374151',textAlign:'center',fontWeight:600}}>Up Next: Set {pullupSetIdx+1} of {totalSets}</div>
+          <button onClick={()=>{setPullupTimerActive(false);setPullupTimerMode('idle');}} style={{padding:'12px 32px',borderRadius:12,border:'none',background:'#059669',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit',fontSize:'0.82rem'}}>Skip Rest ⏭</button>
+        </div>
+      );
+
+      // MAIN EXERCISE SCREEN
+      return(
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto'}}>
+          <div style={{height:6,background:'#e0e7ff'}}>
+            <div style={{height:'100%',width:`${(safeIdx/totalEx)*100}%`,background:'linear-gradient(90deg,#1e3a5f,#1d4ed8)',transition:'width .5s'}}/>
+          </div>
+          <div style={{flex:1,padding:14,display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{...card,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',border:'none',padding:'10px 14px'}}>
+              <div style={{fontSize:'0.64rem',color:'rgba(255,255,255,.7)',fontStyle:'italic',lineHeight:1.6}}>"{scripture.text}"</div>
+              <div style={{fontSize:'0.6rem',color:'#93c5fd',marginTop:4,fontWeight:700}}>— {scripture.ref}</div>
+            </div>
+            <div style={{...card,border:`2px solid ${exColor}33`,background:isGymEx?'#eff6ff':'#faf5ff'}}>
+              <div style={{fontSize:'0.6rem',fontWeight:700,color:exColor,letterSpacing:'1px',textTransform:'uppercase',marginBottom:4}}>
+                {isGymEx?'🏋️ Gym Work':'💪 Skill Work'} · Exercise {safeIdx+1} of {totalEx}
+              </div>
+              <div style={{fontSize:'1rem',fontWeight:800,color:G.text,marginBottom:4}}>{ex.name}</div>
+              <div style={{fontSize:'0.66rem',color:G.textSoft,lineHeight:1.6,marginBottom:8}}>{ex.instructions}</div>
+              <div style={{display:'flex',gap:4}}>
+                {Array.from({length:totalSets}).map((_,i)=>(
+                  <div key={i} style={{flex:1,height:6,borderRadius:3,background:i<pullupSetIdx?exColor:i===pullupSetIdx?exColor+'88':'#e5e7eb'}}/>
+                ))}
+              </div>
+              <div style={{fontSize:'0.62rem',color:G.textSoft,marginTop:4}}>Set {pullupSetIdx+1} of {totalSets}</div>
+            </div>
+            {isGymEx&&(
+              <div style={{...card,padding:'10px 14px'}}>
+                <div style={{fontSize:'0.64rem',color:G.textSoft,marginBottom:6,fontWeight:700}}>Working Weight</div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
+                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:Math.max(0,(w[ex.key]||0)-5)}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>-</button>
+                  <div style={{fontSize:'2.2rem',fontWeight:900,color:exColor,minWidth:70,textAlign:'center'}}>{currentWeight}</div>
+                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:(w[ex.key]||0)+5}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>+</button>
+                  <span style={{fontSize:'0.64rem',color:G.textSoft}}>lbs</span>
+                </div>
+              </div>
+            )}
+            {ex.type==='hang'&&pullupTimerMode==='idle'&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
+                <div style={{fontSize:'0.76rem',color:G.textSoft}}>Hold for <strong style={{color:exColor}}>{ex.duration} seconds</strong></div>
+                <button onClick={()=>{setPullupTimer(ex.duration);setPullupTimerTotal(ex.duration);setPullupTimerMode('hang');setPullupTimerActive(true);}} style={{...btnGreen,background:`linear-gradient(135deg,#1e3a5f,${exColor})`,width:'100%'}}>▶ Start Hang — Set {pullupSetIdx+1}</button>
+              </div>
+            )}
+            {ex.type==='hang'&&pullupTimerMode==='hang'&&(
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+                <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+                  <svg width="140" height="140" style={{transform:'rotate(-90deg)'}}>
+                    <circle cx="70" cy="70" r="52" fill="none" stroke="#e0e7ff" strokeWidth="10"/>
+                    <circle cx="70" cy="70" r="52" fill="none" stroke={exColor} strokeWidth="10" strokeDasharray={`${puCirc*timerProg} ${puCirc}`} strokeLinecap="round"/>
+                  </svg>
+                  <div style={{position:'absolute',textAlign:'center'}}>
+                    <div style={{fontSize:'2.6rem',fontWeight:900,color:pullupTimer<=5?'#dc2626':exColor,lineHeight:1}}>{pullupTimer}</div>
+                    <div style={{fontSize:'0.62rem',color:exColor,fontWeight:700}}>HOLD</div>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:8,width:'100%'}}>
+                  <button onClick={()=>setPullupTimerActive(a=>!a)} style={{flex:1,padding:'12px',borderRadius:10,border:'none',background:pullupTimerActive?exColor:'#6b7280',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>{pullupTimerActive?'⏸ Pause':'▶ Resume'}</button>
+                  <button onClick={()=>{setPullupTimerActive(false);doFinishSet();}} style={{padding:'12px 14px',borderRadius:10,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,cursor:'pointer',fontFamily:'inherit',fontSize:'0.8rem'}}>Done ✓</button>
+                </div>
+              </div>
+            )}
+            {(ex.type==='rep'||ex.type==='groove')&&pullupTimerMode==='idle'&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
+                <div style={{fontSize:'0.76rem',color:G.textSoft}}><strong style={{color:exColor}}>{totalReps} reps</strong> · UP fast · HOLD · 3-2-1 down</div>
+                <button onClick={()=>{setPullupRepIdx(0);setPullupCadenceStep(0);setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerMode('cadence');setPullupTimerActive(true);}} style={{...btnGreen,background:`linear-gradient(135deg,#1e3a5f,${exColor})`,width:'100%'}}>▶ Start Set {pullupSetIdx+1} — {totalReps} Reps</button>
+              </div>
+            )}
+            {(ex.type==='rep'||ex.type==='groove')&&pullupTimerMode==='cadence'&&(
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+                <div style={{fontSize:'0.68rem',color:G.textSoft,fontWeight:600}}>Rep {pullupRepIdx+1} of {totalReps}</div>
+                <div style={{...card,background:cadStep.bg,border:`3px solid ${cadStep.color}`,textAlign:'center',padding:'20px 16px',width:'100%'}}>
+                  <div style={{fontSize:'2.6rem',fontWeight:900,color:cadStep.color,marginBottom:4}}>{cadStep.label}</div>
+                  <div style={{fontSize:'0.74rem',color:cadStep.color,fontWeight:600}}>{cadStep.sub}</div>
+                </div>
+                <div style={{display:'flex',gap:4}}>
+                  {Array.from({length:totalReps}).map((_,i)=>(
+                    <div key={i} style={{width:10,height:10,borderRadius:'50%',background:i<pullupRepIdx?exColor:i===pullupRepIdx?exColor+'88':'#e5e7eb'}}/>
+                  ))}
+                </div>
+                <button onClick={()=>setPullupTimerActive(a=>!a)} style={{padding:'12px 32px',borderRadius:10,border:'none',background:pullupTimerActive?exColor:'#6b7280',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>{pullupTimerActive?'⏸ Pause':'▶ Resume'}</button>
+              </div>
+            )}
+            {ex.type==='carry'&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{...card,background:'#faf5ff',border:`2px solid ${exColor}33`,textAlign:'center',padding:16}}>
+                  <div style={{fontSize:'1.4rem',marginBottom:6}}>🥊</div>
+                  <div style={{fontSize:'0.84rem',fontWeight:700,color:exColor,marginBottom:4}}>Walk {ex.steps} Steps</div>
+                  <div style={{fontSize:'0.68rem',color:G.textSoft}}>Grip those dumbbells. Don't set them down. Count your steps.</div>
+                </div>
+                <button onClick={doFinishSet} style={{...btnGreen,background:`linear-gradient(135deg,#1e3a5f,${exColor})`}}>✅ Done — {ex.steps} Steps Complete</button>
+              </div>
+            )}
+            {ex.type==='maxrep'&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{...card,background:'#faf5ff',border:`2px solid ${exColor}33`,textAlign:'center',padding:16}}>
+                  <div style={{fontSize:'0.78rem',fontWeight:700,color:exColor,marginBottom:10}}>How many reps did you do?</div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
+                    <button onClick={()=>setPullupMaxRepsInput(r=>String(Math.max(0,(parseInt(r)||0)-1)))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>-</button>
+                    <input type="number" value={pullupMaxRepsInput} onChange={e=>setPullupMaxRepsInput(e.target.value)} placeholder="0" style={{width:70,textAlign:'center',border:`2px solid ${exColor}`,borderRadius:8,padding:'8px',fontSize:'1.6rem',fontWeight:900,color:G.text}}/>
+                    <button onClick={()=>setPullupMaxRepsInput(r=>String((parseInt(r)||0)+1))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>+</button>
+                  </div>
+                </div>
+                <button onClick={()=>{setPullupMaxRepsInput('');doFinishSet();}} style={{...btnGreen,background:`linear-gradient(135deg,#1e3a5f,${exColor})`}}>✅ Log It — Next</button>
+              </div>
+            )}
+            <button onClick={doFinishSet} style={{background:'transparent',border:'none',color:G.textSoft,fontSize:'0.66rem',cursor:'pointer',fontFamily:'inherit',textAlign:'center',marginTop:'auto',paddingTop:8}}>Skip this exercise →</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── SESSION COMPLETE ──
+    if(pullupPhase==='complete'){
+      const RATING_OPTIONS=[
+        {id:'tooEasy',emoji:'😅',label:'Too Easy',desc:'Add 10 lbs next session',delta:{oneArmRowR:10,oneArmRowL:10,latPulldown:10,seatedRow:10,hammerCurls:10,facePulls:5}},
+        {id:'justRight',emoji:'💪',label:'Just Right',desc:'Add 5 lbs next session',delta:{oneArmRowR:5,oneArmRowL:5,latPulldown:5,seatedRow:5,hammerCurls:5,facePulls:5}},
+        {id:'hardDone',emoji:'😤',label:'Hard But Done',desc:'Same weight next session',delta:{oneArmRowR:0,oneArmRowL:0,latPulldown:0,seatedRow:0,hammerCurls:0,facePulls:0}},
+        {id:'tooHard',emoji:'😵',label:'Too Hard',desc:'Drop 5 lbs next session',delta:{oneArmRowR:-5,oneArmRowL:-5,latPulldown:-5,seatedRow:-5,hammerCurls:-5,facePulls:-5}},
+      ];
+      const isFinal=pullupSessionNum===24;
+      const selectedRating=RATING_OPTIONS.find(r=>r.id===pullupRating);
+
+      async function savePUSession(){
+        if(!pullupRating) return;
+        const deltas=selectedRating.delta;
+        const newWeights={};
+        Object.keys(pullupSessionWeights).forEach(k=>{newWeights[k]=Math.max(5,(pullupSessionWeights[k]||0)+(deltas[k]||0));});
+        const weekOf=getPUWeekStr(new Date());
+        const newSess={sessionNum:pullupSessionNum,date:todayStr(),weekOf,rating:pullupRating,weights:{...pullupSessionWeights}};
+        const existing=pullupData.completedSessions||[];
+        const alreadySaved=existing.some(s=>s.sessionNum===pullupSessionNum);
+        const newSessions=alreadySaved?existing:[...existing,newSess];
+        savePullupData({...pullupData,currentWeights:newWeights,completedSessions:newSessions});
+        setPullupPhase('sessions');
+      }
+
+      return(
+        <div style={{flex:1,overflowY:'auto',padding:20,display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center'}}>
+          {isFinal?(
+            <div style={{...card,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',border:'none',width:'100%',textAlign:'center',padding:24}}>
+              <div style={{fontSize:'3.5rem',marginBottom:8}}>🏆</div>
+              <div style={{fontSize:'1.2rem',fontWeight:900,color:'#fff',marginBottom:6}}>You Did It!</div>
+              <div style={{fontSize:'0.78rem',color:'#93c5fd',lineHeight:1.8}}>10 Pull-Ups. 24 Sessions. 8 Weeks of showing up.<br/>With God, everything is possible. 🙏</div>
+            </div>
+          ):(
+            <div>
+              <div style={{fontSize:'3rem',marginBottom:8}}>✅</div>
+              <div style={{fontSize:'1.1rem',fontWeight:900,color:'#1d4ed8'}}>Session {pullupSessionNum} Complete!</div>
+              <div style={{fontSize:'0.72rem',color:G.textSoft,marginTop:4}}>Every rep is building something great. Keep showing up.</div>
+            </div>
+          )}
+          <div style={{...card,background:'#eff6ff',border:'1px solid #bfdbfe',width:'100%'}}>
+            <div style={{fontSize:'0.72rem',fontWeight:700,color:'#1d4ed8',marginBottom:8}}>⚡ How was today's workout?</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {RATING_OPTIONS.map(r=>(
+                <button key={r.id} onClick={()=>setPullupRating(r.id)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',borderRadius:10,border:`2px solid ${pullupRating===r.id?'#1d4ed8':G.border}`,background:pullupRating===r.id?'#dbeafe':G.cream,cursor:'pointer',textAlign:'left',fontFamily:'inherit'}}>
+                  <span style={{fontSize:'1.4rem'}}>{r.emoji}</span>
+                  <div>
+                    <div style={{fontSize:'0.78rem',fontWeight:700,color:pullupRating===r.id?'#1d4ed8':G.text}}>{r.label}</div>
+                    <div style={{fontSize:'0.62rem',color:G.textSoft}}>{r.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedRating&&(
+            <div style={{...card,background:'#f0fdf4',border:'1px solid #bbf7d0',width:'100%',textAlign:'left'}}>
+              <div style={{fontSize:'0.62rem',fontWeight:700,color:'#059669',marginBottom:6}}>📈 NEXT SESSION TARGETS</div>
+              {getPUPhaseData(pullupSessionNum).gym.map(e=>{
+                const curr=pullupSessionWeights[e.key]||0;
+                const delta=selectedRating.delta[e.key]||0;
+                return(
+                  <div key={e.key} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:`1px solid #d1fae5`,fontSize:'0.68rem'}}>
+                    <span style={{color:G.text}}>{e.name}</span>
+                    <span style={{color:'#059669',fontWeight:700}}>{curr} → {Math.max(5,curr+delta)} lbs</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <button onClick={savePUSession} disabled={!pullupRating} style={{...btnGreen,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',width:'100%',opacity:pullupRating?1:0.5}}>
+            💾 Save Session & Continue
+          </button>
+          {isFinal&&(
+            <div style={{...card,background:'linear-gradient(135deg,#065f46,#059669)',border:'none',width:'100%',textAlign:'center'}}>
+              <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,.8)',marginBottom:6}}>Ready for the next challenge?</div>
+              <div style={{fontSize:'0.9rem',fontWeight:800,color:'#fff',marginBottom:4}}>Zero to 15 Pull-Ups 💪</div>
+              <div style={{fontSize:'0.66rem',color:'rgba(255,255,255,.7)'}}>Coming soon — you've earned it!</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  }
   if(gymMode==="machine") return renderMachineCircuit();
   return null;
 }
