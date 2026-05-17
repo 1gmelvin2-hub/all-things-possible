@@ -5359,7 +5359,31 @@ function advanceHiit(){
     ];
     const warmdownFull=[...abExs,...warmdownExs].slice(0,8);
 
-   const mins=parseInt(hiitDuration)||45;
+   // ── FOOTWORK POOL (for 60-min) ──
+    const footworkPool60=workoutRows.slice(1).filter(r=>(r[1]||'').toLowerCase()==='shadow boxing'&&(r[2]||'').toLowerCase()==='defensive footwork').map(r=>({name:r[0]||'',instructions:r[5]||'Stay light on your feet',duration:20}));
+    const fwShuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
+    const fwPool60=footworkPool60.length>=4?fwShuffle(footworkPool60):[
+      {name:'Circle Left',instructions:'Circle left — stay light on your feet',duration:20},
+      {name:'Bob & Weave',instructions:'Bob and weave — hands up',duration:20},
+      {name:'Roll Right',instructions:'Roll right — stay low and move',duration:20},
+      {name:'Slip Left',instructions:'Slip left — quick and sharp',duration:20},
+      {name:'Circle Right',instructions:'Circle right — keep moving',duration:20},
+      {name:'Side Step Left',instructions:'Side step left — create the angle',duration:20},
+      {name:'Backstep Reset',instructions:'Backstep and reset your stance',duration:20},
+      {name:'Roll Left',instructions:'Roll left — stay low',duration:20},
+    ];
+    function buildFWRound(bagExs,fwPool,offset){
+      const punches=[bagExs[0],bagExs[1],bagExs[2],bagExs[3]].filter(Boolean).map(e=>({...e,duration:60}));
+      const result=[];
+      punches.forEach((punch,i)=>{result.push(punch);result.push({...fwPool[(offset+i)%fwPool.length],duration:20});});
+      return result;
+    }
+    function buildFWSpeedRound(punches,fwPool,offset){
+      const result=[];
+      punches.forEach((punch,i)=>{result.push({...punch,duration:60});result.push({...fwPool[(offset+i)%fwPool.length],duration:20});});
+      return result;
+    }
+    const mins=parseInt(hiitDuration)||45;
     const blocks=mins<=30?[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,4)},
@@ -5378,83 +5402,24 @@ function advanceHiit(){
       {name:"⚡ Speed Round",color:"#fbbf24",restBetween:15,exercises:speedExs.slice(0,4)},
       {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs3[0]||{}),name:`Combo 1: ${bagExs3[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs3[1]||{}),name:`Combo 2: ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs3[0]||{}),name:`Combined: ${bagExs3[0]?.name||"Jab-Cross"} + ${bagExs3[1]?.name||"Hook-Uppercut"}`,duration:60}]},
       {name:"🤸 Warm Down & Abs",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,8)},
-  ]:mins<=60?(...(()=>{
-      // Pull footwork drills — 20s each, woven between every punch combo
-      const footworkPool=workoutRows.slice(1).filter(r=>(r[1]||'').toLowerCase()==='shadow boxing'&&(r[2]||'').toLowerCase()==='defensive footwork').map(r=>({name:r[0]||'',instructions:r[5]||'Stay light on your feet',duration:20}));
-      const shuffle=arr=>[...arr].sort(()=>Math.random()-0.5);
-      const fwShuffled=footworkPool.length>=4?shuffle(footworkPool):[
-        {name:'Circle Left',instructions:'Circle left — stay light on your feet',duration:20},
-        {name:'Bob & Weave',instructions:'Bob and weave — keep your hands up',duration:20},
-        {name:'Roll Right',instructions:'Roll right — stay low and move',duration:20},
-        {name:'Slip Left',instructions:'Slip left — quick and sharp',duration:20},
-        {name:'Circle Right',instructions:'Circle right — stay moving',duration:20},
-        {name:'Side Step Left',instructions:'Side step left — create the angle',duration:20},
-        {name:'Backstep Reset',instructions:'Backstep and reset your stance',duration:20},
-        {name:'Roll Left',instructions:'Roll left — stay low',duration:20},
-      ];
-      // Weave footwork between punch combos for a round
-      function buildRound(bagExs,fwPool,fwOffset){
-        const punches=[
-          {...(bagExs[0]||{}),duration:60},
-          {...(bagExs[1]||{}),duration:60},
-          {...(bagExs[2]||{}),duration:60},
-          {...(bagExs[3]||{}),duration:60},
-        ].filter(e=>e.name);
-        const result=[];
-        punches.forEach((punch,i)=>{
-          result.push(punch);
-          const fw=fwPool[(fwOffset+i)%fwPool.length];
-          result.push({...fw,duration:20});
-        });
-        return result;
-      }
-      const fwPool=fwShuffled.length>0?fwShuffled:[{name:'Circle Left',instructions:'Circle left',duration:20}];
-      // Speed round punch list — use Speed Punching from sheet
-      const speedPunches=shuffle(speedExs).slice(0,4);
-      function buildSpeedRound(punches,fwPool,fwOffset){
-        const result=[];
-        punches.forEach((punch,i)=>{
-          result.push({...punch,duration:60});
-          result.push({...fwPool[(fwOffset+i)%fwPool.length],duration:20});
-        });
-        return result;
-      }
-      return[
-        // WARM UP — 3 exercises
-        {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,3)},
-        // SHADOW BOXING — 3 exercises
-        {name:"🥊 Shadow Boxing",color:G.green,restBetween:0,exercises:shadowExs.slice(0,3)},
-        // SPEED ROUND 1 — punch → footwork → punch → footwork
-        {name:"⚡ Speed Round 1",color:"#fbbf24",restBetween:0,exercises:buildSpeedRound(speedPunches,fwPool,0)},
-        // HEAVY BAG ROUND 1 — punch → footwork woven
-        {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs1,fwPool,0)},
-        // HEAVY BAG ROUND 2
-        {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs2,fwPool,2)},
-        // CALISTHENICS 1
-        {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals1},
-        // HEAVY BAG ROUND 3
-        {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs3,fwPool,4)},
-        // WATER BREAK
-        {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Hydrate & Reset",instructions:"You earned it. Sip water, shake out your arms — second half coming!",duration:60}]},
-        // HEAVY BAG ROUND 4
-        {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs1,fwPool,1)},
-        // CALISTHENICS 2
-        {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals2},
-        // SPEED ROUND 2
-        {name:"⚡ Speed Round 2",color:"#fbbf24",restBetween:0,exercises:buildSpeedRound(shuffle(speedExs).slice(0,4),fwPool,2)},
-        // HEAVY BAG ROUND 5
-        {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs3,fwPool,3)},
-        // WATER BREAK 2
-        {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Last Water Break",instructions:"Almost there. Hydrate and lock in — final push incoming!",duration:60}]},
-        // CALISTHENICS 3
-        {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:[...cals1,...cals2].slice(0,4)},
-        // HEAVY BAG ROUND 6 — final push
-        {name:"💥 Round 6 — Finish Strong",color:G.mangoDeep,restBetween:0,exercises:buildRound(bagExs2,fwPool,5)},
-        // ABS & COOL DOWN — 5 exercises
-        {name:"🤸 Abs & Cool Down",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,5)},
-      ];
-    })())[
-    ]:[ 
+   ]:mins<=60?[
+      {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,3)},
+      {name:"🥊 Shadow Boxing",color:G.green,restBetween:0,exercises:shadowExs.slice(0,3)},
+      {name:"⚡ Speed Round 1",color:"#fbbf24",restBetween:0,exercises:buildFWSpeedRound(speedExs.slice(0,4),fwPool60,0)},
+      {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs1,fwPool60,0)},
+      {name:"💥 Heavy Bag Round 2",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs2,fwPool60,2)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals1},
+      {name:"💥 Heavy Bag Round 3",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs3,fwPool60,4)},
+      {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Hydrate & Reset",instructions:"You earned it. Sip water, shake out your arms — second half coming!",duration:60}]},
+      {name:"💥 Heavy Bag Round 4",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs1,fwPool60,1)},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:cals2},
+      {name:"⚡ Speed Round 2",color:"#fbbf24",restBetween:0,exercises:buildFWSpeedRound(fwShuffle(speedExs).slice(0,4),fwPool60,2)},
+      {name:"💥 Heavy Bag Round 5",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs3,fwPool60,3)},
+      {name:"💧 Water Break",color:"#06b6d4",restBetween:0,exercises:[{name:"Last Water Break",instructions:"Almost there. Lock in — final push incoming!",duration:60}]},
+      {name:"💪 Calisthenics",color:"#a78bfa",restBetween:0,exercises:[...cals1,...cals2].slice(0,4)},
+      {name:"💥 Round 6 — Finish Strong",color:G.mangoDeep,restBetween:0,exercises:buildFWRound(bagExs2,fwPool60,5)},
+      {name:"🤸 Abs & Cool Down",color:G.greenMid,restBetween:0,exercises:warmdownFull.slice(0,5)},
+    ]:[
       {name:"🔥 Warm-Up",color:"#60a5fa",restBetween:0,exercises:warmupExs.slice(0,5)},
       {name:"🥊 Shadow Boxing",color:G.green,restBetween:20,exercises:shadowExs.slice(0,6)},
       {name:"💥 Heavy Bag Round 1",color:G.mangoDeep,restBetween:20,exercises:[{...(bagExs1[0]||{}),name:`Combo 1: ${bagExs1[0]?.name||"Jab-Cross"}`,duration:60},{...(bagExs1[1]||{}),name:`Combo 2: ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60},{...(bagExs1[0]||{}),name:`Combined: ${bagExs1[0]?.name||"Jab-Cross"} + ${bagExs1[1]?.name||"Hook-Uppercut"}`,duration:60}]},
