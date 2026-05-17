@@ -2170,6 +2170,23 @@ const MACHINE_CIRCUITS={
   const [pullupRating,setPullupRating]=useState('');
   const [pullupMaxRepsInput,setPullupMaxRepsInput]=useState('');
   const pullupAdvRef=useRef(null);
+  // ── TONED ARMS STATE ──
+  const [taPhase,setTaPhase]=useState('');
+  const [taData,setTaData]=useState(()=>{try{return JSON.parse(localStorage.getItem('atp-toned-'+currentClient?.id)||'null')||null;}catch{return null;}});
+  const [taSessionNum,setTaSessionNum]=useState(1);
+  const [taExIdx,setTaExIdx]=useState(0);
+  const [taSetIdx,setTaSetIdx]=useState(0);
+  const [taRepIdx,setTaRepIdx]=useState(0);
+  const [taCadenceStep,setTaCadenceStep]=useState(0);
+  const [taTimer,setTaTimer]=useState(0);
+  const [taTimerActive,setTaTimerActive]=useState(false);
+  const [taTimerTotal,setTaTimerTotal]=useState(0);
+  const [taTimerMode,setTaTimerMode]=useState('idle');
+  const [taSessionWeights,setTaSessionWeights]=useState({});
+  const [taSavedWeights,setTaSavedWeights]=useState(()=>{try{return JSON.parse(localStorage.getItem('atp-toned-w-'+currentClient?.id)||'null')||{};}catch{return{};}});
+  const [taRating,setTaRating]=useState('');
+  const [taFinisherDone,setTaFinisherDone]=useState(false);
+  const taAdvRef=useRef(null);
 
 // Swap timer effect
   useEffect(()=>{
@@ -2222,6 +2239,14 @@ const MACHINE_CIRCUITS={
   useEffect(()=>{
     if(pullupTimerActive&&pullupTimer===0) pullupAdvRef.current?.();
   },[pullupTimerActive,pullupTimer]);
+  useEffect(()=>{
+    if(!taTimerActive||taTimer<=0) return;
+    const id=setTimeout(()=>setTaTimer(t=>t-1),1000);
+    return()=>clearTimeout(id);
+  },[taTimerActive,taTimer]);
+  useEffect(()=>{
+    if(taTimerActive&&taTimer===0) taAdvRef.current?.();
+  },[taTimerActive,taTimer]);
   function getCurrentWeek(){
     try{const prog=JSON.parse(localStorage.getItem("atp-program")||"{}");return prog[currentClient.id]?.currentWeek||1;}catch(e){return 1;}
   }
@@ -2449,6 +2474,7 @@ if(groupExs.length===0){
       {[
        {id:"blast",icon:"💥",label:"Quick Blast",desc:"30 min · Structured weekly split · Dumbbells · +5lbs every 2 weeks",color:"#ef4444"},
         {id:"pullup",icon:"🔼",label:"Pull-Up Program",desc:"8 weeks · Zero to 10 pull-ups · 24 sessions · Gym + skill work",color:"#1d4ed8"},
+        {id:"toned",icon:"💅",label:"Toned Arms",desc:"8 weeks · 24 sessions · Biceps, Triceps & Shoulders · Phase progression",color:"#db2777"},
         {id:"program",icon:"📈",label:"Full Program",desc:"45-90 min · Pick muscle groups · Progressive overload",color:"#6366f1"},
         {id:"machine",icon:"💪",label:"Machine Circuit",desc:"Lunch break friendly - 30-45 min",color:"#6b7280"},   
       ].map(m=>(
@@ -3873,6 +3899,451 @@ const renderMachineCircuit=()=>{
               <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,.8)',marginBottom:6}}>Ready for the next challenge?</div>
               <div style={{fontSize:'0.9rem',fontWeight:800,color:'#fff',marginBottom:4}}>Zero to 15 Pull-Ups 💪</div>
               <div style={{fontSize:'0.66rem',color:'rgba(255,255,255,.7)'}}>Coming soon — you've earned it!</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  }
+  if(gymMode==='toned'){
+    const TA_SCRIPTURES=[
+      {text:"She is clothed with strength and dignity; she can laugh at the days to come.",ref:"Proverbs 31:25"},
+      {text:"I praise you because I am fearfully and wonderfully made; your works are wonderful.",ref:"Psalm 139:14"},
+      {text:"The Lord will give strength to His people; the Lord will bless His people with peace.",ref:"Psalm 29:11"},
+      {text:"I can do all this through him who gives me strength.",ref:"Philippians 4:13"},
+      {text:"Be strong and courageous. Do not be afraid; do not be discouraged.",ref:"Joshua 1:9"},
+      {text:"She is more precious than rubies; nothing you desire can compare with her.",ref:"Proverbs 3:15"},
+      {text:"Your beauty should not come from outward adornment — it should be that of your inner self.",ref:"1 Peter 3:4"},
+      {text:"For God gave us a spirit not of fear but of power and love and self-control.",ref:"2 Timothy 1:7"},
+      {text:"Those who hope in the Lord will renew their strength. They will soar on wings like eagles.",ref:"Isaiah 40:31"},
+      {text:"Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up.",ref:"Galatians 6:9"},
+      {text:"Being confident of this, that he who began a good work in you will carry it on to completion.",ref:"Philippians 1:6"},
+      {text:"I sought the Lord, and he answered me; he delivered me from all my fears.",ref:"Psalm 34:4"},
+      {text:"I press on toward the goal to win the prize for which God has called me heavenward in Christ Jesus.",ref:"Philippians 3:14"},
+      {text:"She opens her arms to the poor and extends her hands to the needy.",ref:"Proverbs 31:20"},
+      {text:"No, in all these things we are more than conquerors through him who loved us.",ref:"Romans 8:37"},
+      {text:"God is our refuge and strength, an ever-present help in trouble.",ref:"Psalm 46:1"},
+      {text:"For nothing will be impossible with God.",ref:"Luke 1:37"},
+      {text:"But as for you, be strong and do not give up, for your work will be rewarded.",ref:"2 Chronicles 15:7"},
+      {text:"The Lord himself goes before you and will be with you; he will never leave you nor forsake you.",ref:"Deuteronomy 31:8"},
+      {text:"She is worth far more than rubies.",ref:"Proverbs 31:10"},
+      {text:"Charm is deceptive and beauty is fleeting, but a woman who fears the Lord is to be praised.",ref:"Proverbs 31:30"},
+      {text:"I have fought the good fight, I have finished the race, I have kept the faith.",ref:"2 Timothy 4:7"},
+      {text:"With man this is impossible, but with God all things are possible.",ref:"Matthew 19:26"},
+      {text:"She laughs at the days to come.",ref:"Proverbs 31:25"},
+    ];
+    const TA_CADENCE=[
+      {label:'↑ UP!',sub:'Lift with control!',color:'#db2777',bg:'#fff0f6'},
+      {label:'● HOLD',sub:'Squeeze at top',color:'#f59e0b',bg:'#fffbeb'},
+      {label:'3 ↓',sub:'Lower slowly',color:'#9333ea',bg:'#faf5ff'},
+      {label:'2 ↓',sub:'Stay controlled',color:'#9333ea',bg:'#faf5ff'},
+      {label:'1 ↓',sub:'All the way down',color:'#9333ea',bg:'#faf5ff'},
+    ];
+    const TA_EXERCISES={
+      A:{name:'Shoulders + Triceps',
+        standard:[
+          {name:'Dumbbell Shoulder Press',muscles:'Shoulders, Triceps',key:'dShoulderPress',startWeight:20,instructions:'Press overhead from ear height. Lock out at top. Lower in 3 count.'},
+          {name:'Lateral Raises',muscles:'Side Delts',key:'lateralRaise',startWeight:10,instructions:'Raise arms to shoulder height. Lead with elbows. Control the descent.'},
+          {name:'Tricep Pressdown',muscles:'Triceps',key:'tricepPressdown',startWeight:20,instructions:'Keep elbows pinned to sides. Press straight down. Slow 3-count return.'},
+          {name:'Overhead Tricep Extension',muscles:'Triceps',key:'overheadExt',startWeight:15,instructions:'Hold dumbbell overhead. Lower behind head slowly. Extend fully.'},
+        ],
+        p4:[
+          {name:'Dumbbell Shoulder Press',muscles:'Shoulders',key:'dShoulderPress',startWeight:20,instructions:'Press overhead. Strong and controlled.'},
+          {name:'Lateral Raises',muscles:'Side Delts',key:'lateralRaise',startWeight:10,instructions:'Raise to shoulder height. Lead with elbows.'},
+          {name:'Bicep Curl',muscles:'Biceps',key:'bicepCurl',startWeight:15,instructions:'Curl to shoulders. Squeeze hard at top.',supersetStart:true},
+          {name:'Tricep Pressdown',muscles:'Triceps',key:'tricepPressdown',startWeight:20,instructions:'Press down. Elbows pinned. Squeeze at bottom.',supersetPair:true},
+          {name:'Hammer Curl',muscles:'Biceps, Forearms',key:'hammerCurl',startWeight:15,instructions:'Neutral grip curl. Control the descent.',supersetStart:true},
+          {name:'Overhead Tricep Extension',muscles:'Triceps',key:'overheadExt',startWeight:15,instructions:'Lower behind head. Extend fully.',supersetPair:true},
+        ],
+      },
+      B:{name:'Biceps + Shoulders',
+        standard:[
+          {name:'Dumbbell Bicep Curl',muscles:'Biceps',key:'bicepCurl',startWeight:15,instructions:'Curl from hips to shoulders. Squeeze hard at top. Slow 3-count return.'},
+          {name:'Hammer Curl',muscles:'Biceps, Forearms',key:'hammerCurl',startWeight:15,instructions:'Neutral grip. Curl alternating. Control the descent fully.'},
+          {name:'Rear Delt Fly',muscles:'Rear Delts',key:'rearDeltFly',startWeight:10,instructions:'Bent over. Raise elbows out and up. Squeeze rear delts hard.'},
+          {name:'Front Raises',muscles:'Front Delts',key:'frontRaise',startWeight:10,instructions:'Raise to eye level. Keep slight bend in elbows. Slow descent.'},
+        ],
+        p4:[
+          {name:'Dumbbell Bicep Curl',muscles:'Biceps',key:'bicepCurl',startWeight:15,instructions:'Curl to shoulders. Squeeze hard.',supersetStart:true},
+          {name:'Tricep Pressdown',muscles:'Triceps',key:'tricepPressdown',startWeight:20,instructions:'Press down. Keep elbows pinned.',supersetPair:true},
+          {name:'Hammer Curl',muscles:'Biceps, Forearms',key:'hammerCurl',startWeight:15,instructions:'Neutral grip curl. Control descent.',supersetStart:true},
+          {name:'Overhead Tricep Extension',muscles:'Triceps',key:'overheadExt',startWeight:15,instructions:'Lower behind head. Extend fully.',supersetPair:true},
+          {name:'Rear Delt Fly',muscles:'Rear Delts',key:'rearDeltFly',startWeight:10,instructions:'Bent over. Raise elbows out. Squeeze rear delts.'},
+          {name:'Front Raises',muscles:'Front Delts',key:'frontRaise',startWeight:10,instructions:'Raise to eye level. Slow descent.'},
+        ],
+      },
+      C:{name:'Full Arms',
+        standard:[
+          {name:'Dumbbell Shoulder Press',muscles:'Shoulders',key:'dShoulderPress',startWeight:20,instructions:'Press overhead. Strong and controlled. Lower in 3 count.'},
+          {name:'Cable Bicep Curl',muscles:'Biceps',key:'cableCurl',startWeight:15,instructions:'Keep elbows pinned. Curl smoothly. Squeeze at top.'},
+          {name:'Rope Tricep Pressdown',muscles:'Triceps',key:'ropePressdown',startWeight:20,instructions:'Lean slightly forward. Press rope down and apart. Squeeze triceps.'},
+          {name:'Lateral Raises',muscles:'Side Delts',key:'lateralRaise',startWeight:10,instructions:'Raise to shoulder height. Lead with elbows.'},
+        ],
+        p4:[
+          {name:'Dumbbell Shoulder Press',muscles:'Shoulders',key:'dShoulderPress',startWeight:20,instructions:'Press overhead. Strong and controlled.'},
+          {name:'Lateral Raises',muscles:'Side Delts',key:'lateralRaise',startWeight:10,instructions:'Raise to shoulder height. Lead with elbows.'},
+          {name:'Cable Bicep Curl',muscles:'Biceps',key:'cableCurl',startWeight:15,instructions:'Keep elbows pinned. Curl smoothly.',supersetStart:true},
+          {name:'Rope Tricep Pressdown',muscles:'Triceps',key:'ropePressdown',startWeight:20,instructions:'Press rope down and apart. Squeeze triceps.',supersetPair:true},
+          {name:'Hammer Curl',muscles:'Biceps, Forearms',key:'hammerCurl',startWeight:15,instructions:'Neutral grip curl. Control descent.',supersetStart:true},
+          {name:'Overhead Tricep Extension',muscles:'Triceps',key:'overheadExt',startWeight:15,instructions:'Lower behind head. Extend fully.',supersetPair:true},
+        ],
+      },
+    };
+    const TA_FINISHERS={
+      1:{name:'1-Min Arm Circuit 🔥',instructions:'Grab light dumbbells. Alternate curls and pressdowns with zero rest. Keep moving for the full 60 seconds!',duration:60},
+      2:{name:'Curls + Dips Burnout 🔥',instructions:'Lighter dumbbells. Curl to near failure, then immediately do chair dips to near failure. One round, no stopping!',duration:90},
+      3:{name:'Slow Eccentric Burnout 🔥',instructions:'Pick your hardest exercise. 8 reps with a 5-second lowering phase on every rep. Arms should be on fire!',duration:0,reps:8},
+      4:{name:'2-Min Superset Burn 🔥',instructions:'Alternate bicep curls and tricep pressdowns with zero rest for 2 full minutes. Maximum pump. Maximum definition!',duration:120},
+    };
+    function getTAScheme(n){
+      if(n<=6) return{sets:3,reps:12,repsLabel:'10-12',phase:1,label:'Foundation',color:'#db2777'};
+      if(n<=12) return{sets:4,reps:15,repsLabel:'12-15',phase:2,label:'Volume',color:'#9333ea'};
+      if(n<=18) return{sets:4,reps:12,repsLabel:'8-12',phase:3,label:'Intensity',color:'#0891b2'};
+      return{sets:4,reps:15,repsLabel:'12-15',phase:4,label:'Peak Tone',color:'#059669',supersets:true};
+    }
+    function getTADayData(n){
+      const scheme=getTAScheme(n);
+      const dayKey=['A','B','C'][(n-1)%3];
+      const day=TA_EXERCISES[dayKey];
+      return{dayName:day.name,dayKey,exercises:scheme.phase===4?day.p4:day.standard,finisher:TA_FINISHERS[scheme.phase]};
+    }
+    function getTAWeekStr(d){
+      const dt=new Date(d);const jan1=new Date(dt.getFullYear(),0,1);
+      return dt.getFullYear()+'-W'+Math.ceil(((dt-jan1)/86400000+jan1.getDay()+1)/7);
+    }
+    function saveTaData(nd){
+      setTaData(nd);
+      try{localStorage.setItem('atp-toned-'+currentClient.id,JSON.stringify(nd));sbSetGlobal('atp-toned-'+currentClient.id,nd);}catch{}
+    }
+    const completedTA=taData?.completedSessions||[];
+    const completedTANums=completedTA.map(s=>s.sessionNum);
+    const nextTANum=Math.min(completedTANums.length+1,24);
+    const taWeekCount=completedTA.filter(s=>s.weekOf===getTAWeekStr(new Date())).length;
+    const taAtLimit=taWeekCount>=3;
+
+    // ── SESSION LIST ──
+    if(!taPhase||taPhase==='sessions'){
+      const phaseLabels=['Foundation','Volume','Intensity','Peak Tone'];
+      const phaseColors=['#db2777','#9333ea','#0891b2','#059669'];
+      return(
+        <div style={{flex:1,overflowY:'auto',padding:14,display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{...card,background:'linear-gradient(135deg,#831843,#db2777)',border:'none'}}>
+            <div style={{fontSize:'0.6rem',color:'rgba(255,255,255,.75)',letterSpacing:'2px',textTransform:'uppercase',marginBottom:6}}>💅 Toned Arms</div>
+            <div style={{fontSize:'0.9rem',fontWeight:800,color:'#fff',marginBottom:8}}>8-Week Arm Toning Program</div>
+            <div style={{display:'flex',gap:20}}>
+              {[['Done',completedTANums.length],['Left',24-completedTANums.length],['This Week',taWeekCount+'/3']].map(([l,v])=>(
+                <div key={l} style={{textAlign:'center'}}>
+                  <div style={{fontSize:'1.3rem',fontWeight:900,color:l==='This Week'&&taAtLimit?'#fda4af':'#fbcfe8'}}>{v}</div>
+                  <div style={{fontSize:'0.56rem',color:'rgba(255,255,255,.7)'}}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {taAtLimit&&<div style={{...card,background:'#fef2f2',border:'1px solid #fecaca'}}>
+            <div style={{fontSize:'0.76rem',fontWeight:700,color:'#dc2626'}}>🛑 3 Sessions Done This Week</div>
+            <div style={{fontSize:'0.68rem',color:'#7f1d1d',marginTop:4,lineHeight:1.6}}>Your muscles grow during rest. Come back next week stronger! 💅</div>
+          </div>}
+          {[1,2,3,4].map(ph=>{
+            const nums=Array.from({length:6},(_,i)=>(ph-1)*6+i+1);
+            const color=phaseColors[ph-1];
+            return(
+              <div key={ph}>
+                <div style={{fontSize:'0.62rem',fontWeight:800,color,letterSpacing:'1px',textTransform:'uppercase',marginBottom:8,paddingLeft:2}}>Phase {ph} — {phaseLabels[ph-1]}</div>
+                {nums.map(num=>{
+                  const done=completedTANums.includes(num);
+                  const isNext=num===nextTANum&&!taAtLimit;
+                  const locked=!done&&num>nextTANum;
+                  const sc=TA_SCRIPTURES[num-1];
+                  const d=getTADayData(num);
+                  return(
+                    <button key={num} disabled={locked||taAtLimit} onClick={()=>{
+                      const initW={};
+                      d.exercises.forEach(e=>{initW[e.key]=taSavedWeights[e.key]||e.startWeight;});
+                      setTaSessionWeights(initW);
+                      setTaSessionNum(num);setTaExIdx(0);setTaSetIdx(0);
+                      setTaRepIdx(0);setTaCadenceStep(0);
+                      setTaTimerMode('idle');setTaTimerActive(false);
+                      setTaRating('');setTaFinisherDone(false);setTaPhase('active');
+                    }} style={{...card,cursor:locked||taAtLimit?'default':'pointer',textAlign:'left',width:'100%',opacity:locked?0.4:1,border:`2px solid ${done?color+'55':isNext?color:G.border}`,background:done?color+'08':isNext?color+'11':G.cream,padding:'10px 12px',marginBottom:6}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div style={{width:34,height:34,borderRadius:'50%',background:done?color:isNext?color+'22':'#f3f4f6',border:`2px solid ${done||isNext?color:G.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.75rem',fontWeight:800,color:done?'#fff':isNext?color:G.textSoft,flexShrink:0}}>{done?'✓':num}</div>
+                        <div style={{flex:1}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <span style={{fontSize:'0.78rem',fontWeight:700,color:done?G.textSoft:isNext?color:G.text}}>Session {num} — {d.dayName}</span>
+                            {isNext&&<span style={{fontSize:'0.56rem',background:color,color:'#fff',padding:'1px 7px',borderRadius:10,fontWeight:700}}>NEXT</span>}
+                          </div>
+                          <div style={{fontSize:'0.58rem',color:G.textSoft,marginTop:1,fontStyle:'italic'}}>{sc.ref}</div>
+                        </div>
+                        {!locked&&!done&&<span style={{color,fontSize:'0.8rem'}}>▸</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          <button onClick={()=>setGymMode('')} style={{background:'transparent',border:'none',color:G.textSoft,fontSize:'0.72rem',cursor:'pointer',fontFamily:'inherit',textAlign:'center',marginTop:4}}>← Back to gym modes</button>
+        </div>
+      );
+    }
+
+    // ── ACTIVE SESSION ──
+    if(taPhase==='active'){
+      const scheme=getTAScheme(taSessionNum);
+      const {dayName,exercises:dayExercises,finisher}=getTADayData(taSessionNum);
+      const scripture=TA_SCRIPTURES[taSessionNum-1];
+      const totalSets=scheme.sets;
+      const totalReps=scheme.reps;
+      const inFinisher=taExIdx>=dayExercises.length;
+      const ex=inFinisher?null:dayExercises[Math.min(taExIdx,dayExercises.length-1)];
+      const cadStep=TA_CADENCE[Math.min(taCadenceStep,4)];
+      const taCirc=2*Math.PI*52;
+      const timerProg=taTimerTotal>0?taTimer/taTimerTotal:0;
+      const currentWeight=ex?taSessionWeights[ex.key]||ex.startWeight||0:0;
+
+      function doTAFinishSet(){
+        setTaRepIdx(0);setTaCadenceStep(0);
+        if(taSetIdx+1<totalSets){
+          setTaSetIdx(s=>s+1);
+          setTaTimer(40);setTaTimerTotal(40);setTaTimerMode('rest');setTaTimerActive(true);
+        } else {
+          const nextIdx=taExIdx+1;
+          setTaExIdx(nextIdx);setTaSetIdx(0);
+          if(nextIdx<dayExercises.length){
+            const nextEx=dayExercises[nextIdx];
+            const restSec=nextEx?.supersetPair?5:40;
+            const mode=nextEx?.supersetPair?'supersetRest':'rest';
+            setTaTimer(restSec);setTaTimerTotal(restSec);setTaTimerMode(mode);setTaTimerActive(true);
+          } else {
+            setTaTimerMode('idle');setTaTimerActive(false);
+          }
+        }
+      }
+
+      taAdvRef.current=()=>{
+        setTaTimerActive(false);
+        if(taTimerMode==='rest'||taTimerMode==='supersetRest'){setTaTimerMode('idle');playBeep('up');}
+        else if(taTimerMode==='finisher'){setTaFinisherDone(true);setTaTimerMode('idle');playBeep('done');}
+        else if(taTimerMode==='cadence'){
+          const ns=taCadenceStep+1;
+          if(ns<5){
+            if(ns===1)playBeep('hold');else playBeep('down');
+            setTaCadenceStep(ns);setTaTimer(1);setTaTimerTotal(1);setTaTimerActive(true);
+          } else {
+            const nr=taRepIdx+1;
+            if(nr<totalReps){playBeep('up');setTaRepIdx(nr);setTaCadenceStep(0);setTaTimer(1);setTaTimerTotal(1);setTaTimerActive(true);}
+            else{playBeep('done');doTAFinishSet();}
+          }
+        }
+      };
+
+      // REST SCREEN
+      if(taTimerMode==='rest'||taTimerMode==='supersetRest') return(
+        <div style={{flex:1,display:'flex',flexDirection:'column',background:taTimerMode==='supersetRest'?'#fff0f6':'#f0fdf4',alignItems:'center',justifyContent:'center',gap:16,padding:20}}>
+          <div style={{fontSize:'0.72rem',fontWeight:700,color:taTimerMode==='supersetRest'?'#db2777':'#059669',letterSpacing:'1px',textTransform:'uppercase'}}>
+            {taTimerMode==='supersetRest'?'5s — SUPERSET! 💅':'40s Rest 💚'}
+          </div>
+          <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+            <svg width="160" height="160" style={{transform:'rotate(-90deg)'}}>
+              <circle cx="80" cy="80" r="52" fill="none" stroke={taTimerMode==='supersetRest'?'#fbcfe8':'#bbf7d0'} strokeWidth="10"/>
+              <circle cx="80" cy="80" r="52" fill="none" stroke={taTimerMode==='supersetRest'?'#db2777':'#059669'} strokeWidth="10" strokeDasharray={`${taCirc*timerProg} ${taCirc}`} strokeLinecap="round"/>
+            </svg>
+            <div style={{position:'absolute',textAlign:'center'}}>
+              <div style={{fontSize:'2.8rem',fontWeight:900,color:taTimerMode==='supersetRest'?'#db2777':'#059669',lineHeight:1}}>{taTimer}</div>
+              <div style={{fontSize:'0.62rem',fontWeight:700,color:taTimerMode==='supersetRest'?'#db2777':'#059669'}}>{taTimerMode==='supersetRest'?'SUPERSET':'REST'}</div>
+            </div>
+          </div>
+          {taExIdx<dayExercises.length&&<div style={{fontSize:'0.76rem',color:'#374151',textAlign:'center',fontWeight:600}}>Up Next: {dayExercises[taExIdx]?.name}</div>}
+          <button onClick={()=>{setTaTimerActive(false);setTaTimerMode('idle');}} style={{padding:'12px 32px',borderRadius:12,border:'none',background:taTimerMode==='supersetRest'?'#db2777':'#059669',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>Skip ⏭</button>
+        </div>
+      );
+
+      // FINISHER SCREEN
+      if(inFinisher) return(
+        <div style={{flex:1,display:'flex',flexDirection:'column',padding:14,gap:12,overflowY:'auto'}}>
+          <div style={{...card,background:'linear-gradient(135deg,#831843,#db2777)',border:'none',padding:'10px 14px'}}>
+            <div style={{fontSize:'0.64rem',color:'rgba(255,255,255,.7)',fontStyle:'italic',lineHeight:1.6}}>"{scripture.text}"</div>
+            <div style={{fontSize:'0.6rem',color:'#fbcfe8',marginTop:4,fontWeight:700}}>— {scripture.ref}</div>
+          </div>
+          <div style={{...card,background:'#fff0f6',border:'2px solid #db2777',textAlign:'center',padding:20}}>
+            <div style={{fontSize:'1.4rem',marginBottom:6}}>🔥</div>
+            <div style={{fontSize:'1rem',fontWeight:800,color:'#db2777',marginBottom:6}}>{finisher.name}</div>
+            <div style={{fontSize:'0.72rem',color:G.textSoft,lineHeight:1.7,marginBottom:12}}>{finisher.instructions}</div>
+            {taFinisherDone?(
+              <div style={{fontSize:'0.82rem',fontWeight:700,color:'#059669'}}>✅ Finisher Complete!</div>
+            ):finisher.duration>0?(
+              taTimerMode==='finisher'?(
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+                  <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+                    <svg width="120" height="120" style={{transform:'rotate(-90deg)'}}>
+                      <circle cx="60" cy="60" r="52" fill="none" stroke="#fbcfe8" strokeWidth="8"/>
+                      <circle cx="60" cy="60" r="52" fill="none" stroke="#db2777" strokeWidth="8" strokeDasharray={`${taCirc*timerProg} ${taCirc}`} strokeLinecap="round"/>
+                    </svg>
+                    <div style={{position:'absolute',textAlign:'center'}}>
+                      <div style={{fontSize:'2rem',fontWeight:900,color:'#db2777',lineHeight:1}}>{taTimer}</div>
+                      <div style={{fontSize:'0.58rem',color:'#db2777',fontWeight:700}}>GO!</div>
+                    </div>
+                  </div>
+                  <button onClick={()=>setTaTimerActive(a=>!a)} style={{padding:'10px 28px',borderRadius:10,border:'none',background:taTimerActive?'#db2777':'#6b7280',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>{taTimerActive?'⏸ Pause':'▶ Resume'}</button>
+                </div>
+              ):(
+                <button onClick={()=>{setTaTimer(finisher.duration);setTaTimerTotal(finisher.duration);setTaTimerMode('finisher');setTaTimerActive(true);}} style={{...btnGreen,background:'linear-gradient(135deg,#831843,#db2777)'}}>▶ Start — {finisher.duration}s</button>
+              )
+            ):(
+              <button onClick={()=>setTaFinisherDone(true)} style={{...btnGreen,background:'linear-gradient(135deg,#831843,#db2777)'}}>✅ Done — {finisher.reps} Reps Complete</button>
+            )}
+          </div>
+          {taFinisherDone&&<button onClick={()=>setTaPhase('complete')} style={{...btnGreen,background:'linear-gradient(135deg,#831843,#db2777)'}}>🏆 Complete Session {taSessionNum}</button>}
+        </div>
+      );
+
+      // MAIN EXERCISE SCREEN
+      return(
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflowY:'auto'}}>
+          <div style={{height:6,background:'#fce7f3'}}>
+            <div style={{height:'100%',width:`${(taExIdx/dayExercises.length)*100}%`,background:'linear-gradient(90deg,#831843,#db2777)',transition:'width .5s'}}/>
+          </div>
+          <div style={{flex:1,padding:14,display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{...card,background:'linear-gradient(135deg,#831843,#db2777)',border:'none',padding:'10px 14px'}}>
+              <div style={{fontSize:'0.64rem',color:'rgba(255,255,255,.7)',fontStyle:'italic',lineHeight:1.6}}>"{scripture.text}"</div>
+              <div style={{fontSize:'0.6rem',color:'#fbcfe8',marginTop:4,fontWeight:700}}>— {scripture.ref}</div>
+            </div>
+            <div style={{...card,border:'2px solid #db277733',background:'#fff0f6'}}>
+              <div style={{fontSize:'0.6rem',fontWeight:700,color:'#db2777',letterSpacing:'1px',textTransform:'uppercase',marginBottom:4}}>
+                {ex?.supersetPair?'🔗 SUPERSET PAIR':ex?.supersetStart?'🔗 SUPERSET START':'💅 Exercise'} · {taExIdx+1} of {dayExercises.length}
+              </div>
+              <div style={{fontSize:'1rem',fontWeight:800,color:G.text,marginBottom:4}}>{ex?.name}</div>
+              <div style={{fontSize:'0.66rem',color:G.textSoft,lineHeight:1.6,marginBottom:8}}>{ex?.instructions}</div>
+              <div style={{display:'flex',gap:4}}>
+                {Array.from({length:totalSets}).map((_,i)=>(
+                  <div key={i} style={{flex:1,height:5,borderRadius:3,background:i<taSetIdx?'#db2777':i===taSetIdx?'#db277788':'#e5e7eb'}}/>
+                ))}
+              </div>
+              <div style={{fontSize:'0.62rem',color:G.textSoft,marginTop:4}}>Set {taSetIdx+1} of {totalSets}</div>
+            </div>
+            <div style={{...card,padding:'10px 14px'}}>
+              <div style={{fontSize:'0.64rem',color:G.textSoft,fontWeight:700,textAlign:'center',marginBottom:6}}>Working Weight</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
+                <button onClick={()=>setTaSessionWeights(w=>({...w,[ex.key]:Math.max(0,(w[ex.key]||0)-5)}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>-</button>
+                <div style={{fontSize:'2.2rem',fontWeight:900,color:'#db2777',minWidth:70,textAlign:'center'}}>{currentWeight}</div>
+                <button onClick={()=>setTaSessionWeights(w=>({...w,[ex.key]:(w[ex.key]||0)+5}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>+</button>
+                <span style={{fontSize:'0.64rem',color:G.textSoft}}>lbs</span>
+              </div>
+            </div>
+            {taTimerMode==='idle'&&(
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
+                <div style={{display:'flex',gap:4}}>
+                  {Array.from({length:totalReps}).map((_,ri)=>(
+                    <div key={ri} style={{width:6,height:6,borderRadius:'50%',background:ri<taRepIdx?'#db2777':'#e5e7eb'}}/>
+                  ))}
+                </div>
+                <button onClick={()=>{setTaRepIdx(0);setTaCadenceStep(0);setTaTimer(1);setTaTimerTotal(1);setTaTimerMode('cadence');setTaTimerActive(true);}} style={{...btnGreen,background:'linear-gradient(135deg,#831843,#db2777)',width:'100%'}}>
+                  ▶ Start Set {taSetIdx+1} — {totalReps} Reps
+                </button>
+              </div>
+            )}
+            {taTimerMode==='cadence'&&(
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+                <div style={{fontSize:'0.68rem',color:G.textSoft,fontWeight:600}}>Rep {taRepIdx+1} of {totalReps}</div>
+                <div style={{...card,background:cadStep.bg,border:`3px solid ${cadStep.color}`,textAlign:'center',padding:'22px 16px',width:'100%'}}>
+                  <div style={{fontSize:'2.8rem',fontWeight:900,color:cadStep.color,marginBottom:4}}>{cadStep.label}</div>
+                  <div style={{fontSize:'0.78rem',color:cadStep.color,fontWeight:600}}>{cadStep.sub}</div>
+                </div>
+                <div style={{display:'flex',gap:4}}>
+                  {Array.from({length:totalReps}).map((_,ri)=>(
+                    <div key={ri} style={{width:7,height:7,borderRadius:'50%',background:ri<taRepIdx?'#db2777':ri===taRepIdx?'#db277788':'#e5e7eb'}}/>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:8,width:'100%'}}>
+                  <button onClick={()=>setTaTimerActive(a=>!a)} style={{flex:1,padding:'12px',borderRadius:10,border:'none',background:taTimerActive?'#db2777':'#6b7280',color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>{taTimerActive?'⏸ Pause':'▶ Resume'}</button>
+                  <button onClick={()=>{setTaTimerActive(false);doTAFinishSet();}} style={{padding:'12px 14px',borderRadius:10,border:`1px solid ${G.border}`,background:G.cream,color:G.textSoft,cursor:'pointer',fontFamily:'inherit',fontSize:'0.8rem'}}>Skip Set ⏭</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── COMPLETE ──
+    if(taPhase==='complete'){
+      const TA_RATING=[
+        {id:'tooEasy',emoji:'😅',label:'Too Easy',desc:'Add 5 lbs next session',delta:5},
+        {id:'justRight',emoji:'💪',label:'Just Right',desc:'Add 2.5 lbs next session',delta:2.5},
+        {id:'hardDone',emoji:'😤',label:'Hard But Done',desc:'Same weight next session',delta:0},
+        {id:'tooHard',emoji:'😵',label:'Too Hard',desc:'Drop 5 lbs next session',delta:-5},
+      ];
+      const selectedTA=TA_RATING.find(r=>r.id===taRating);
+      const {exercises:dayExercises}=getTADayData(taSessionNum);
+      const isFinal=taSessionNum===24;
+
+      async function saveTASession(){
+        if(!taRating) return;
+        const delta=selectedTA?.delta||0;
+        const newWeights={...taSavedWeights};
+        dayExercises.forEach(ex=>{const used=taSessionWeights[ex.key]||ex.startWeight||0;newWeights[ex.key]=Math.max(5,used+delta);});
+        setTaSavedWeights(newWeights);
+        try{localStorage.setItem('atp-toned-w-'+currentClient.id,JSON.stringify(newWeights));}catch{}
+        const weekOf=getTAWeekStr(new Date());
+        const newSess={sessionNum:taSessionNum,date:todayStr(),weekOf,rating:taRating,weights:{...taSessionWeights}};
+        const existing=taData?.completedSessions||[];
+        const already=existing.some(s=>s.sessionNum===taSessionNum);
+        const newSessions=already?existing:[...existing,newSess];
+        saveTaData({completedSessions:newSessions,lastSaved:new Date().toISOString()});
+        setTaPhase('sessions');
+      }
+
+      return(
+        <div style={{flex:1,overflowY:'auto',padding:20,display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center'}}>
+          {isFinal?(
+            <div style={{...card,background:'linear-gradient(135deg,#831843,#db2777)',border:'none',width:'100%',padding:24}}>
+              <div style={{fontSize:'3.5rem',marginBottom:8}}>🏆</div>
+              <div style={{fontSize:'1.2rem',fontWeight:900,color:'#fff',marginBottom:6}}>8 Weeks Complete!</div>
+              <div style={{fontSize:'0.78rem',color:'#fbcfe8',lineHeight:1.8}}>Stronger, more defined, more beautiful than ever.<br/>With God, everything is possible. 🙏</div>
+            </div>
+          ):(
+            <div>
+              <div style={{fontSize:'3rem',marginBottom:8}}>💅</div>
+              <div style={{fontSize:'1.1rem',fontWeight:900,color:'#db2777'}}>Session {taSessionNum} Complete!</div>
+              <div style={{fontSize:'0.72rem',color:G.textSoft,marginTop:4}}>She is clothed with strength. Keep showing up! 🙏</div>
+            </div>
+          )}
+          <div style={{...card,background:'#fff0f6',border:'1px solid #fbcfe8',width:'100%'}}>
+            <div style={{fontSize:'0.72rem',fontWeight:700,color:'#db2777',marginBottom:8}}>💅 How did it feel?</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {TA_RATING.map(r=>(
+                <button key={r.id} onClick={()=>setTaRating(r.id)} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',borderRadius:10,border:`2px solid ${taRating===r.id?'#db2777':G.border}`,background:taRating===r.id?'#fff0f6':G.cream,cursor:'pointer',textAlign:'left',fontFamily:'inherit'}}>
+                  <span style={{fontSize:'1.4rem'}}>{r.emoji}</span>
+                  <div>
+                    <div style={{fontSize:'0.78rem',fontWeight:700,color:taRating===r.id?'#db2777':G.text}}>{r.label}</div>
+                    <div style={{fontSize:'0.62rem',color:G.textSoft}}>{r.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedTA&&(
+            <div style={{...card,background:'#f0fdf4',border:'1px solid #bbf7d0',width:'100%',textAlign:'left'}}>
+              <div style={{fontSize:'0.62rem',fontWeight:700,color:'#059669',marginBottom:6}}>📈 NEXT SESSION TARGETS</div>
+              {dayExercises.map((ex,i)=>{
+                const curr=taSessionWeights[ex.key]||ex.startWeight||0;
+                return(<div key={i} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:`1px solid #d1fae5`,fontSize:'0.68rem'}}>
+                  <span style={{color:G.text}}>{ex.name}</span>
+                  <span style={{color:'#059669',fontWeight:700}}>{curr} → {Math.max(5,curr+(selectedTA.delta||0))} lbs</span>
+                </div>);
+              })}
+            </div>
+          )}
+          <button onClick={saveTASession} disabled={!taRating} style={{...btnGreen,background:'linear-gradient(135deg,#831843,#db2777)',width:'100%',opacity:taRating?1:0.5}}>
+            💾 Save Session & Continue
+          </button>
+          {isFinal&&(
+            <div style={{...card,background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)',border:'none',width:'100%',textAlign:'center',padding:16}}>
+              <div style={{fontSize:'0.72rem',color:'rgba(255,255,255,.8)',marginBottom:8}}>Ready for your next challenge?</div>
+              <div style={{fontSize:'0.88rem',fontWeight:800,color:'#fff',marginBottom:4}}>🔼 Zero to 10 Pull-Ups</div>
+              <div style={{fontSize:'0.66rem',color:'rgba(255,255,255,.6)',marginBottom:6}}>or</div>
+              <div style={{fontSize:'0.88rem',fontWeight:800,color:'#fff'}}>📈 Full 12-Week Program</div>
             </div>
           )}
         </div>
