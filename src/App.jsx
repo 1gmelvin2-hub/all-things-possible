@@ -2331,21 +2331,23 @@ const MACHINE_CIRCUITS={
         ]},
       ]},
       "Arms (Biceps/Triceps)":{blocks:[
-        {name:"Superset 1",rounds:4+extraRound,exercises:[
-          {name:"Straight Bar Curl",weight:w("Barbell Curl",40),muscles:"Biceps",instructions:"Strict curl. No swinging. Squeeze hard at top."},
-          {name:"Cable Pushdown",weight:w("Cable Pushdown",35),muscles:"Triceps",instructions:"Push down. Lock out fully. Elbows pinned to sides."},
+        {name:"💪 Bar Superset — Straight Curl + Skull Crusher",rounds:4+extraRound,exercises:[
+          {name:"Straight Bar Curl",weight:w("Barbell Curl",40),muscles:"Biceps",instructions:"Curl from hips to shoulders. Elbows fixed. Squeeze hard at top."},
+          {name:"Skull Crusher",weight:w("Skull Crushers",35),muscles:"Triceps",instructions:"Lie on bench. Lower bar slowly to forehead. Extend arms fully. Control every rep down."},
         ]},
-        {name:"Superset 2",rounds:3,exercises:[
-          {name:"Incline Dumbbell Curl",weight:w("Incline Dumbbell Curl",20),muscles:"Biceps",instructions:"Arms hang on incline. Full stretch. Curl slowly — feel every inch."},
-          {name:"Overhead Cable Extension",weight:w("Overhead Cable Extension",30),muscles:"Triceps",instructions:"Arms overhead. Extend fully. Slow 3-second negative."},
+        {name:"🔗 Overhead Cable + One-Arm Curl",rounds:3,exercises:[
+          {name:"Overhead Cable Tricep Extension",weight:w("Overhead Cable Extension",30),muscles:"Triceps",instructions:"Cable overhead. Both hands on rope. Extend fully downward. Elbows stay tight. Slow return."},
+          {name:"One-Arm Cable Curl (Right)",weight:w("Cable Curl",20),muscles:"Biceps",instructions:"Cable at lowest. Right arm only. Curl from full stretch to shoulder. Squeeze hard at top."},
+          {name:"One-Arm Cable Curl (Left)",weight:w("Cable Curl",20),muscles:"Biceps",instructions:"Left arm. Same form. Full range. Match the right side exactly."},
         ]},
-        {name:"Superset 3",rounds:2,exercises:[
-          {name:"Hammer Curl",weight:w("Hammer Curl",25),muscles:"Biceps, Forearms",instructions:"Neutral grip. Alternate arms. Control the descent."},
-          {name:"Skull Crushers",weight:w("Skull Crushers",35),muscles:"Triceps",instructions:"Lower bar to forehead slowly. Extend arms fully."},
+        {name:"🔗 Incline Curl + Overhead Tricep",rounds:3,exercises:[
+          {name:"Incline Curl (Right Arm)",weight:w("Incline Dumbbell Curl",20),muscles:"Biceps",instructions:"Incline bench, arm hangs free. Curl from full stretch. Slow on the way down — feel every inch."},
+          {name:"Incline Curl (Left Arm)",weight:w("Incline Dumbbell Curl",20),muscles:"Biceps",instructions:"Left arm. Same form. Don't rush the descent. Full stretch at bottom every rep."},
+          {name:"Overhead Tricep Extension",weight:w("Overhead Cable Extension",30),muscles:"Triceps",instructions:"Both hands on rope overhead. Lower slowly behind head. Extend fully. Elbows tight throughout."},
         ]},
-        {name:"🔥 Finisher — Total Burnout",rounds:1,isFinisher:true,isFailure:true,exercises:[
-          {name:"21s Bicep Curl",weight:w("Barbell Curl",30),muscles:"Biceps",instructions:"7 lower half + 7 upper half + 7 full reps. Arms should be cooked after this!"},
-          {name:"Rope Pushdowns to Failure",weight:w("Cable Pushdown",25),muscles:"Triceps",instructions:"Every last rep. Triceps should be completely on fire!"},
+        {name:"🔥 BURNOUT — Cable Curl + Tricep Pushdown",rounds:1,isFinisher:true,isFailure:true,exercises:[
+          {name:"Straight Cable Curl — Burnout",weight:w("Barbell Curl",30),muscles:"Biceps",instructions:"Cable at lowest. Curl nonstop to complete failure. Short sharp reps. Arms completely cooked!"},
+          {name:"Tricep Pushdown — Burnout",weight:w("Cable Pushdown",25),muscles:"Triceps",instructions:"Cable at face height. Push down to absolute failure. Every last rep. Finish strong!"},
         ]},
       ]},
       "Legs":{blocks:[
