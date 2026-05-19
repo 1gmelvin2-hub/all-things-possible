@@ -2382,10 +2382,18 @@ const MACHINE_CIRCUITS={
   }
 
   async function saveBlastSession(rating){
-    const entry={date:todayStr(),group:blastSession.group,weekNum:blastSession.weekNum,exercises:blastSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight})),rating,clientId:currentClient.id,ts:new Date().toISOString()};
+    const exercises=blastSession.exercises
+      ?blastSession.exercises.map(e=>({name:e.name,sets:e.sets,reps:e.reps,weight:e.weight}))
+      :blastSession.blocks
+        ?blastSession.blocks.flatMap(b=>b.exercises.map(e=>({name:e.name,weight:e.weight||0})))
+        :[];
+    const entry={date:todayStr(),group:blastSession.group,weekNum:blastSession.weekNum||1,exercises,rating,clientId:currentClient.id,ts:new Date().toISOString()};
     const newHistory=[...blastHistory,entry];
     setBlastHistory(newHistory);
-    try{localStorage.setItem("atp-blast-new",JSON.stringify(newHistory));await sbSetGlobal("atp-blast-"+currentClient.id,newHistory);}catch(e){}
+    try{
+      localStorage.setItem("atp-blast-new",JSON.stringify(newHistory));
+      await sbSetGlobal("atp-blast-"+currentClient.id,newHistory);
+    }catch(e){console.error("saveBlastSession error:",e);}
     setBlastRating(rating);setShowAddon(true);
   }
 
@@ -6914,22 +6922,30 @@ const BLAST_GROUPS={
     "Arms (Biceps/Triceps)":{
       weightLabel:null,
       weights:["bicep","tricep"],
-      weightLabels:{bicep:"Dumbbell curl weight (lbs)",tricep:"Tricep extension weight (lbs)"},
+      weightLabels:{bicep:"Straight bar curl weight (lbs)",tricep:"Tricep pushdown weight (lbs)"},
       weightPlaceholders:{bicep:"e.g. 25",tricep:"e.g. 30"},
       blocks:[
-        {name:"Bicep Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
-          {name:"Straight Bar Curl",instructions:"Stand, curl bar from hips to shoulders. Squeeze hard at top. Elbows stay fixed.",scaleKey:"bicep",scale:1},
-          {name:"Hammer Curl",instructions:"Neutral grip, thumbs up. Curl dumbbells alternating. Control the descent fully.",scaleKey:"bicep",scale:0.9},
+        // Block 1 — Straight bar curl + Skull crusher (two bar exercises)
+        {name:"Bar Superset — Curl + Skull Crusher",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
+          {name:"Straight Bar Curl",instructions:"Curl from hips to shoulders. Squeeze hard at top. Elbows fixed.",scaleKey:"bicep",scale:1},
+          {name:"Skull Crusher",instructions:"Lie on bench. Lower bar to forehead slowly. Extend arms fully. Control the weight down.",scaleKey:"tricep",scale:0.9},
         ]},
-        {name:"Bicep Finisher",type:"finisher",duration:8,workSec:45,restSec:30,exercises:[
-          {name:"Behind the Back Cable Curl",instructions:"Cable behind you at lowest setting. Curl forward. Stretch is incredible — feel it!",scaleKey:"bicep",scale:0.7},
+        // Block 2 — Overhead cable extension + one-arm curl (10s rest between arms)
+        {name:"Overhead Cable + One-Arm Curl",type:"onearm",duration:8,overheadSec:40,armSec:30,restBetweenArms:10,restAfterBlock:40,exercises:[
+          {name:"Overhead Cable Tricep Extension",instructions:"Cable overhead. Both hands on rope. Extend fully. Elbows stay tight. Slow return.",scaleKey:"tricep",scale:0.85},
+          {name:"One-Arm Cable Curl (Right)",instructions:"Cable at lowest setting. Right arm. Curl from full stretch to shoulder. Squeeze hard.",scaleKey:"bicep",scale:0.75,arm:"right"},
+          {name:"One-Arm Cable Curl (Left)",instructions:"Left arm. Same form. Full range. Squeeze at top. Match the right side.",scaleKey:"bicep",scale:0.75,arm:"left"},
         ]},
-        {name:"Tricep Superset",type:"superset",duration:7,restBetween:0,restAfterPair:30,exercises:[
-          {name:"Cable Pushdown",instructions:"Push down, lock out at bottom. Keep elbows pinned tight to sides throughout.",scaleKey:"tricep",scale:1},
-          {name:"Overhead Tricep Extension",instructions:"Hold dumbbell overhead with both hands. Lower behind head slowly, extend fully.",scaleKey:"tricep",scale:0.9},
+        // Block 3 — Incline curl + overhead tricep (right 30s, left 30s, rest 40s)
+        {name:"Incline Curl + Overhead Tricep",type:"onearm",duration:7,overheadSec:40,armSec:30,restBetweenArms:10,restAfterBlock:40,exercises:[
+          {name:"Incline Dumbbell Curl (Right)",instructions:"Incline bench, arm hangs. Curl from full stretch to shoulder. Slow — feel the bicep stretch.",scaleKey:"bicep",scale:0.8,arm:"right"},
+          {name:"Incline Dumbbell Curl (Left)",instructions:"Left arm. Same form. Full range. Don't rush the descent.",scaleKey:"bicep",scale:0.8,arm:"left"},
+          {name:"Overhead Tricep Extension",instructions:"Dumbbell or cable overhead. Lower behind head slowly. Extend fully. Elbows tight.",scaleKey:"tricep",scale:0.9},
         ]},
-        {name:"Tricep Finisher",type:"finisher",duration:6,workSec:45,restSec:30,exercises:[
-          {name:"Skull Crushers",instructions:"Lie on bench, lower bar to forehead. Extend arms fully. Control the weight down.",scaleKey:"tricep",scale:0.85},
+        // Block 4 — Burnout straight cable curl + burnout tricep extension
+        {name:"🔥 BURNOUT — Cable Curl + Tricep Extension",type:"burnout",duration:6,workSec:45,restSec:15,exercises:[
+          {name:"Straight Cable Curl — Burnout",instructions:"Cable at lowest. Curl nonstop until failure. Short sharp reps. Arms should be cooked!",scaleKey:"bicep",scale:0.8},
+          {name:"Tricep Pushdown — Burnout",instructions:"Cable at face height. Push down to failure. Every last rep. Finish completely!",scaleKey:"tricep",scale:0.85},
         ]},
       ]
     },
@@ -7083,7 +7099,10 @@ const BLAST_GROUPS={
     const entry={date:todayStr(),group:blastSession.group,rating,weights:blastSession.weightInputs,clientId:currentClient.id,ts:new Date().toISOString()};
     const newHistory=[...blastHistory,entry];
     setBlastHistory(newHistory);
-    try{localStorage.setItem("atp-blast",JSON.stringify(newHistory));}catch(e){}
+    try{
+      localStorage.setItem("atp-blast",JSON.stringify(newHistory));
+      await sbSetGlobal("atp-blast-"+currentClient.id,newHistory);
+    }catch(e){console.error("saveBlastSession error:",e);}
     setBlastRating(rating);
   }
 
