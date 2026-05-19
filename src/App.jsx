@@ -3748,13 +3748,13 @@ const renderMachineCircuit=()=>{
               <div style={{fontSize:'0.62rem',color:G.textSoft,marginTop:4}}>Set {pullupSetIdx+1} of {totalSets}</div>
             </div>
             {isGymEx&&(
-              <div style={{...card,padding:'10px 14px'}}>
-                <div style={{fontSize:'0.64rem',color:G.textSoft,marginBottom:6,fontWeight:700}}>Working Weight</div>
+              <div style={{...card,padding:'10px 14px',background:'#ffffff'}}>
+                <div style={{fontSize:'0.64rem',color:'#6b7280',marginBottom:6,fontWeight:700,textAlign:'center'}}>Working Weight</div>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
-                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:Math.max(0,(w[ex.key]||0)-5)}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>-</button>
-                  <div style={{fontSize:'2.2rem',fontWeight:900,color:exColor,minWidth:70,textAlign:'center'}}>{currentWeight}</div>
-                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:(w[ex.key]||0)+5}))} style={{width:36,height:36,borderRadius:'50%',border:`1px solid ${G.border}`,background:G.cream,cursor:'pointer',fontSize:'1.2rem'}}>+</button>
-                  <span style={{fontSize:'0.64rem',color:G.textSoft}}>lbs</span>
+                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:Math.max(0,(w[ex.key]||0)-5)}))} style={{width:36,height:36,borderRadius:'50%',border:'1px solid #e5e7eb',background:'#f9fafb',cursor:'pointer',fontSize:'1.2rem',color:'#374151'}}>-</button>
+                  <div style={{fontSize:'2.2rem',fontWeight:900,color:exColor,minWidth:70,textAlign:'center',background:'#f0f4ff',borderRadius:10,padding:'4px 8px'}}>{currentWeight}</div>
+                  <button onClick={()=>setPullupSessionWeights(w=>({...w,[ex.key]:(w[ex.key]||0)+5}))} style={{width:36,height:36,borderRadius:'50%',border:'1px solid #e5e7eb',background:'#f9fafb',cursor:'pointer',fontSize:'1.2rem',color:'#374151'}}>+</button>
+                  <span style={{fontSize:'0.64rem',color:'#6b7280'}}>lbs</span>
                 </div>
               </div>
             )}
@@ -3782,13 +3782,13 @@ const renderMachineCircuit=()=>{
                 </div>
               </div>
             )}
-            {(ex.type==='rep'||ex.type==='groove')&&pullupTimerMode==='idle'&&(
+            {(ex.type==='rep'||ex.type==='groove'||isGymEx)&&pullupTimerMode==='idle'&&(
               <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
                 <div style={{fontSize:'0.76rem',color:G.textSoft}}><strong style={{color:exColor}}>{totalReps} reps</strong> · UP fast · HOLD · 3-2-1 down</div>
                 <button onClick={()=>{setPullupRepIdx(0);setPullupCadenceStep(0);setPullupTimer(1);setPullupTimerTotal(1);setPullupTimerMode('cadence');setPullupTimerActive(true);}} style={{...btnGreen,background:`linear-gradient(135deg,#1e3a5f,${exColor})`,width:'100%'}}>▶ Start Set {pullupSetIdx+1} — {totalReps} Reps</button>
               </div>
             )}
-            {(ex.type==='rep'||ex.type==='groove')&&pullupTimerMode==='cadence'&&(
+            {(ex.type==='rep'||ex.type==='groove'||isGymEx)&&pullupTimerMode==='cadence'&&(
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
                 <div style={{fontSize:'0.68rem',color:G.textSoft,fontWeight:600}}>Rep {pullupRepIdx+1} of {totalReps}</div>
                 <div style={{...card,background:cadStep.bg,border:`3px solid ${cadStep.color}`,textAlign:'center',padding:'20px 16px',width:'100%'}}>
